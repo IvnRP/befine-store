@@ -276,6 +276,19 @@ Befine.auth = {
   },
   /* Registro: el trigger handle_new_user crea la fila en perfiles con el nombre enviado */
   async registrar({ nombre, email, password, telefono }) {
+    // Si compró como invitado (sesión anónima), se convierte ESE usuario en cuenta para que
+    // conserve sus pedidos. Supabase pide confirmar el correo antes de fijar la contraseña:
+    // se intenta guardarla de inmediato y, si aún no se puede, el enlace del correo abre
+    // cuenta.html?modo=nueva para elegirla.
+    const { data: ses } = await sb.auth.getSession();
+    const actual = ses && ses.session && ses.session.user;
+    if (actual && actual.is_anonymous) {
+      const { error: e1 } = await sb.auth.updateUser({ email, data: { nombre, telefono } },
+        { emailRedirectTo: APP_URL ? APP_URL + "cuenta.html?modo=nueva" : undefined });
+      if (e1) return { ok: false, error: _msgAuth(e1) };
+      await sb.auth.updateUser({ password }).catch(() => {});
+      return { ok: true, confirmar: true };
+    }
     const { data, error } = await sb.auth.signUp({
       email, password,
       options: { data: { nombre, telefono }, emailRedirectTo: APP_URL ? APP_URL + "cuenta.html" : undefined },
@@ -304,8 +317,8 @@ Befine.auth = {
 /* =====================================================================
    CHECKOUT — cobertura, despacho, días de entrega, pedido y pago.
    Lectura de cobertura: REAL (tablas comunas_cobertura / zonas_despacho /
-   parametros, lectura pública). Crear pedido y pagar: DEMO hasta el backend
-   (compra como invitado + Mercado Pago). La UI no cambia al conectarlo.
+   parametros, lectura pública). Crear pedido: REAL con crear_pedido() (SC-03), como
+   invitado (sesión anónima) o con cuenta. Pago con Mercado Pago: simulado hasta el Sprint 3.
    ===================================================================== */
 // Contacto del negocio (pendiente migrar a parametros / Admin)
 const CONTACTO = { whatsapp: "56958549641" };
@@ -364,40 +377,83 @@ Befine.diasEntrega = function (desde = new Date()) {
 };
 Befine.isoFecha = _iso;
 
-/* Crear pedido. payload = {
-     contacto:{nombre,email,telefono}, direccion:{calle,numero,depto,comuna,region,referencia},
+/* Mensajes de crear_pedido() → español claro. Las validaciones del servidor ya vienen en
+   español (raise exception); los errores técnicos se traducen a un mensaje genérico. */
+function _msgPedido(e) {
+  const m = (e && e.message) || "";
+  const low = m.toLowerCase();
+  if (low.includes("anonymous sign-ins are disabled")) return "La compra como invitado aún no está activada. Ingresa con tu cuenta para comprar.";
+  if (low.includes("failed to fetch") || low.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
+  if (low.includes("rate limit") || low.includes("too many")) return "Demasiados intentos. Espera un minuto e inténtalo de nuevo.";
+  // Mensajes propios de la función (validaciones de negocio en español)
+  if (m && !/permission|jwt|function|relation|column|syntax|violates|null value|pgrst/i.test(m)) return m;
+  return "No pudimos crear el pedido. Inténtalo de nuevo.";
+}
+
+/* Asegura una sesión para comprar: si no hay, crea una sesión anónima de invitado
+   (Supabase Anonymous Sign-Ins). Así el pedido queda con perfil_id = auth.uid() y el RLS aplica. */
+async function _sesionCompra() {
+  const { data } = await sb.auth.getSession();
+  if (data && data.session) return data.session.user;
+  const { data: d2, error } = await sb.auth.signInAnonymously();
+  if (error) throw error;
+  return d2.user;
+}
+
+/* Crear pedido (SC-03): ÚNICA vía = función crear_pedido() en el servidor, que toma precios,
+   despacho y cupones desde la base y recalcula el total (el navegador no decide montos).
+   payload = { contacto:{nombre,email,telefono}, direccion:{calle,numero,depto,comuna,region,referencia},
      entrega:{tipo:'estandar'|'agendada', fecha:'AAAA-MM-DD'}, documento:{tipo:'boleta'|'factura',rut,razon_social,giro},
-     items:[{variante_id,nombre,variante,cantidad,precio_unitario}], subtotal, costo_despacho, total }
-   DEMO: se guarda en este navegador. PRODUCCIÓN: RPC/Edge Function que valida precios,
-   recalcula totales y crea pedidos + detalle_pedido (ver claude/pendiente-backend-checkout.md). */
+     items:[{variante_id,nombre,variante,cantidad,precio_unitario}], cupon? }
+   Devuelve { ok, pedido } con id, numero, estado y montos DEL SERVIDOR, o { ok:false, error }. */
 Befine.crearPedido = async function (payload) {
-  await new Promise((r) => setTimeout(r, 650));
-  let lista = [];
-  try { lista = JSON.parse(localStorage.getItem("befine_pedidos_demo") || "[]"); } catch (e) {}
-  const pedido = { ...payload, id: "demo-" + Date.now(), numero: 1000 + lista.length + 1, estado: "pendiente_pago", created_at: new Date().toISOString() };
-  lista.unshift(pedido);
-  try { localStorage.setItem("befine_pedidos_demo", JSON.stringify(lista.slice(0, 30))); } catch (e) {}
-  return { ok: true, pedido };
+  try {
+    await _sesionCompra();
+    const d = payload.direccion || {}, c = payload.contacto || {};
+    const { data, error } = await sb.rpc("crear_pedido", {
+      p_items: (payload.items || []).map((i) => ({ variante_id: i.variante_id, cantidad: i.cantidad })),
+      p_direccion: { calle: d.calle, numero: d.numero, depto: d.depto || null, comuna: d.comuna, referencia: d.referencia || null },
+      p_contacto: { nombre: c.nombre, telefono: c.telefono, email: c.email },
+      p_entrega: payload.entrega || null,
+      p_documento: payload.documento || { tipo: "boleta" },
+      p_cupon_codigo: payload.cupon || null,
+      p_notas: payload.notas || null,
+    });
+    if (error) return { ok: false, error: _msgPedido(error) };
+    const pedido = {
+      ...payload,
+      id: data.id, numero: data.numero, estado: data.estado,
+      subtotal: data.subtotal, costo_despacho: data.costo_despacho, descuento_cupon: data.descuento_cupon,
+      total: data.total, puntos_ganados: data.puntos_ganados,
+      entrega: { ...(payload.entrega || {}), fecha: data.fecha_entrega || (payload.entrega && payload.entrega.fecha) },
+      created_at: new Date().toISOString(),
+    };
+    return { ok: true, pedido };
+  } catch (e) { return { ok: false, error: _msgPedido(e) }; }
 };
 
-/* Pagar con Mercado Pago. DEMO: aprueba en ~1 s. PRODUCCIÓN: una Edge Function crea la
-   preferencia de pago y se redirige a su init_point; el webhook confirma el pago (HU-08/09). */
+/* Pagar con Mercado Pago. SIMULADO hasta el Sprint 3 (HU-08/09): no cambia nada en la base.
+   El pedido queda en 'pendiente_pago'; solo el webhook de Mercado Pago lo marcará 'pagado'.
+   PRODUCCIÓN: una Edge Function crea la preferencia de pago y se redirige a su init_point. */
 Befine.pagar = async function (pedido) {
   await new Promise((r) => setTimeout(r, 900));
-  pedido.estado = "pagado";
-  try {
-    const lista = JSON.parse(localStorage.getItem("befine_pedidos_demo") || "[]");
-    const it = lista.find((x) => x.id === pedido.id); if (it) it.estado = "pagado";
-    localStorage.setItem("befine_pedidos_demo", JSON.stringify(lista));
-  } catch (e) {}
-  return { ok: true, estado: "aprobado" };
+  return { ok: true, estado: "simulado" };
 };
 
-/* Pedidos del cliente (por correo). DEMO: los de este navegador. PRODUCCIÓN: select a pedidos (RLS). */
-Befine.misPedidos = async function (email) {
+/* Pedidos del cliente con sesión (RLS: solo los propios). Formato que usa cuenta.js:
+   [{ id, numero, estado, total, created_at, items:[{cantidad}] }] */
+Befine.misPedidos = async function () {
   try {
-    const lista = JSON.parse(localStorage.getItem("befine_pedidos_demo") || "[]");
-    return email ? lista.filter((p) => p.contacto && p.contacto.email === email) : lista;
+    const { data: ses } = await sb.auth.getSession();
+    const uid = ses && ses.session && ses.session.user && ses.session.user.id;
+    if (!uid) return [];
+    const { data, error } = await sb.from("pedidos")
+      .select("id,numero,estado,total,created_at,detalle_pedido(cantidad)")
+      .eq("perfil_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error || !data) return [];
+    return data.map((p) => ({ ...p, items: p.detalle_pedido || [] }));
   } catch (e) { return []; }
 };
 
