@@ -42,9 +42,21 @@ test("CP-U09 comuna sin cobertura devuelve null (no permite continuar)", () => {
 });
 
 test("CP-U10a entrega estándar al siguiente día hábil", () => {
-  assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 9, 9, 15)).estandar), "2026-10-12");  // viernes -> lunes
+  assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 9, 15, 15)).estandar), "2026-10-16"); // jueves -> viernes
   assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 9, 6, 10)).estandar), "2026-10-07");  // martes -> miércoles
-  assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 9, 10, 10)).estandar), "2026-10-12"); // sábado -> lunes
+  assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 9, 17, 10)).estandar), "2026-10-19"); // sábado -> lunes
+});
+
+test("CP-U10c no se entrega en feriados (mejora M-01)", () => {
+  // viernes 09-10 -> lunes 12-10 es feriado -> martes 13-10
+  assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 9, 9, 15)).estandar), "2026-10-13");
+  // lunes 07-12 -> martes 08-12 es feriado -> miércoles 09-12
+  assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 11, 7, 10)).estandar), "2026-12-09");
+  // jueves 31-12 -> viernes 01-01 es feriado -> lunes 04-01
+  assert.equal(Befine.isoFecha(Befine.diasEntrega(new Date(2026, 11, 31, 10)).estandar), "2027-01-04");
+  // los feriados no aparecen como fechas agendables
+  const isos = Array.from(Befine.diasEntrega(new Date(2026, 11, 1)).agendables, Befine.isoFecha);
+  assert.ok(!isos.includes("2026-12-08") && !isos.includes("2026-12-25"));
 });
 
 test("CP-U10b 20 fechas agendables, en orden, sin sábados ni domingos y sin repetir", () => {

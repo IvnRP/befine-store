@@ -322,9 +322,30 @@ Befine.auth = {
    ===================================================================== */
 // Contacto del negocio (pendiente migrar a parametros / Admin)
 const CONTACTO = { whatsapp: "56958549641" };
-// Regla de entrega: lunes a viernes; el pedido estándar llega el siguiente día hábil.
-// FERIADOS: fechas "AAAA-MM-DD" sin reparto (pendiente: editable desde el Admin).
-const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: [] };
+// Regla de entrega: lunes a viernes, sin feriados; el pedido estándar llega el siguiente día hábil.
+// FERIADOS (mejora M-01): feriados legales de Chile en "AAAA-MM-DD". Esta lista es el respaldo;
+// si existe el parámetro "feriados" en la tabla parametros (editable desde el Admin), se usa ese.
+// Mantener al día cada año (cubre la ventana de 20 días hábiles agendables).
+const FERIADOS_CL = [
+  "2026-10-12", // Encuentro de Dos Mundos
+  "2026-10-31", // Día de las Iglesias Evangélicas y Protestantes
+  "2026-11-01", // Día de Todos los Santos
+  "2026-12-08", // Inmaculada Concepción
+  "2026-12-25", // Navidad
+  "2027-01-01", // Año Nuevo
+];
+const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: FERIADOS_CL.slice() };
+
+/* Feriados guardados en parametros.valor: arreglo JSON ["AAAA-MM-DD", ...] o texto separado por comas.
+   Devuelve solo fechas con formato válido; null si no hay ninguna (se mantiene el respaldo local). */
+function _parseFeriados(valor) {
+  if (!valor) return null;
+  let lista;
+  try { lista = JSON.parse(valor); } catch (e) { lista = String(valor).split(","); }
+  if (!Array.isArray(lista)) return null;
+  const ok = lista.map((x) => String(x).trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
+  return ok.length ? ok : null;
+}
 // Respaldo si la BD no responde (mismos datos del schema)
 const COBERTURA_RESPALDO = {
   envioGratisDesde: 7000,
@@ -344,13 +365,16 @@ Befine.contacto = CONTACTO;
 /* Comunas con cobertura y su costo → { envioGratisDesde, comunas:[{comuna, zona, zona_id, costo}] } */
 Befine.getCobertura = async function () {
   try {
-    const [{ data: com, error: e1 }, { data: par }] = await Promise.all([
+    const [{ data: com, error: e1 }, { data: pars }] = await Promise.all([
       sb.from("comunas_cobertura").select("comuna,zona_id,zonas_despacho(nombre,costo_despacho,activo)").eq("activo", true).order("comuna"),
-      sb.from("parametros").select("valor").eq("clave", "envio_gratis_minimo").maybeSingle(),
+      sb.from("parametros").select("clave,valor").in("clave", ["envio_gratis_minimo", "feriados"]),
     ]);
+    const par = (k) => (pars || []).find((x) => x.clave === k);
+    const fer = _parseFeriados(par("feriados") && par("feriados").valor);
+    if (fer) ENTREGA.feriados = fer;
     if (e1 || !com || !com.length) throw e1 || new Error("sin comunas");
     return {
-      envioGratisDesde: par ? Number(par.valor) : COBERTURA_RESPALDO.envioGratisDesde,
+      envioGratisDesde: par("envio_gratis_minimo") ? Number(par("envio_gratis_minimo").valor) : COBERTURA_RESPALDO.envioGratisDesde,
       comunas: com.filter((c) => !c.zonas_despacho || c.zonas_despacho.activo !== false).map((c) => ({
         comuna: c.comuna, zona_id: c.zona_id, zona: c.zonas_despacho ? c.zonas_despacho.nombre : "",
         costo: c.zonas_despacho ? c.zonas_despacho.costo_despacho : 0,
