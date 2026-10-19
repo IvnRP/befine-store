@@ -44,7 +44,7 @@ Supabase
   ├── Auth (correo/contraseña y Google)
   ├── PostgreSQL: 21 tablas + roles y permisos, RLS en todas las tablas
   ├── Funciones SQL: crear_pedido(), tiene_permiso(), es_admin()
-  ├── Migraciones versionadas en web/supabase/migrations/ (01 y 01b aplicadas; 02 y 03 pendientes)
+  ├── Migraciones versionadas en web/supabase/migrations/ (01 y 01b aplicadas; 02, 03 y 04 pendientes)
   └── Edge Functions: resenas-google (Mercado Pago y OpenFactura en construcción)
 
 Servicios externos: Google Places · Mercado Pago · OpenFactura/SII · WhatsApp (wa.me)
@@ -61,8 +61,9 @@ Las claves privadas viven solo como secretos de las Edge Functions; nunca en el 
 | Pedidos (RF-16) | Indicadores del día y del mes, filtros por estado, búsqueda, detalle con WhatsApp al cliente, cambio de estado (pagado → en preparación → en camino → entregado, o cancelar) | `pedidos.ver` / `pedidos.gestionar` |
 | Catálogo y precios (RF-17) | Crear y editar productos y variantes, publicar u ocultar, editar precios en la lista | `catalogo.gestionar` / `precios.gestionar` |
 | Inventario (RF-18) | Stock por variante con alerta de stock bajo (umbral editable en `parametros.stock_alerta`) | `catalogo.gestionar` (umbral: `config.gestionar`) |
+| Cupones (RF-20) | Campañas (fechas, usos totales y por cliente, compra mínima, productos) y cupón de bienvenida (solo 1ª compra, con cuenta); pausar y ver usos | `promociones.gestionar` |
 
-Seguridad en dos capas: el panel muestra solo lo que el rol puede usar y el **RLS** de Supabase bloquea cualquier cambio no permitido. El estado *Pagado* lo marca solo la confirmación de Mercado Pago.
+Seguridad en dos capas: el panel muestra solo lo que el rol puede usar y el **RLS** de Supabase bloquea cualquier cambio no permitido. El estado *Pagado* lo marca solo la confirmación de Mercado Pago. Las reglas de los cupones se validan en el servidor al crear el pedido (`crear_pedido()` + `_evaluar_cupon()`, migración 04 pendiente): el cupón de bienvenida se rechaza si la cuenta, el correo o el teléfono ya compraron.
 
 **Crear el primer administrador** (una vez, en Supabase → SQL Editor, con el correo de la cuenta del dueño ya registrada):
 
@@ -108,7 +109,7 @@ Requisito: Node.js 20 o superior (no hay que instalar dependencias).
 npm test
 ```
 
-50 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega, validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados de pedidos, precios, SKU e inventario). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
+58 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega, validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados de pedidos, precios, SKU, inventario y cupones) y el cupón del checkout. Las reglas de cupones en la base tienen además su prueba en seco SQL (`web/supabase/migrations/pendientes/04_prueba_en_seco.sql`, 20 casos). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
 
 ## Estructura
 
