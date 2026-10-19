@@ -4,9 +4,9 @@
 -- un error intencional: todo se deshace. El texto del error muestra los
 -- resultados T01..T20. Busca la palabra FALLA: no debería aparecer.
 --
--- Uso: pegar primero el contenido completo de 04_cupones_reglas.sql y, a
--- continuación, este archivo, y ejecutar todo junto con "begin;" al inicio
--- (el bloque final hace rollback por error).
+-- Uso: pegar en una misma consulta el contenido completo de 04_cupones_reglas.sql
+-- y, a continuación, este archivo, y ejecutar (sin agregar begin/commit). El SQL
+-- Editor ejecuta todo como una sola transacción: el error final la deshace entera.
 
 do $do$
 declare

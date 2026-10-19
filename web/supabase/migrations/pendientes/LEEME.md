@@ -86,7 +86,7 @@ await sb.auth.updateUser({ email: contacto.email, password });   // mismo id, co
 ```sql
 select pg_get_functiondef('public.crear_pedido(jsonb,jsonb,jsonb,jsonb,jsonb,text,text)'::regprocedure);
 ```
-**Prueba en seco:** `04_prueba_en_seco.sql` (20 casos). En el SQL Editor pegar `begin;` + el contenido de `04_cupones_reglas.sql` + el de `04_prueba_en_seco.sql` y ejecutar; termina con un error intencional que deshace todo y lista T01–T20 (no debe aparecer FALLA). Verificada el 19-oct-2026 sobre una réplica local (schema DEFINITIVO + catálogo + 01 + 01b): 20/20 OK, y la reversa también.
+**Prueba en seco:** `04_prueba_en_seco.sql` (20 casos). En el SQL Editor pegar en una misma consulta el contenido de `04_cupones_reglas.sql` seguido del de `04_prueba_en_seco.sql` (sin `begin`/`commit`) y ejecutar; termina con un error intencional que deshace todo y lista T01–T20 (no debe aparecer FALLA). Verificada el 19-oct-2026 sobre una réplica local (schema DEFINITIVO + catálogo + 01 + 01b): 20/20 OK, y la reversa también.
 
 ---
 
