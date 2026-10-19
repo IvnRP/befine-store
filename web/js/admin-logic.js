@@ -30,6 +30,7 @@
   /* Secciones del panel y el permiso que habilita cada una (basta con uno de la lista) */
   const SECCIONES = [
     { id: "pedidos", txt: "Pedidos", requiere: ["pedidos.ver", "pedidos.gestionar"] },
+    { id: "catalogo", txt: "Catálogo y precios", requiere: ["catalogo.gestionar", "precios.gestionar"] },
   ];
   const seccionesVisibles = (permisos) =>
     SECCIONES.filter((s) => s.requiere.some((p) => puede(permisos, p)));
@@ -137,10 +138,61 @@
     return /^569\d{8}$/.test(d) ? "+56 9 " + d.slice(3, 7) + " " + d.slice(7) : (t || "—");
   };
 
+  /* ---------- Catálogo y precios (RF-17) ---------- */
+  /* Precio en CLP desde lo que escribe el dueño: "3000", "3.000", "$3.000" → 3000.
+     Devuelve null si no es un entero válido entre 0 y 9.999.999. */
+  function parsePrecio(v) {
+    if (typeof v === "number") return Number.isInteger(v) && v >= 0 && v <= 9999999 ? v : null;
+    const t = String(v == null ? "" : v).trim().replace(/^\$\s*/, "").replace(/\./g, "");
+    if (!/^\d{1,7}$/.test(t)) return null;
+    return Number(t);
+  }
+
+  /* SKU: mayúsculas, sin espacios ni acentos (BEF-REC-20) */
+  const normalizarSku = (v) => norm(v).toUpperCase().replace(/\s+/g, "-").replace(/[^A-Z0-9-]/g, "");
+
+  /* Validaciones → objeto { campo: "mensaje" } (vacío = válido) */
+  function validarProducto(p) {
+    const e = {};
+    const nombre = String((p && p.nombre) || "").trim();
+    if (nombre.length < 3) e.nombre = "Escribe el nombre del producto (mínimo 3 caracteres).";
+    else if (nombre.length > 120) e.nombre = "El nombre es muy largo (máximo 120 caracteres).";
+    if (!p || !p.categoria_id) e.categoria_id = "Elige una categoría.";
+    if (p && p.descripcion && String(p.descripcion).length > 1000) e.descripcion = "La descripción es muy larga (máximo 1.000 caracteres).";
+    if (p && p.imagen_url && !/^https:\/\/\S+$/i.test(String(p.imagen_url).trim())) e.imagen_url = "La imagen debe ser un enlace https://";
+    return e;
+  }
+
+  function validarVariante(v, skusExistentes, idActual) {
+    const e = {};
+    const sku = normalizarSku(v && v.sku);
+    if (!/^[A-Z0-9][A-Z0-9-]{2,39}$/.test(sku)) e.sku = "El SKU debe tener entre 3 y 40 caracteres (letras, números y guiones).";
+    else if ((skusExistentes || []).some((x) => x && x.sku === sku && x.id !== idActual)) e.sku = "Ese SKU ya existe en otro producto.";
+    const nombre = String((v && v.nombre) || "").trim();
+    if (!nombre) e.nombre = "Escribe el nombre de la variante (ej: Estándar, Con bidón Befine).";
+    else if (nombre.length > 60) e.nombre = "Máximo 60 caracteres.";
+    if (v && "precio" in v && parsePrecio(v.precio) === null) e.precio = "Escribe un precio válido en pesos, sin decimales.";
+    return e;
+  }
+
+  /* Filtro del catálogo: categoría (id), visibilidad y texto (nombre, SKU o variante) */
+  function filtrarCatalogo(productos, { categoria = "", q = "", estado = "todos" } = {}) {
+    const t = norm(q);
+    return (productos || []).filter((p) => {
+      if (categoria && String(p.categoria_id) !== String(categoria)) return false;
+      if (estado === "visibles" && !p.activo) return false;
+      if (estado === "ocultos" && p.activo) return false;
+      if (!t) return true;
+      const vs = (p.variantes || []).map((v) => v.sku + " " + v.nombre).join(" ");
+      return norm(p.nombre + " " + vs).includes(t);
+    });
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
     TRANSICIONES, siguientesEstados, puedeCambiar, ACCION_ESTADO,
     filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, linkWhatsApp, telefonoVisible,
+    parsePrecio, normalizarSku, validarProducto, validarVariante, filtrarCatalogo,
   };
 })(typeof window !== "undefined" ? window : globalThis);

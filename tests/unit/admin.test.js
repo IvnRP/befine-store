@@ -1,5 +1,5 @@
 /* Pruebas de las reglas del panel de administración (web/js/admin-logic.js)
-   Casos CP-U14 (acceso por rol) y CP-U15 (pedidos) del Plan de Pruebas. */
+   Casos CP-U14 (acceso por rol) , CP-U15 (pedidos) y CP-U16 (catálogo) del Plan de Pruebas. */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { cargar } = require("../helpers/cargar");
@@ -26,6 +26,7 @@ test("CP-U14c el panel muestra solo las secciones permitidas", () => {
   const ids = (p) => arr(L.seccionesVisibles(p)).map((s) => s.id);
   assert.ok(ids(L.permisosDe("admin", [])).includes("pedidos"));
   assert.deepEqual(ids(["pedidos.ver"]), ["pedidos"]);
+  assert.deepEqual(ids(["precios.gestionar"]), ["catalogo"]);   // solo precios: entra al catálogo
   assert.deepEqual(ids([]), []);                       // cliente: sin acceso al panel
 });
 
@@ -84,4 +85,47 @@ test("CP-U15e enlace de WhatsApp solo con celular chileno válido", () => {
   assert.equal(L.linkWhatsApp("221234567"), null);
   assert.equal(L.linkWhatsApp(null), null);
   assert.equal(L.telefonoVisible("56991234567"), "+56 9 9123 4567");
+});
+
+/* ---------- Catálogo y precios (RF-17) — CP-U16 ---------- */
+test("CP-U16a precio en pesos: acepta $3.000 / 3000 y rechaza decimales, negativos y texto", () => {
+  assert.equal(L.parsePrecio("3000"), 3000);
+  assert.equal(L.parsePrecio("$3.000"), 3000);
+  assert.equal(L.parsePrecio("$ 159.990"), 159990);
+  assert.equal(L.parsePrecio(0), 0);
+  assert.equal(L.parsePrecio("3,5"), null);
+  assert.equal(L.parsePrecio("-100"), null);
+  assert.equal(L.parsePrecio("gratis"), null);
+  assert.equal(L.parsePrecio(""), null);
+  assert.equal(L.parsePrecio("10000000"), null);   // sobre $9.999.999: probable error de tipeo
+});
+
+test("CP-U16b SKU normalizado y único entre todas las variantes", () => {
+  assert.equal(L.normalizarSku(" bef rec 20 "), "BEF-REC-20");
+  assert.equal(L.normalizarSku("bef-bidón-12"), "BEF-BIDON-12");
+  const existentes = [{ id: "v1", sku: "BEF-REC-20-BEFINE" }];
+  assert.ok(L.validarVariante({ sku: "bef-rec-20-befine", nombre: "Otra" }, existentes, null).sku);
+  assert.deepEqual(Object.keys(L.validarVariante({ sku: "BEF-REC-20-BEFINE", nombre: "Misma" }, existentes, "v1")), []); // editar la propia
+  assert.ok(L.validarVariante({ sku: "AB", nombre: "x" }, [], null).sku);
+  assert.ok(L.validarVariante({ sku: "BEF-NUEVO", nombre: "" }, [], null).nombre);
+  assert.ok(L.validarVariante({ sku: "BEF-NUEVO", nombre: "Estándar", precio: "abc" }, [], null).precio);
+});
+
+test("CP-U16c producto: nombre, categoría e imagen https obligatoria si se informa", () => {
+  assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Recarga 20 L", categoria_id: 4 })), []);
+  const e = L.validarProducto({ nombre: "ab", categoria_id: "", imagen_url: "http://sitio.cl/a.png" });
+  assert.ok(e.nombre && e.categoria_id && e.imagen_url);
+  assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Pack", categoria_id: 1, imagen_url: "https://x.supabase.co/a.webp" })), []);
+});
+
+test("CP-U16d filtro del catálogo por categoría, visibilidad y SKU", () => {
+  const cat = [
+    { id: "p1", nombre: "Recarga Bidón 20 Litros", categoria_id: 4, activo: true, variantes: [{ sku: "BEF-REC-20-BEFINE", nombre: "Con bidón Befine" }] },
+    { id: "p2", nombre: "Dispensador USB", categoria_id: 2, activo: false, variantes: [{ sku: "BEF-DISP-USB", nombre: "Estándar" }] },
+  ];
+  const ids = (l) => arr(l).map((p) => p.id);
+  assert.deepEqual(ids(L.filtrarCatalogo(cat, { categoria: "4" })), ["p1"]);
+  assert.deepEqual(ids(L.filtrarCatalogo(cat, { estado: "ocultos" })), ["p2"]);
+  assert.deepEqual(ids(L.filtrarCatalogo(cat, { q: "disp-usb" })), ["p2"]);
+  assert.deepEqual(ids(L.filtrarCatalogo(cat, { q: "bidon" })), ["p1"]);
 });

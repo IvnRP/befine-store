@@ -95,5 +95,100 @@
       if (!data || !data.length) return { ok: false, error: "No se aplicó: el pedido cambió mientras lo revisabas o no tienes permiso. Se recargó con su estado actual.", recargar: true };
       return { ok: true, estado: data[0].estado };
     },
+
+    /* ================= CATÁLOGO Y PRECIOS (RF-17) ================= */
+    async listCategorias() {
+      const { data, error } = await sb.from("categorias").select("id,nombre,slug").order("id");
+      if (error) throw error;
+      return data || [];
+    },
+
+    /* Todos los productos, también los ocultos (RLS: los inactivos solo los ve quien tiene
+       catalogo.gestionar). Cada variante trae su precio de venta (nivel retail). */
+    async listCatalogo() {
+      const nivel = await _nivelRetail();
+      const { data, error } = await sb.from("productos")
+        .select("id,categoria_id,nombre,descripcion,imagen_url,activo,created_at,categorias(nombre)," +
+                "variantes_producto(id,producto_id,sku,nombre,stock,controla_stock,activo,precios_variante(nivel_precio_id,precio))")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []).map((p) => ({
+        id: p.id, categoria_id: p.categoria_id, categoria: (p.categorias && p.categorias.nombre) || "Sin categoría",
+        nombre: p.nombre, descripcion: p.descripcion, imagen_url: p.imagen_url, activo: p.activo,
+        variantes: (p.variantes_producto || [])
+          .sort((a, b) => (a.sku || "").localeCompare(b.sku || ""))
+          .map((v) => {
+            const pr = (v.precios_variante || []).find((x) => x.nivel_precio_id === nivel);
+            return { id: v.id, producto_id: v.producto_id, sku: v.sku, nombre: v.nombre, stock: v.stock,
+              controla_stock: v.controla_stock, activo: v.activo, precio: pr ? pr.precio : null };
+          }),
+      }));
+    },
+
+    /* Crea o edita un producto. Solo se envían columnas propias de la tabla. */
+    async guardarProducto(p) {
+      const fila = {
+        nombre: String(p.nombre || "").trim(),
+        descripcion: String(p.descripcion || "").trim() || null,
+        categoria_id: Number(p.categoria_id) || null,
+        imagen_url: String(p.imagen_url || "").trim() || null,
+        activo: !!p.activo,
+      };
+      const q = p.id
+        ? sb.from("productos").update(fila).eq("id", p.id).select("id")
+        : sb.from("productos").insert(fila).select("id");
+      const { data, error } = await q;
+      if (error) return { ok: false, error: msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, error: "No se guardó: revisa que tengas permiso para editar el catálogo." };
+      return { ok: true, id: data[0].id };
+    },
+
+    /* Crea o edita una variante. El stock inicial solo se fija al crearla
+       (después se ajusta desde Inventario). */
+    async guardarVariante(v) {
+      const fila = {
+        sku: L.normalizarSku(v.sku),
+        nombre: String(v.nombre || "").trim(),
+        activo: !!v.activo,
+        controla_stock: !!v.controla_stock,
+      };
+      let q;
+      if (v.id) q = sb.from("variantes_producto").update(fila).eq("id", v.id).select("id");
+      else q = sb.from("variantes_producto").insert({ ...fila, producto_id: v.producto_id, stock: Math.max(0, parseInt(v.stock, 10) || 0) }).select("id");
+      const { data, error } = await q;
+      if (error) return { ok: false, error: msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, error: "No se guardó: revisa que tengas permiso para editar el catálogo." };
+      return { ok: true, id: data[0].id };
+    },
+
+    /* Precio de venta (nivel retail) de una variante: crea o reemplaza (RLS: precios.gestionar).
+       crear_pedido() toma el precio desde aquí, así que el cambio rige desde el próximo pedido. */
+    async guardarPrecio(varianteId, precio) {
+      const n = L.parsePrecio(precio);
+      if (n === null) return { ok: false, error: "Escribe un precio válido en pesos, sin decimales." };
+      const nivel = await _nivelRetail();
+      const { data, error } = await sb.from("precios_variante")
+        .upsert({ variante_id: varianteId, nivel_precio_id: nivel, precio: n }, { onConflict: "variante_id,nivel_precio_id" })
+        .select("precio");
+      if (error) return { ok: false, error: msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, error: "No se guardó: revisa que tengas permiso para editar precios." };
+      return { ok: true, precio: n };
+    },
+
+    /* Producto nuevo con su primera variante y precio. Se crea OCULTO y se publica al final,
+       para que la tienda nunca muestre un producto a medio crear (sin variante o sin precio). */
+    async crearProductoCompleto(p, v) {
+      const r1 = await this.guardarProducto({ ...p, activo: false });
+      if (!r1.ok) return r1;
+      const r2 = await this.guardarVariante({ ...v, producto_id: r1.id, activo: true });
+      if (!r2.ok) return { ...r2, error: r2.error + " El producto quedó oculto: complétalo desde Editar.", id: r1.id };
+      const r3 = await this.guardarPrecio(r2.id, v.precio);
+      if (!r3.ok) return { ...r3, error: r3.error + " El producto quedó oculto: revisa el precio.", id: r1.id };
+      if (p.activo) {
+        const r4 = await this.guardarProducto({ ...p, id: r1.id, activo: true });
+        if (!r4.ok) return r4;
+      }
+      return { ok: true, id: r1.id };
+    },
   };
 })();
