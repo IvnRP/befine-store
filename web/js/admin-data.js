@@ -50,5 +50,50 @@
       const { data } = await sb.from("roles").select("nombre").eq("id", rol).maybeSingle();
       return (data && data.nombre) || rol;
     },
+
+    /* ================= PEDIDOS (RF-16) ================= */
+    /* Pedidos de los últimos `dias` (RLS: requiere pedidos.ver). La dirección llega por la
+       política direcciones_reparto. Se limita a 500 para que el panel cargue rápido. */
+    async listPedidos({ dias = 90 } = {}) {
+      const desde = new Date(Date.now() - dias * 864e5).toISOString();
+      const { data, error } = await sb.from("pedidos")
+        .select("id,numero,estado,total,subtotal,costo_despacho,descuento_cupon,created_at,fecha_entrega," +
+                "contacto_nombre,contacto_telefono,contacto_email,tipo_documento," +
+                "direccion:direcciones(calle,numero,depto,comuna,referencia),detalle_pedido(cantidad)")
+        .gte("created_at", desde)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data || []).map((p) => ({
+        ...p,
+        unidades: (p.detalle_pedido || []).reduce((n, d) => n + (d.cantidad || 0), 0),
+      }));
+    },
+
+    /* Detalle completo de un pedido: productos, historial de estados y cupón */
+    async getPedido(id) {
+      const { data, error } = await sb.from("pedidos")
+        .select("*,direccion:direcciones(calle,numero,depto,comuna,referencia)," +
+                "zona:zonas_despacho(nombre),cupon:cupones(codigo)," +
+                "detalle_pedido(cantidad,precio_unitario,subtotal,variante:variantes_producto(sku,nombre,producto:productos(nombre)))," +
+                "historial_pedido(estado_anterior,estado_nuevo,nota,created_at)")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      if (data && data.historial_pedido) data.historial_pedido.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      return data;
+    },
+
+    /* Cambia el estado si el flujo lo permite. Se exige que el pedido siga en el estado
+       que vio el usuario (.eq estado actual): si otra persona lo cambió antes, no se pisa.
+       El trigger de la base registra el cambio en historial_pedido con quién y cuándo. */
+    async cambiarEstado(id, actual, nuevo) {
+      if (!L.puedeCambiar(actual, nuevo)) return { ok: false, error: "Ese cambio de estado no está permitido." };
+      const { data, error } = await sb.from("pedidos")
+        .update({ estado: nuevo }).eq("id", id).eq("estado", actual).select("id,estado");
+      if (error) return { ok: false, error: msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, error: "No se aplicó: el pedido cambió mientras lo revisabas o no tienes permiso. Se recargó con su estado actual.", recargar: true };
+      return { ok: true, estado: data[0].estado };
+    },
   };
 })();

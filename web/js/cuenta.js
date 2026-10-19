@@ -13,6 +13,9 @@
   // Solo se permite volver a páginas propias (evita redirecciones a otros sitios)
   const volver = /^[\w-]+\.html$/.test(url.get("volver") || "") ? url.get("volver") : null;
   const VISTAS = ["fIngresar", "fRegistro", "fRecuperar", "fNueva", "vRevisa"];
+  // Estado del pedido como lo ve el cliente (mismo enum estado_pedido de la base)
+  const ESTADO_TXT = { pendiente_pago: "Pendiente de pago", pagado: "Pagado", en_preparacion: "En preparación",
+    en_ruta: "En camino", entregado: "Entregado", cancelado: "Cancelado" };
 
   document.addEventListener("DOMContentLoaded", async () => {
     document.querySelectorAll("[data-google]").forEach((b) => { b.innerHTML = GOOGLE_SVG + b.textContent; });
@@ -150,7 +153,7 @@
     $("pcPedidos").innerHTML = peds.length ? peds.map((p) => `
       <div class="ped"><span class="num">#${p.numero}</span><span class="fe">${new Date(p.created_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}
         · ${p.items.reduce((n, i) => n + i.cantidad, 0)} producto(s)</span><span class="tot">${Befine.clp(p.total)}</span>
-        <span class="est ${p.estado}">${p.estado === "pagado" ? "Pagado · en preparación" : "Pendiente de pago"}</span></div>`).join("")
+        <span class="est ${p.estado}">${ESTADO_TXT[p.estado] || "Pendiente de pago"}</span></div>`).join("")
       : `<div class="vacio-p">Aún no tienes pedidos.<br><a class="btn btn-primary" href="catalogo.html">Hacer mi primer pedido</a></div>`;
   }
   $("pcSalir").addEventListener("click", async () => { await Befine.auth.salir(); location.href = "index.html"; });
