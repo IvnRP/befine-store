@@ -243,7 +243,8 @@ function _msgAuth(e) {
   if (m.includes("invalid login")) return "Correo o contraseña incorrectos.";
   if (m.includes("already registered") || m.includes("already been registered")) return "Ya existe una cuenta con ese correo. Ingresa o recupera tu contraseña.";
   if (m.includes("email not confirmed")) return "Confirma tu correo: te enviamos un enlace al registrarte.";
-  if (m.includes("password") && (m.includes("at least") || m.includes("6 characters"))) return "La contraseña debe tener al menos 8 caracteres.";
+  if (m.includes("password") && (m.includes("should contain") || m.includes("weak") || m.includes("at least") || m.includes("characters")))
+    return "La contraseña debe tener al menos 8 caracteres, con mayúscula, minúscula, número y símbolo (. @ # ! …).";
   if (m.includes("rate limit") || m.includes("too many")) return "Demasiados intentos. Espera un minuto e inténtalo de nuevo.";
   if (m.includes("provider is not enabled") || m.includes("unsupported provider")) return "El ingreso con Google aún no está activado.";
   if (m.includes("failed to fetch") || m.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";

@@ -74,10 +74,23 @@
 
   /* ================= Crear cuenta ================= */
   $("regTel").addEventListener("input", (e) => { e.target.value = Val.formatoTel(e.target.value); });
+  /* Lista de requisitos de la contraseña, marcados en vivo */
+  const pintarReqs = (input, lista) => {
+    lista.innerHTML = Val.reqsClave(input.value).map((r) =>
+      `<li class="${r.ok ? "ok" : ""}"><span aria-hidden="true">${r.ok ? "✓" : "•"}</span>${r.txt}</li>`).join("");
+  };
+  const errorClave = (input) => {
+    const falta = Val.claveFaltante(input.value);
+    if (falta.length) { setError(input, "Tu contraseña necesita: " + falta.join(", ") + "."); return false; }
+    return true;
+  };
+  [["regClave", "regReqs"], ["nvClave", "nvReqs"]].forEach(([i, l]) => {
+    pintarReqs($(i), $(l));
+    $(i).addEventListener("input", () => pintarReqs($(i), $(l)));
+  });
   $("regClave").addEventListener("input", (e) => {
     const n = e.target.value ? Math.max(1, Val.fuerza(e.target.value)) : 0;
     document.querySelector(".fuerza").dataset.n = n;
-    $("regFuerza").textContent = ["Usa 8 o más caracteres; mejor si mezclas letras y números.", "Débil: agrega más caracteres.", "Aceptable: suma números o símbolos.", "Buena contraseña.", "Excelente contraseña."][n];
   });
   $("fRegistro").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -85,7 +98,7 @@
     if (n.value.trim().length < 3) { setError(n, "Escribe tu nombre y apellido."); ok = false; }
     if (!Val.email(em.value)) { setError(em, "Escribe un correo válido."); ok = false; }
     if (tel.value && !Val.telefono(tel.value)) { setError(tel, "Celular de 9 dígitos que empiece con 9."); ok = false; }
-    if (cl.value.length < 8) { setError(cl, "Usa al menos 8 caracteres."); ok = false; }
+    if (!errorClave(cl)) ok = false;
     if (!ac.checked) { msg($("regMsg"), "Para crear tu cuenta debes aceptar los términos y la política de privacidad.", "mal"); ok = false; }
     if (!ok) return;
     cargando($("regBtn"), true, "Creando cuenta…"); msg($("regMsg"), "");
@@ -111,7 +124,7 @@
   $("fNueva").addEventListener("submit", async (e) => {
     e.preventDefault();
     const cl = $("nvClave");
-    if (cl.value.length < 8) return setError(cl, "Usa al menos 8 caracteres.");
+    if (!errorClave(cl)) return;
     cargando($("nvBtn"), true, "Guardando…");
     const r = await Befine.auth.nuevaClave(cl.value);
     cargando($("nvBtn"), false);

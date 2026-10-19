@@ -76,10 +76,10 @@
           <div class="fld"><label for="regTel">Celular <span class="opt">(opcional, para avisos de entrega)</span></label>
             <div class="inp-wrap"><span class="pre">+56</span><input class="inp" id="regTel" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="9 1234 5678"></div></div>
           <div class="fld"><label for="regClave">Contraseña</label>
-            <div class="inp-wrap"><input class="inp" id="regClave" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" required minlength="8">
+            <div class="inp-wrap"><input class="inp" id="regClave" type="password" autocomplete="new-password" placeholder="Mín. 8: mayúscula, número y símbolo" required minlength="8">
               <button type="button" class="eye" data-ver-clave="regClave" aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
             <div class="fuerza" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-            <p class="hint" id="regFuerza">Usa 8 o más caracteres; mejor si mezclas letras y números.</p></div>
+            <ul class="reqs" id="regReqs" aria-live="polite"></ul></div>
           <label class="check"><input type="checkbox" id="regAcepto" required><span>Acepto los <a href="#">Términos</a> y la <a href="#">Política de privacidad</a> (Ley 21.719).</span></label>
           <label class="check"><input type="checkbox" id="regNovedades"><span>Quiero recibir ofertas y recordatorios de recarga (opcional).</span></label>
           <div class="aviso mal" id="regMsg" hidden></div>
@@ -100,8 +100,9 @@
         <form id="fNueva" class="acc-form" novalidate hidden>
           <h2 class="acc-t">Crea tu nueva contraseña</h2>
           <div class="fld"><label for="nvClave">Nueva contraseña</label>
-            <div class="inp-wrap"><input class="inp" id="nvClave" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" required minlength="8">
-              <button type="button" class="eye" data-ver-clave="nvClave" aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+            <div class="inp-wrap"><input class="inp" id="nvClave" type="password" autocomplete="new-password" placeholder="Mín. 8: mayúscula, número y símbolo" required minlength="8">
+              <button type="button" class="eye" data-ver-clave="nvClave" aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+            <ul class="reqs" id="nvReqs" aria-live="polite"></ul></div>
           <div class="aviso" id="nvMsg" hidden></div>
           <button class="btn btn-primary btn-lg btn-block" id="nvBtn">Guardar contraseña</button>
         </form>
