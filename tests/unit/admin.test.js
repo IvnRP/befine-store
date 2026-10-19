@@ -1,5 +1,5 @@
 /* Pruebas de las reglas del panel de administración (web/js/admin-logic.js)
-   Casos CP-U14 (acceso por rol) , CP-U15 (pedidos) y CP-U16 (catálogo) del Plan de Pruebas. */
+   Casos CP-U14 (acceso por rol), CP-U15 (pedidos), CP-U16 (catálogo) y CP-U17 (inventario) del Plan de Pruebas. */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { cargar } = require("../helpers/cargar");
@@ -24,7 +24,7 @@ test("CP-U14b un rol del equipo solo tiene los permisos que el admin le asignó"
 
 test("CP-U14c el panel muestra solo las secciones permitidas", () => {
   const ids = (p) => arr(L.seccionesVisibles(p)).map((s) => s.id);
-  assert.ok(ids(L.permisosDe("admin", [])).includes("pedidos"));
+  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "catalogo", "inventario"]);
   assert.deepEqual(ids(["pedidos.ver"]), ["pedidos"]);
   assert.deepEqual(ids(["precios.gestionar"]), ["catalogo"]);   // solo precios: entra al catálogo
   assert.deepEqual(ids([]), []);                       // cliente: sin acceso al panel
@@ -128,4 +128,44 @@ test("CP-U16d filtro del catálogo por categoría, visibilidad y SKU", () => {
   assert.deepEqual(ids(L.filtrarCatalogo(cat, { estado: "ocultos" })), ["p2"]);
   assert.deepEqual(ids(L.filtrarCatalogo(cat, { q: "disp-usb" })), ["p2"]);
   assert.deepEqual(ids(L.filtrarCatalogo(cat, { q: "bidon" })), ["p1"]);
+});
+
+/* ---------- Inventario (RF-18) — CP-U17 ---------- */
+test("CP-U17a nivel de stock según el umbral (igual o menos = stock bajo)", () => {
+  assert.equal(L.nivelStock({ stock: 0, controla_stock: true }, 10), "agotado");
+  assert.equal(L.nivelStock({ stock: 10, controla_stock: true }, 10), "bajo");
+  assert.equal(L.nivelStock({ stock: 11, controla_stock: true }, 10), "ok");
+  assert.equal(L.nivelStock({ stock: 0, controla_stock: false }, 10), "sin_control");
+});
+
+test("CP-U17b umbral desde parámetros con respaldo de 10 unidades", () => {
+  assert.equal(L.umbralStock("5"), 5);
+  assert.equal(L.umbralStock(null), 10);
+  assert.equal(L.umbralStock("abc"), 10);
+  assert.equal(L.umbralStock("-3"), 10);
+});
+
+test("CP-U17c cantidades de stock válidas y ajuste sin bajar de cero", () => {
+  assert.equal(L.parseStock("120"), 120);
+  assert.equal(L.parseStock("1.200"), 1200);
+  assert.equal(L.parseStock("-1"), null);
+  assert.equal(L.parseStock("2,5"), null);
+  assert.equal(L.parseStock("100001"), null);
+  assert.equal(L.sumarStock(0, -1), 0);
+  assert.equal(L.sumarStock(9, 1), 10);
+});
+
+test("CP-U17d resumen y lista ordenada por urgencia; 'alerta' = agotados + stock bajo", () => {
+  const vs = [
+    { id: "a", producto: "Recarga 20 L", nombre: "Befine", sku: "BEF-REC-20-BEFINE", stock: 64, controla_stock: true },
+    { id: "b", producto: "Recarga 20 L", nombre: "Otra marca", sku: "BEF-REC-20-OTRA", stock: 7, controla_stock: true },
+    { id: "c", producto: "Dispensador USB", nombre: "Estándar", sku: "BEF-DISP-USB", stock: 0, controla_stock: true },
+    { id: "d", producto: "Recarga 12 L", nombre: "Estándar", sku: "BEF-REC-12", stock: 0, controla_stock: false },
+  ];
+  const r = L.resumenStock(vs, 10);
+  assert.deepEqual([r.agotado, r.bajo, r.ok, r.sin_control, r.total], [1, 1, 1, 1, 4]);
+  const ids = (l) => arr(l).map((v) => v.id);
+  assert.deepEqual(ids(L.filtrarInventario(vs, { nivel: "todos" }, 10)), ["c", "b", "a", "d"]);
+  assert.deepEqual(ids(L.filtrarInventario(vs, { nivel: "alerta" }, 10)), ["c", "b"]);
+  assert.deepEqual(ids(L.filtrarInventario(vs, { q: "otra" }, 10)), ["b"]);
 });

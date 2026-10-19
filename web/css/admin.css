@@ -266,3 +266,30 @@ textarea.ad-inp { resize: vertical; min-height: 72px; font-family: var(--font-bo
   .ad-var td:nth-child(5) { grid-column: 2; grid-row: 3; }
   .ad-prod-acc { width: 100%; } .ad-prod-acc .ad-btn { flex: 1; }
 }
+
+/* =====================================================================
+   INVENTARIO (RF-18)
+   ===================================================================== */
+.ad-kpis-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .ad-kpis-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+button.ad-kpi { text-align: left; font: inherit; color: inherit; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+button.ad-kpi:hover { border-color: var(--ad-line-2); }
+button.ad-kpi[aria-pressed="true"] { border-color: var(--ad-brand); box-shadow: 0 0 0 3px rgba(11,127,194,.14); }
+.ad-umbral { margin: -6px 0 12px; font-size: 13.5px; color: var(--ad-muted); }
+.ad-link.sm { font-size: 13.5px; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.ad-inv code { font-size: 12.5px; background: #F2F6F9; padding: 2px 6px; border-radius: 6px; color: #33505F; }
+.ad-inv tbody tr { cursor: default; }
+.ad-stock { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.ad-stock .ad-btn.ghost { width: 34px; padding: 0; font-size: 18px; }
+.ad-stock .ad-inp { width: 76px; min-height: 34px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ad-stock .ad-inp.mal { border-color: var(--ad-bad); background: var(--ad-bad-soft); }
+@media (max-width: 760px) {
+  .ad-inv tr { grid-template-columns: 1fr auto; grid-template-areas: "p e" "s s"; }
+  .ad-inv td:nth-child(1) { grid-area: p; min-width: 0; } .ad-inv td:nth-child(1) small { display: block; }
+  .ad-inv td:nth-child(2) { display: none; }
+  .ad-inv td:nth-child(3) { grid-area: e; justify-self: end; }
+  .ad-inv td:nth-child(4) { grid-area: s; justify-self: stretch; margin-top: 8px; }
+  .ad-inv td:nth-child(4)::before, .ad-inv td:nth-child(2)::before { content: none; }
+  .ad-inv .ad-stock { width: 100%; justify-content: flex-start; }
+  .ad-inv .ad-stock [data-guardar] { margin-left: auto; }
+}

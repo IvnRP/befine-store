@@ -31,6 +31,7 @@
   const SECCIONES = [
     { id: "pedidos", txt: "Pedidos", requiere: ["pedidos.ver", "pedidos.gestionar"] },
     { id: "catalogo", txt: "Catálogo y precios", requiere: ["catalogo.gestionar", "precios.gestionar"] },
+    { id: "inventario", txt: "Inventario", requiere: ["catalogo.gestionar"] },
   ];
   const seccionesVisibles = (permisos) =>
     SECCIONES.filter((s) => s.requiere.some((p) => puede(permisos, p)));
@@ -188,11 +189,67 @@
     });
   }
 
+  /* ---------- Inventario (RF-18) ---------- */
+  /* Umbral de "stock bajo": parámetro stock_alerta (editable); 10 si no existe o es inválido */
+  const UMBRAL_DEFECTO = 10;
+  function umbralStock(valor) {
+    const n = parseInt(String(valor == null ? "" : valor).trim(), 10);
+    return Number.isInteger(n) && n >= 0 && n <= 100000 ? n : UMBRAL_DEFECTO;
+  }
+
+  /* Nivel de una variante: sin_control (no lleva stock) | agotado | bajo | ok */
+  function nivelStock(v, umbral = UMBRAL_DEFECTO) {
+    if (!v || v.controla_stock === false) return "sin_control";
+    const s = Number(v.stock) || 0;
+    if (s <= 0) return "agotado";
+    if (s <= umbral) return "bajo";
+    return "ok";
+  }
+  const NIVELES_STOCK = {
+    agotado:     { txt: "Agotado",     tono: "mal" },
+    bajo:        { txt: "Stock bajo",  tono: "espera" },
+    ok:          { txt: "Disponible",  tono: "ok" },
+    sin_control: { txt: "No controla", tono: "fin" },
+  };
+
+  /* Cantidad válida de stock: entero entre 0 y 100.000 (null si no es válida) */
+  function parseStock(v) {
+    const t = String(v == null ? "" : v).trim().replace(/\./g, "");
+    if (!/^\d{1,6}$/.test(t)) return null;
+    const n = Number(t);
+    return n <= 100000 ? n : null;
+  }
+  /* Suma o resta unidades sin bajar de 0 */
+  const sumarStock = (actual, delta) => Math.max(0, (Number(actual) || 0) + (Number(delta) || 0));
+
+  function resumenStock(variantes, umbral) {
+    const r = { agotado: 0, bajo: 0, ok: 0, sin_control: 0, total: 0 };
+    (variantes || []).forEach((v) => { r[nivelStock(v, umbral)]++; r.total++; });
+    return r;
+  }
+
+  /* Filtro: nivel ("todos" | "alerta" = agotado + bajo | un nivel) y texto (producto, variante o SKU).
+     Orden: lo más urgente primero (agotado, bajo, ok, sin control) y luego por nombre. */
+  const PRIORIDAD = { agotado: 0, bajo: 1, ok: 2, sin_control: 3 };
+  function filtrarInventario(variantes, { nivel = "todos", q = "" } = {}, umbral) {
+    const t = norm(q);
+    return (variantes || [])
+      .map((v) => ({ v, n: nivelStock(v, umbral) }))
+      .filter(({ v, n }) => {
+        if (nivel === "alerta" && n !== "agotado" && n !== "bajo") return false;
+        if (nivel !== "todos" && nivel !== "alerta" && n !== nivel) return false;
+        return !t || norm([v.producto, v.nombre, v.sku].join(" ")).includes(t);
+      })
+      .sort((a, b) => PRIORIDAD[a.n] - PRIORIDAD[b.n] || String(a.v.producto).localeCompare(String(b.v.producto)) || String(a.v.sku).localeCompare(String(b.v.sku)))
+      .map(({ v }) => v);
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
     TRANSICIONES, siguientesEstados, puedeCambiar, ACCION_ESTADO,
     filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, linkWhatsApp, telefonoVisible,
     parsePrecio, normalizarSku, validarProducto, validarVariante, filtrarCatalogo,
+    UMBRAL_DEFECTO, umbralStock, nivelStock, NIVELES_STOCK, parseStock, sumarStock, resumenStock, filtrarInventario,
   };
 })(typeof window !== "undefined" ? window : globalThis);

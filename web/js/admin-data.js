@@ -190,5 +190,48 @@
       }
       return { ok: true, id: r1.id };
     },
+
+    /* ================= INVENTARIO (RF-18) ================= */
+    /* Variantes con su producto (incluye ocultas: el dueño también repone lo que no se vende aún) */
+    async listInventario() {
+      const { data, error } = await sb.from("variantes_producto")
+        .select("id,producto_id,sku,nombre,stock,controla_stock,activo,producto:productos(nombre,activo)")
+        .order("sku");
+      if (error) throw error;
+      return (data || []).map((v) => ({
+        id: v.id, producto_id: v.producto_id, sku: v.sku, nombre: v.nombre, stock: v.stock,
+        controla_stock: v.controla_stock, activo: v.activo,
+        producto: (v.producto && v.producto.nombre) || "—",
+        visible: !!(v.activo && v.producto && v.producto.activo),
+      }));
+    },
+
+    /* Umbral de stock bajo (parametros.stock_alerta; lectura pública) */
+    async umbralStock() {
+      const { data } = await sb.from("parametros").select("valor").eq("clave", "stock_alerta").maybeSingle();
+      return L.umbralStock(data && data.valor);
+    },
+    async guardarUmbral(n) {
+      const v = L.parseStock(n);
+      if (v === null) return { ok: false, error: "Escribe un número entero desde 0." };
+      const { data, error } = await sb.from("parametros")
+        .upsert({ clave: "stock_alerta", valor: String(v), descripcion: "Unidades bajo las cuales el panel avisa stock bajo" }, { onConflict: "clave" })
+        .select("valor");
+      if (error) return { ok: false, error: msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, error: "No se guardó: requiere permiso de configuración." };
+      return { ok: true, valor: v };
+    },
+
+    /* Fija el stock de una variante. Se exige que el stock siga siendo el que vio el usuario:
+       si cambió (otra persona o una venta), no se pisa y se avisa para recargar. */
+    async fijarStock(id, actual, nuevo) {
+      const n = L.parseStock(nuevo);
+      if (n === null) return { ok: false, error: "Escribe una cantidad entera entre 0 y 100.000." };
+      const { data, error } = await sb.from("variantes_producto")
+        .update({ stock: n }).eq("id", id).eq("stock", actual).select("id,stock");
+      if (error) return { ok: false, error: msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, recargar: true, error: "El stock cambió mientras lo editabas (o no tienes permiso). Se recargó el valor actual." };
+      return { ok: true, stock: data[0].stock };
+    },
   };
 })();

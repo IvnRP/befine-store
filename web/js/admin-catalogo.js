@@ -13,7 +13,7 @@
   const A = () => Befine.admin;
   const $m = (sel) => document.querySelector("#adModalIn " + sel);
 
-  let el, app, productos = [], categorias = [], filtro = { categoria: "", q: "", estado: "todos" }, cargado = false;
+  let el, app, productos = [], categorias = [], filtro = { categoria: "", q: "", estado: "todos" };
   const puedeCat = () => app.puede("catalogo.gestionar");
   const puedePre = () => app.puede("precios.gestionar");
   const todasVariantes = () => productos.flatMap((p) => p.variantes);
@@ -54,12 +54,11 @@
     lista.addEventListener("focusout", (e) => { if (e.target.matches("[data-precio]")) guardarPrecio(e.target); });
   }
 
-  async function mostrar() { if (!cargado) await cargar(); }
+  async function mostrar() { await cargar(); }   // siempre fresco: el stock pudo cambiar en Inventario
 
   async function cargar() {
     try {
       [productos, categorias] = await Promise.all([A().listCatalogo(), A().listCategorias()]);
-      cargado = true;
       const sel = el.querySelector("#ctCat");
       sel.innerHTML = `<option value="">Todas las categorías</option>` +
         categorias.map((c) => `<option value="${c.id}"${String(c.id) === filtro.categoria ? " selected" : ""}>${esc(c.nombre)}</option>`).join("");
