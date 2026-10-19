@@ -32,6 +32,7 @@
     { id: "pedidos", txt: "Pedidos", requiere: ["pedidos.ver", "pedidos.gestionar"] },
     { id: "catalogo", txt: "Catálogo y precios", requiere: ["catalogo.gestionar", "precios.gestionar"] },
     { id: "inventario", txt: "Inventario", requiere: ["catalogo.gestionar"] },
+    { id: "cupones", txt: "Cupones", requiere: ["promociones.gestionar"] },
   ];
   const seccionesVisibles = (permisos) =>
     SECCIONES.filter((s) => s.requiere.some((p) => puede(permisos, p)));
@@ -244,6 +245,99 @@
       .map(({ v }) => v);
   }
 
+  /* ---------- Cupones (RF-20) ---------- */
+  /* Código: mayúsculas, sin espacios ni acentos (CYBER10, BIENVENIDA) */
+  const normalizarCodigo = (v) => norm(v).toUpperCase().replace(/\s+/g, "").replace(/[^A-Z0-9-]/g, "");
+
+  /* Entero positivo opcional: "" → null (sin límite); inválido → NaN */
+  function enteroOpcional(v) {
+    const t = String(v == null ? "" : v).trim().replace(/\./g, "");
+    if (t === "") return null;
+    return /^\d{1,7}$/.test(t) ? Number(t) : NaN;
+  }
+
+  /* Estado visible de un cupón en una fecha (AAAA-MM-DD) */
+  function estadoCupon(c, hoy) {
+    const d = hoy || diaLocal(new Date());
+    if (!c.activo) return "pausado";
+    if (c.vigente_hasta && c.vigente_hasta < d) return "vencido";
+    if (c.vigente_desde && c.vigente_desde > d) return "programado";
+    if (c.usos_maximos != null && c.usos_actuales >= c.usos_maximos) return "agotado";
+    return "activo";
+  }
+  const ESTADOS_CUPON = {
+    activo:     { txt: "Activo",     tono: "ok" },
+    programado: { txt: "Programado", tono: "info" },
+    pausado:    { txt: "Pausado",    tono: "fin" },
+    vencido:    { txt: "Vencido",    tono: "mal" },
+    agotado:    { txt: "Agotado",    tono: "espera" },
+  };
+
+  /* "15%" o "$2.000" */
+  const textoDescuento = (c) => c.tipo === "porcentaje"
+    ? `${c.valor}%` : "$" + Number(c.valor || 0).toLocaleString("es-CL");
+
+  /* Condiciones legibles para la lista del panel */
+  function condicionesCupon(c) {
+    const r = [];
+    if (c.solo_primera_compra) r.push("solo 1ª compra");
+    else if (c.requiere_cuenta) r.push("requiere cuenta");
+    if (c.compra_minima > 0) r.push("mín. $" + Number(c.compra_minima).toLocaleString("es-CL"));
+    if (c.usos_por_cliente && !c.solo_primera_compra) r.push(c.usos_por_cliente === 1 ? "1 vez por cliente" : `${c.usos_por_cliente} veces por cliente`);
+    if (c.variantes && c.variantes.length) r.push(`${c.variantes.length} producto${c.variantes.length === 1 ? "" : "s"}`);
+    if (c.perfil_id) r.push("personal");
+    return r;
+  }
+
+  /* Validación del formulario → { campo: "mensaje" }. c.* llega como texto del formulario. */
+  function validarCupon(c, existentes, idActual) {
+    const e = {};
+    const codigo = normalizarCodigo(c.codigo);
+    if (!/^[A-Z0-9][A-Z0-9-]{2,29}$/.test(codigo)) e.codigo = "Usa entre 3 y 30 letras, números o guiones (ej: CYBER10).";
+    else if ((existentes || []).some((x) => x && normalizarCodigo(x.codigo) === codigo && x.id !== idActual)) e.codigo = "Ya existe un cupón con ese código.";
+    if (c.tipo !== "porcentaje" && c.tipo !== "monto_fijo") e.tipo = "Elige el tipo de descuento.";
+    const valor = c.tipo === "porcentaje" ? enteroOpcional(c.valor) : parsePrecio(c.valor);
+    if (valor == null || Number.isNaN(valor) || valor <= 0) e.valor = c.tipo === "porcentaje" ? "Escribe un porcentaje entre 1 y 100." : "Escribe un monto en pesos mayor a 0.";
+    else if (c.tipo === "porcentaje" && valor > 100) e.valor = "El porcentaje no puede superar 100.";
+    const min = String(c.compra_minima == null ? "" : c.compra_minima).trim() === "" ? 0 : parsePrecio(c.compra_minima);
+    if (min === null) e.compra_minima = "Escribe un monto en pesos (o déjalo vacío).";
+    const um = enteroOpcional(c.usos_maximos), uc = enteroOpcional(c.usos_por_cliente);
+    if (Number.isNaN(um) || um === 0) e.usos_maximos = "Escribe un número mayor a 0, o déjalo vacío (sin límite).";
+    if (Number.isNaN(uc) || uc === 0) e.usos_por_cliente = "Escribe un número mayor a 0, o déjalo vacío (sin límite).";
+    if (c.vigente_desde && c.vigente_hasta && c.vigente_desde > c.vigente_hasta) e.vigente_hasta = "La fecha de término es anterior a la de inicio.";
+    if (c.descripcion && String(c.descripcion).length > 200) e.descripcion = "Máximo 200 caracteres.";
+    return e;
+  }
+
+  /* Fila lista para guardar en public.cupones (a partir de un formulario válido).
+     El cupón de bienvenida siempre exige cuenta y se usa una vez por cliente. */
+  function filaCupon(c) {
+    const primera = !!c.solo_primera_compra;
+    const fila = {
+      codigo: normalizarCodigo(c.codigo),
+      tipo: c.tipo,
+      valor: c.tipo === "porcentaje" ? enteroOpcional(c.valor) : parsePrecio(c.valor),
+      compra_minima: String(c.compra_minima == null ? "" : c.compra_minima).trim() === "" ? 0 : parsePrecio(c.compra_minima),
+      usos_maximos: enteroOpcional(c.usos_maximos),
+      vigente_desde: c.vigente_desde || null,
+      vigente_hasta: c.vigente_hasta || null,
+      activo: !!c.activo,
+      solo_primera_compra: primera,
+      requiere_cuenta: primera || !!c.requiere_cuenta,
+      usos_por_cliente: primera ? 1 : enteroOpcional(c.usos_por_cliente),
+      descripcion: String(c.descripcion || "").trim() || null,
+    };
+    return fila;
+  }
+
+  function filtrarCupones(cupones, { estado = "todos", q = "" } = {}, hoy) {
+    const t = norm(q);
+    return (cupones || []).filter((c) => {
+      if (estado !== "todos" && estadoCupon(c, hoy) !== estado) return false;
+      return !t || norm(c.codigo + " " + (c.descripcion || "")).includes(t);
+    });
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
@@ -251,5 +345,6 @@
     filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, linkWhatsApp, telefonoVisible,
     parsePrecio, normalizarSku, validarProducto, validarVariante, filtrarCatalogo,
     UMBRAL_DEFECTO, umbralStock, nivelStock, NIVELES_STOCK, parseStock, sumarStock, resumenStock, filtrarInventario,
+    normalizarCodigo, enteroOpcional, estadoCupon, ESTADOS_CUPON, textoDescuento, condicionesCupon, validarCupon, filaCupon, filtrarCupones,
   };
 })(typeof window !== "undefined" ? window : globalThis);

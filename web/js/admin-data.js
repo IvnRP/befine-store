@@ -233,5 +233,57 @@
       if (!data || !data.length) return { ok: false, recargar: true, error: "El stock cambió mientras lo editabas (o no tienes permiso). Se recargó el valor actual." };
       return { ok: true, stock: data[0].stock };
     },
+
+    /* ================= CUPONES (RF-20) ================= */
+    /* ¿Está aplicada la migración 04 (reglas de bienvenida y usos por cliente)? */
+    async reglasCupones() {
+      const { error } = await sb.from("cupones").select("solo_primera_compra").limit(1);
+      return !error;
+    },
+
+    /* Todos los cupones con los productos a los que aplican (RLS: promociones.gestionar) */
+    async listCupones() {
+      const { data, error } = await sb.from("cupones")
+        .select("*,cupon_variantes(variante_id)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((c) => ({
+        ...c,
+        usos_actuales: c.usos_actuales || 0,
+        requiere_cuenta: !!c.requiere_cuenta, solo_primera_compra: !!c.solo_primera_compra,
+        usos_por_cliente: c.usos_por_cliente == null ? null : c.usos_por_cliente,
+        variantes: (c.cupon_variantes || []).map((x) => x.variante_id),
+      }));
+    },
+
+    /* Crea o edita un cupón y sus productos (vacío = aplica a todo el carrito).
+       Sin la migración 04 solo se envían las columnas originales. */
+    async guardarCupon(id, fila, variantes, conReglas) {
+      const datos = { ...fila };
+      if (!conReglas) ["solo_primera_compra", "requiere_cuenta", "usos_por_cliente", "descripcion"].forEach((k) => delete datos[k]);
+      const q = id
+        ? sb.from("cupones").update(datos).eq("id", id).select("id")
+        : sb.from("cupones").insert(datos).select("id");
+      const { data, error } = await q;
+      if (error) return { ok: false, error: error.code === "23505" ? "Ya existe un cupón con ese código." : msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, error: "No se guardó: revisa que tengas permiso para gestionar promociones." };
+      const cid = data[0].id;
+      // Productos: se reemplaza la lista completa
+      const { error: e1 } = await sb.from("cupon_variantes").delete().eq("cupon_id", cid);
+      if (e1) return { ok: false, id: cid, error: "El cupón se guardó, pero no sus productos. " + msgAdmin(e1) };
+      if (variantes && variantes.length) {
+        const { error: e2 } = await sb.from("cupon_variantes").insert(variantes.map((v) => ({ cupon_id: cid, variante_id: v })));
+        if (e2) return { ok: false, id: cid, error: "El cupón se guardó, pero no sus productos. " + msgAdmin(e2) };
+      }
+      return { ok: true, id: cid };
+    },
+
+    /* Pausar o reactivar (los cupones usados no se borran: quedan en el historial de pedidos) */
+    async activarCupon(id, activo) {
+      const { data, error } = await sb.from("cupones").update({ activo }).eq("id", id).select("id,activo");
+      if (error) return { ok: false, error: msgAdmin(error) };
+      if (!data || !data.length) return { ok: false, error: "No se guardó: revisa tus permisos." };
+      return { ok: true };
+    },
   };
 })();

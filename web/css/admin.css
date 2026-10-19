@@ -177,16 +177,17 @@ body.page-admin {
 @media (max-width: 760px) {
   .ad-tabla thead { display: none; }
   .ad-tabla, .ad-tabla tbody, .ad-tabla tr, .ad-tabla td { display: block; }
-  .ad-tabla tr { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "n c e" "n co t" "f f g"; gap: 2px 12px;
-    padding: 12px 14px; border-bottom: 1px solid var(--ad-line); }
+  .ad-tabla tr { display: grid; padding: 12px 14px; border-bottom: 1px solid var(--ad-line); }
+  .ad-tabla tbody tr:last-child { border-bottom: 0; }
+  .ad-ped tr { grid-template-columns: auto 1fr auto; grid-template-areas: "n c e" "n co t" "f f g"; gap: 2px 12px; }
   .ad-tabla td { padding: 0; border: 0; }
-  .ad-tabla td:nth-child(1) { grid-area: n; } .ad-tabla td:nth-child(3) { grid-area: c; min-width: 0; }
-  .ad-tabla td:nth-child(7) { grid-area: e; justify-self: end; } .ad-tabla td:nth-child(4) { grid-area: co; color: var(--ad-muted); font-size: 13px; }
-  .ad-tabla td:nth-child(6) { grid-area: t; justify-self: end; font-weight: 800; }
-  .ad-tabla td:nth-child(2), .ad-tabla td:nth-child(5) { font-size: 12.5px; color: var(--ad-muted); margin-top: 4px; }
-  .ad-tabla td:nth-child(2) { grid-area: f; } .ad-tabla td:nth-child(5) { grid-area: g; justify-self: end; white-space: nowrap; }
-  .ad-tabla td:nth-child(2)::before { content: "Creado "; } .ad-tabla td:nth-child(5)::before { content: "Entrega "; }
-  .ad-tabla td:nth-child(3) small { display: none; }
+  .ad-ped td:nth-child(1) { grid-area: n; } .ad-ped td:nth-child(3) { grid-area: c; min-width: 0; }
+  .ad-ped td:nth-child(7) { grid-area: e; justify-self: end; } .ad-ped td:nth-child(4) { grid-area: co; color: var(--ad-muted); font-size: 13px; }
+  .ad-ped td:nth-child(6) { grid-area: t; justify-self: end; font-weight: 800; }
+  .ad-ped td:nth-child(2), .ad-ped td:nth-child(5) { font-size: 12.5px; color: var(--ad-muted); margin-top: 4px; }
+  .ad-ped td:nth-child(2) { grid-area: f; } .ad-ped td:nth-child(5) { grid-area: g; justify-self: end; white-space: nowrap; }
+  .ad-ped td:nth-child(2)::before { content: "Creado "; } .ad-ped td:nth-child(5)::before { content: "Entrega "; }
+  .ad-ped td:nth-child(3) small { display: none; }
 }
 
 /* Detalle del pedido */
@@ -292,4 +293,39 @@ button.ad-kpi[aria-pressed="true"] { border-color: var(--ad-brand); box-shadow: 
   .ad-inv td:nth-child(4)::before, .ad-inv td:nth-child(2)::before { content: none; }
   .ad-inv .ad-stock { width: 100%; justify-content: flex-start; }
   .ad-inv .ad-stock [data-guardar] { margin-left: auto; }
+}
+
+/* =====================================================================
+   CUPONES (RF-20)
+   ===================================================================== */
+.ad-aviso { margin-bottom: 14px; padding: 12px 14px; border-radius: 12px; background: var(--ad-warn-soft); border: 1px solid #F1D3A4; color: #6B4508; font-size: 14px; }
+.ad-codigo { border: 1px dashed var(--ad-line-2); background: #F7FAFC; border-radius: 8px; padding: 4px 9px; cursor: copy;
+  font: 800 14px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .04em; color: var(--ad-deep); }
+.ad-codigo:hover { border-color: var(--ad-brand); }
+.ad-cup td small { margin-top: 3px; }
+.ad-cup tbody tr { cursor: default; }
+.ad-barra { display: block; width: 90px; height: 5px; margin-top: 5px; border-radius: 999px; background: var(--ad-line); overflow: hidden; }
+.ad-barra span { display: block; height: 100%; background: var(--ad-brand); }
+.ad-fila-acc { display: inline-flex; gap: 6px; }
+.ad-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ad-seg label { position: relative; flex-direction: row !important; align-items: flex-start; gap: 10px !important; padding: 11px 12px; border: 1px solid var(--ad-line-2); border-radius: 12px; cursor: pointer; }
+.ad-seg label:has(input:checked) { border-color: var(--ad-brand); background: var(--ad-brand-soft); }
+.ad-seg input { margin-top: 3px; accent-color: var(--ad-brand); }
+.ad-seg span { display: flex; flex-direction: column; }
+.ad-seg small { font-weight: 500; color: var(--ad-muted); }
+#fCup .solo-bienvenida { display: none; }
+#fCup.es-bienvenida .solo-bienvenida { display: block; }
+#fCup.es-bienvenida .solo-campana { display: none; }
+.ad-prods { border: 1px solid var(--ad-line); border-radius: 12px; padding: 10px 12px; }
+.ad-prods summary { cursor: pointer; font-size: 14px; }
+.ad-prods-lista { display: grid; gap: 6px; max-height: 210px; overflow-y: auto; margin-top: 8px; }
+.ad-prods-lista .chk { font-weight: 500 !important; font-size: 13.5px; }
+@media (max-width: 760px) {
+  .ad-cup tr { grid-template-columns: 1fr auto; grid-template-areas: "c e" "d d" "v u" "a a"; gap: 6px 10px; }
+  .ad-cup td:nth-child(1) { grid-area: c; } .ad-cup td:nth-child(2) { grid-area: d; }
+  .ad-cup td:nth-child(3) { grid-area: v; font-size: 13px; color: var(--ad-muted); } .ad-cup td:nth-child(4) { grid-area: u; justify-self: end; font-size: 13px; }
+  .ad-cup td:nth-child(5) { grid-area: e; justify-self: end; } .ad-cup td:nth-child(6) { grid-area: a; }
+  .ad-cup td::before { content: none !important; }
+  .ad-cup .ad-fila-acc { display: flex; } .ad-cup .ad-fila-acc .ad-btn { flex: 1; }
+  .ad-seg { grid-template-columns: 1fr; }
 }

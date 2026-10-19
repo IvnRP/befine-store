@@ -1,5 +1,5 @@
 /* Pruebas de las reglas del panel de administración (web/js/admin-logic.js)
-   Casos CP-U14 (acceso por rol), CP-U15 (pedidos), CP-U16 (catálogo) y CP-U17 (inventario) del Plan de Pruebas. */
+   Casos CP-U14 (acceso por rol), CP-U15 (pedidos), CP-U16 (catálogo), CP-U17 (inventario) y CP-U18 (cupones) del Plan de Pruebas. */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { cargar } = require("../helpers/cargar");
@@ -24,7 +24,8 @@ test("CP-U14b un rol del equipo solo tiene los permisos que el admin le asignó"
 
 test("CP-U14c el panel muestra solo las secciones permitidas", () => {
   const ids = (p) => arr(L.seccionesVisibles(p)).map((s) => s.id);
-  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "catalogo", "inventario"]);
+  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "catalogo", "inventario", "cupones"]);
+  assert.deepEqual(ids(["promociones.gestionar"]), ["cupones"]);
   assert.deepEqual(ids(["pedidos.ver"]), ["pedidos"]);
   assert.deepEqual(ids(["precios.gestionar"]), ["catalogo"]);   // solo precios: entra al catálogo
   assert.deepEqual(ids([]), []);                       // cliente: sin acceso al panel
@@ -168,4 +169,52 @@ test("CP-U17d resumen y lista ordenada por urgencia; 'alerta' = agotados + stock
   assert.deepEqual(ids(L.filtrarInventario(vs, { nivel: "todos" }, 10)), ["c", "b", "a", "d"]);
   assert.deepEqual(ids(L.filtrarInventario(vs, { nivel: "alerta" }, 10)), ["c", "b"]);
   assert.deepEqual(ids(L.filtrarInventario(vs, { q: "otra" }, 10)), ["b"]);
+});
+
+/* ---------- Cupones (RF-20) — CP-U18 ---------- */
+test("CP-U18a estado del cupón según fecha, usos y pausa", () => {
+  const base = { activo: true, usos_actuales: 0, usos_maximos: null, vigente_desde: null, vigente_hasta: null };
+  const hoy = "2026-10-19";
+  assert.equal(L.estadoCupon(base, hoy), "activo");
+  assert.equal(L.estadoCupon({ ...base, activo: false }, hoy), "pausado");
+  assert.equal(L.estadoCupon({ ...base, vigente_desde: "2026-11-01" }, hoy), "programado");
+  assert.equal(L.estadoCupon({ ...base, vigente_hasta: "2026-10-18" }, hoy), "vencido");
+  assert.equal(L.estadoCupon({ ...base, vigente_hasta: "2026-10-19" }, hoy), "activo");   // vence al final del día
+  assert.equal(L.estadoCupon({ ...base, usos_maximos: 50, usos_actuales: 50 }, hoy), "agotado");
+});
+
+test("CP-U18b validación: código único, porcentaje 1-100, fechas en orden y límites opcionales", () => {
+  const existentes = [{ id: "c1", codigo: "CYBER10" }];
+  const ok = { codigo: "navidad 26", tipo: "porcentaje", valor: "12", compra_minima: "15.000", usos_maximos: "", usos_por_cliente: "2", vigente_desde: "2026-12-15", vigente_hasta: "2026-12-24" };
+  assert.deepEqual(Object.keys(L.validarCupon(ok, existentes, null)), []);
+  assert.ok(L.validarCupon({ ...ok, codigo: "cyber10" }, existentes, null).codigo);
+  assert.deepEqual(Object.keys(L.validarCupon({ ...ok, codigo: "CYBER10" }, existentes, "c1")), []);  // editar el propio
+  assert.ok(L.validarCupon({ ...ok, valor: "150" }, [], null).valor);
+  assert.ok(L.validarCupon({ ...ok, valor: "0" }, [], null).valor);
+  assert.ok(L.validarCupon({ ...ok, tipo: "monto_fijo", valor: "abc" }, [], null).valor);
+  assert.ok(L.validarCupon({ ...ok, vigente_hasta: "2026-12-01" }, [], null).vigente_hasta);
+  assert.ok(L.validarCupon({ ...ok, usos_maximos: "0" }, [], null).usos_maximos);
+  assert.ok(L.validarCupon({ ...ok, usos_por_cliente: "dos" }, [], null).usos_por_cliente);
+});
+
+test("CP-U18c el cupón de bienvenida siempre exige cuenta y se usa una vez por cliente", () => {
+  const f = L.filaCupon({ codigo: "bienvenida", tipo: "porcentaje", valor: "15", compra_minima: "", usos_maximos: "", usos_por_cliente: "5",
+    requiere_cuenta: false, solo_primera_compra: true, activo: true });
+  assert.equal(f.codigo, "BIENVENIDA");
+  assert.equal(f.requiere_cuenta, true);
+  assert.equal(f.usos_por_cliente, 1);
+  assert.equal(f.compra_minima, 0);
+  assert.equal(f.usos_maximos, null);
+  const g = L.filaCupon({ codigo: "VERANO", tipo: "monto_fijo", valor: "$2.000", compra_minima: "10.000", usos_maximos: "100", usos_por_cliente: "",
+    requiere_cuenta: false, solo_primera_compra: false, activo: false, vigente_hasta: "2027-02-28" });
+  assert.equal(g.valor, 2000); assert.equal(g.compra_minima, 10000); assert.equal(g.usos_maximos, 100);
+  assert.equal(g.usos_por_cliente, null); assert.equal(g.requiere_cuenta, false); assert.equal(g.vigente_desde, null);
+});
+
+test("CP-U18d texto del descuento y condiciones visibles en la lista", () => {
+  assert.equal(L.textoDescuento({ tipo: "porcentaje", valor: 15 }), "15%");
+  assert.equal(L.textoDescuento({ tipo: "monto_fijo", valor: 2000 }), "$2.000");
+  assert.deepEqual(arr(L.condicionesCupon({ solo_primera_compra: true, requiere_cuenta: true, usos_por_cliente: 1, compra_minima: 0 })), ["solo 1ª compra"]);
+  assert.deepEqual(arr(L.condicionesCupon({ compra_minima: 10000, usos_por_cliente: 1, variantes: ["v1", "v2"] })),
+    ["mín. $10.000", "1 vez por cliente", "2 productos"]);
 });

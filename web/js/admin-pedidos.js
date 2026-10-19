@@ -98,7 +98,7 @@
       return;
     }
     box.innerHTML = `
-      <table class="ad-tabla">
+      <table class="ad-tabla ad-ped">
         <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Comuna</th><th>Entrega</th><th class="num">Total</th><th>Estado</th></tr></thead>
         <tbody>${items.map((p) => `
           <tr data-id="${esc(p.id)}" tabindex="0">
