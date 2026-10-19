@@ -458,6 +458,27 @@ Befine.crearPedido = async function (payload) {
   } catch (e) { return { ok: false, error: _msgPedido(e) }; }
 };
 
+/* Revisar un cupón ANTES de pagar (migración 04: revisar_cupon). Solo informa: no gasta usos.
+   El servidor vuelve a validar todo al crear el pedido (crear_pedido).
+   items = [{variante_id, cantidad}] → { valido, codigo, descuento } o { valido:false, mensaje } */
+Befine.revisarCupon = async function (codigo, items) {
+  try {
+    const { data, error } = await sb.rpc("revisar_cupon", {
+      p_codigo: String(codigo || "").trim(),
+      p_items: (items || []).map((i) => ({ variante_id: i.variante_id, cantidad: i.cantidad })),
+    });
+    if (error) {
+      const m = (error.message || "").toLowerCase();
+      if (error.code === "PGRST202" || m.includes("could not find the function")) return { valido: false, mensaje: "Los cupones estarán disponibles muy pronto." };
+      if (m.includes("failed to fetch") || m.includes("network")) return { valido: false, mensaje: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
+      return { valido: false, mensaje: "No pudimos revisar el cupón. Inténtalo de nuevo." };
+    }
+    return data && data.valido
+      ? { valido: true, codigo: data.codigo, descuento: Number(data.descuento) || 0, tipo: data.tipo, valor: data.valor }
+      : { valido: false, mensaje: (data && data.mensaje) || "El cupón no es válido o ya venció." };
+  } catch (e) { return { valido: false, mensaje: "No pudimos revisar el cupón. Inténtalo de nuevo." }; }
+};
+
 /* Pagar con Mercado Pago. SIMULADO hasta el Sprint 3 (HU-08/09): no cambia nada en la base.
    El pedido queda en 'pendiente_pago'; solo el webhook de Mercado Pago lo marcará 'pagado'.
    PRODUCCIÓN: una Edge Function crea la preferencia de pago y se redirige a su init_point. */

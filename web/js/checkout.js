@@ -14,6 +14,7 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   let sesion = null, cobertura = null, dias = null, doc = "boleta", fechaAgendada = null, enviando = false;
+  let cupon = null;          // { codigo, descuento } revisado por el servidor (revisar_cupon)
 
   document.addEventListener("DOMContentLoaded", async () => {
     const form = $("coForm");
@@ -26,7 +27,7 @@
     pintarComunas();
     pintarEntrega();
     precargar();
-    Store.subscribe(pintarResumen);      // el resumen se actualiza solo al cambiar cantidades
+    Store.subscribe((items) => { pintarResumen(items); revisarCuponDeNuevo(); });   // el resumen se actualiza solo al cambiar cantidades
 
     /* ---------- Formato en vivo ---------- */
     $("coTel").addEventListener("input", (e) => { e.target.value = Val.formatoTel(e.target.value); });
@@ -47,6 +48,16 @@
       $("coDias").hidden = !ag;
       if (ag) $("coDias").classList.add("despliega");
     }));
+
+    /* ---------- Cupón de descuento ---------- */
+    $("coCuponAbrir").addEventListener("click", () => {
+      $("coCuponAbrir").hidden = true; $("coCuponAbrir").setAttribute("aria-expanded", "true");
+      $("coCuponForm").hidden = false; $("coCuponInp").focus();
+    });
+    $("coCuponBtn").addEventListener("click", () => aplicarCupon($("coCuponInp").value));
+    $("coCuponInp").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); aplicarCupon(e.target.value); } });
+    $("coCuponInp").addEventListener("input", () => { $("coCuponMsg").hidden = true; });
+    $("coCuponQuitar").addEventListener("click", () => quitarCupon());
 
     form.addEventListener("submit", (e) => { e.preventDefault(); pagar(); });
   });
@@ -93,8 +104,55 @@
 
   function totales(items) {
     const sub = items.reduce((n, i) => n + i.precio * i.cantidad, 0);
-    const envio = Befine.costoDespacho(cobertura, $("coComuna").value, sub);
-    return { sub, envio, total: sub + (envio || 0) };
+    const envio = Befine.costoDespacho(cobertura, $("coComuna").value, sub);   // envío gratis según el subtotal (igual que el servidor)
+    const desc = cupon ? Math.min(cupon.descuento, sub) : 0;
+    return { sub, envio, desc, total: Math.max(sub - desc, 0) + (envio || 0) };
+  }
+
+  /* ================= Cupón ================= */
+  // El servidor calcula el descuento con sus precios y reglas; aquí solo se muestra.
+  async function aplicarCupon(codigo, silencioso) {
+    const cod = String(codigo || "").trim().toUpperCase();
+    const msg = $("coCuponMsg");
+    if (!cod) { msg.textContent = "Escribe el código del cupón."; msg.hidden = false; return; }
+    const btn = $("coCuponBtn");
+    if (!silencioso) cargando(btn, true, "Revisando…");
+    const r = await Befine.revisarCupon(cod, Store.items());
+    if (!silencioso) cargando(btn, false);
+    if (!r.valido) {
+      cupon = null; pintarCupon();
+      mostrarMsgCupon(silencioso ? `Quitamos el cupón ${cod}: ${r.mensaje}` : r.mensaje);
+      pintarResumen(Store.items());
+      return;
+    }
+    cupon = { codigo: r.codigo || cod, descuento: r.descuento };
+    msg.hidden = true; pintarCupon(); pintarResumen(Store.items());
+    if (!silencioso) window.toast(`Cupón ${cupon.codigo} aplicado: −${clp(cupon.descuento)}`);
+  }
+  function mostrarMsgCupon(texto) {
+    const msg = $("coCuponMsg");
+    msg.textContent = texto;
+    // Cupón para clientes con cuenta: ofrecer crearla o ingresar sin perder el carrito
+    if (!sesion && /con cuenta/i.test(texto)) {
+      msg.insertAdjacentHTML("beforeend", ` <a href="cuenta.html?modo=registro&volver=checkout.html">Crear cuenta</a> · <a href="cuenta.html?volver=checkout.html">Ingresar</a>`);
+    }
+    msg.hidden = false;
+    $("coCuponAbrir").hidden = true; $("coCuponForm").hidden = false;
+  }
+  function quitarCupon() {
+    cupon = null; pintarCupon(); pintarResumen(Store.items());
+    $("coCuponInp").value = ""; $("coCuponForm").hidden = false; $("coCuponInp").focus();
+  }
+  function pintarCupon() {
+    $("coCuponOk").hidden = !cupon;
+    if (cupon) { $("coCuponCod").textContent = cupon.codigo; $("coCuponForm").hidden = true; $("coCuponAbrir").hidden = true; }
+  }
+  // Si cambia el carrito, el descuento puede cambiar (mínimos, productos): se vuelve a revisar
+  let tRevisar;
+  function revisarCuponDeNuevo() {
+    if (!cupon) return;
+    clearTimeout(tRevisar);
+    tRevisar = setTimeout(() => { if (cupon && Store.items().length) aplicarCupon(cupon.codigo, true); }, 400);
   }
 
   function pintarResumen(items) {
@@ -121,6 +179,8 @@
 
     const t = totales(items);
     $("coSub").textContent = clp(t.sub);
+    $("coDescFila").hidden = !t.desc;
+    $("coDesc").textContent = "−" + clp(t.desc);
     const env = $("coEnvio");
     env.classList.toggle("gratis", t.envio === 0);
     env.textContent = t.envio === null ? "Elige tu comuna" : t.envio === 0 ? "Gratis" : clp(t.envio);
@@ -184,6 +244,7 @@
       documento: doc === "factura" ? { tipo: "factura", rut: Val.formatoRut(f.rut.value), razon_social: f.razon_social.value.trim(), giro: f.giro.value.trim() } : { tipo: "boleta" },
       items: items.map((i) => ({ variante_id: i.variante_id, nombre: i.nombre, variante: i.variante, cantidad: i.cantidad, precio_unitario: i.precio })),
       subtotal: t.sub, costo_despacho: t.envio || 0, total: t.total, perfil_id: sesion ? sesion.id : null,
+      cupon: cupon ? cupon.codigo : null,
     };
 
     // Recordar datos (solo en este dispositivo) para que la próxima compra sea aún más rápida
@@ -197,7 +258,19 @@
     const btns = [$("coPagar"), $("coBarPagar")];
     btns.forEach((b) => cargando(b, true, "Creando pedido…"));
     const r = await Befine.crearPedido(payload);
-    if (!r.ok) { btns.forEach((b) => cargando(b, false)); enviando = false; window.toast(r.error || "No pudimos crear el pedido. Inténtalo de nuevo."); return; }
+    if (!r.ok) {
+      btns.forEach((b) => cargando(b, false)); enviando = false;
+      // Si el servidor rechazó el cupón (ej: el correo o teléfono ya compraron), se quita y el cliente
+      // puede pagar sin descuento: no perdemos la venta.
+      if (cupon && /cup[oó]n/i.test(r.error || "")) {
+        const cod = cupon.codigo; cupon = null; pintarCupon(); pintarResumen(Store.items());
+        mostrarMsgCupon(`Quitamos el cupón ${cod}: ${r.error}`);
+        $("coCupon").scrollIntoView({ behavior: "smooth", block: "center" });
+        window.toast("Revisa el nuevo total y vuelve a pagar.");
+        return;
+      }
+      window.toast(r.error || "No pudimos crear el pedido. Inténtalo de nuevo."); return;
+    }
     btns.forEach((b) => { b.innerHTML = `<span class="spin" aria-hidden="true"></span>Conectando con Mercado Pago…`; });
     const p = await Befine.pagar(r.pedido);
     btns.forEach((b) => cargando(b, false)); enviando = false;
@@ -223,6 +296,7 @@
           <div><dt>Entrega</dt><dd>${fmtDia(fecha)}${pedido.entrega.tipo === "agendada" ? " (agendada)" : ""}</dd></div>
           <div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>
           <div><dt>Documento</dt><dd>${pedido.documento.tipo === "factura" ? "Factura · " + esc(pedido.documento.razon_social) : "Boleta electrónica"}</dd></div>
+          ${pedido.descuento_cupon ? `<div><dt>Descuento</dt><dd>−${clp(pedido.descuento_cupon)}</dd></div>` : ""}
           <div><dt>Total pagado</dt><dd>${clp(pedido.total)}</dd></div>
         </dl>
         <div class="acciones">

@@ -179,7 +179,7 @@
     if (a === "cancelado") {
       const p = lista.find((x) => x.id === id) || {};
       const ok = await UI.confirmar(`¿Cancelar el pedido #${p.numero || ""}?`,
-        "El pedido queda cerrado y no se podrá reactivar. Si usó un cupón, su uso no se devuelve automáticamente.",
+        "El pedido queda cerrado y no se podrá reactivar. Si usó un cupón, ese uso se libera para el cliente.",
         "Sí, cancelar", true);
       if (!ok) return;
     }

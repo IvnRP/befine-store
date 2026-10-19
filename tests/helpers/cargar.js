@@ -35,7 +35,7 @@ function dateFija(iso) {
 /**
  * Carga uno o más archivos de web/js en un mismo contexto.
  * @param {string[]} archivos  p. ej. ["forms.js"]
- * @param {object}   opciones  { localStorage, fecha: "2026-10-09T10:00:00" }
+ * @param {object}   opciones  { localStorage, fecha: "2026-10-09T10:00:00", cliente: Supabase simulado }
  * @returns el objeto window del contexto (con Store, Bands, BefineForms, Befine…)
  */
 function cargar(archivos, opciones = {}) {
@@ -43,7 +43,7 @@ function cargar(archivos, opciones = {}) {
   window.window = window;
   window.localStorage = opciones.localStorage || crearLocalStorage();
   window.document = { addEventListener() {}, documentElement: { style: { setProperty() {} } }, body: null };
-  window.supabase = { createClient: () => ({}) };          // data.js crea el cliente al cargar
+  window.supabase = { createClient: () => opciones.cliente || {} };   // data.js crea el cliente al cargar (opciones.cliente = Supabase simulado)
   window.console = console;
   window.location = { protocol: "http:", href: "http://localhost:8080/index.html" };
   if (opciones.fecha) window.Date = dateFija(opciones.fecha);
