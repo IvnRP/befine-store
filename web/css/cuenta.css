@@ -53,6 +53,7 @@ body.tema-claro .acc-brand h1 .serif { background: linear-gradient(90deg, var(--
 .pc-head h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 4vw, 38px); margin: 2px 0 0; letter-spacing: -.02em; }
 .pc-head p { margin: 2px 0 0; }
 .pc-head .btn { margin-left: auto; }
+.pc-head .pc-admin:not([hidden]) + .btn { margin-left: 0; }  /* equipo: los dos botones juntos a la derecha */
 .pc-grid { display: grid; grid-template-columns: 300px 1fr; grid-template-areas: "puntos datos" "puntos pedidos"; gap: 16px; align-items: start; }
 .pc-grid .sheet + .sheet { margin-top: 0; }
 .pc-puntos { grid-area: puntos; } .pc-datos { grid-area: datos; } .pc-pedidos { grid-area: pedidos; }

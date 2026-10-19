@@ -252,14 +252,14 @@ function _msgAuth(e) {
 }
 
 Befine.auth = {
-  /* Sesión actual + datos de public.perfiles → { id, email, nombre, telefono, rut, razon_social, giro, es_empresa, puntos } | null */
+  /* Sesión actual + datos de public.perfiles → { id, email, nombre, telefono, rut, razon_social, giro, es_empresa, puntos, rol } | null */
   async sesion() {
     try {
       const { data } = await sb.auth.getSession();
       const u = data && data.session && data.session.user;
       if (!u || u.is_anonymous) return null;
       const { data: pf } = await sb.from("perfiles")
-        .select("nombre,apellido,telefono,rut,razon_social,giro,es_empresa,puntos_saldo")
+        .select("nombre,apellido,telefono,rut,razon_social,giro,es_empresa,puntos_saldo,rol")
         .eq("id", u.id).maybeSingle();
       const meta = u.user_metadata || {};
       return {
@@ -268,6 +268,7 @@ Befine.auth = {
         apellido: pf && pf.apellido, telefono: (pf && pf.telefono) || meta.telefono || "",
         rut: pf && pf.rut, razon_social: pf && pf.razon_social, giro: pf && pf.giro,
         es_empresa: !!(pf && pf.es_empresa), puntos: (pf && pf.puntos_saldo) || 0,
+        rol: (pf && pf.rol) || "cliente", // "cliente" o un rol del equipo (admin, chofer…)
       };
     } catch (e) { return null; }
   },

@@ -139,6 +139,9 @@
     $("pcAvatar").textContent = (s.nombre || "?")[0].toUpperCase();
     $("pcHola").textContent = "Hola, " + (s.nombre || "").split(" ")[0];
     $("pcEmail").textContent = s.email;
+    // Equipo de Befine (cualquier rol distinto de cliente): acceso al panel. El panel vuelve a
+    // verificar los permisos y el RLS de Supabase bloquea cualquier acción no permitida.
+    $("pcAdmin").hidden = !s.rol || s.rol === "cliente";
     $("pcPuntos").textContent = (s.puntos || 0).toLocaleString("es-CL");
     const fila = (k, v) => `<div><dt>${k}</dt><dd>${v ? esc(v) : '<span class="muted">—</span>'}</dd></div>`;
     $("pcDatos").innerHTML = fila("Nombre", [s.nombre, s.apellido].filter(Boolean).join(" ")) + fila("Correo", s.email) + fila("Celular", s.telefono) +
