@@ -6,7 +6,7 @@ Documentación completa del proyecto: [Cmfg96/Documentos_Capstone_Grupo_N3](http
 
 ## Descripción
 
-- **Qué hace:** tienda web *mobile-first* con catálogo, carrito, checkout por comuna (despacho y envío gratis desde $7.000), cuenta del cliente, reseñas reales de Google y, en construcción, pago con Mercado Pago, boleta/factura electrónica con OpenFactura, fidelización por puntos y panel de administración con roles.
+- **Qué hace:** tienda web *mobile-first* con catálogo, carrito, checkout por comuna (despacho y envío gratis desde $7.000), cuenta del cliente, reseñas reales de Google y panel de administración con roles (pedidos, catálogo y precios, inventario). En construcción: pago con Mercado Pago, boleta/factura electrónica con OpenFactura y fidelización por puntos.
 - **Para quién:** clientes residenciales y empresas que compran agua a domicilio, y el dueño y los choferes de Befine que gestionan los pedidos.
 - **Qué problema resuelve:** reemplaza la tienda en Shopify (costo recurrente, poca personalización) y centraliza en un solo sistema los pedidos que hoy se reparten entre WhatsApp y la tienda, permitiendo delegar la operación.
 
@@ -37,18 +37,39 @@ Híbrida **PMBOK + Scrum**: PMBOK para dirigir el proyecto (hitos, líneas base,
 
 ```
 Navegador (HTML + CSS + JS)
-  └── js/data.js  →  único punto de acceso a Supabase (supabase-js, clave pública protegida por RLS)
+  ├── js/data.js        →  único punto de acceso a Supabase de la tienda (supabase-js, clave pública protegida por RLS)
+  └── js/admin-data.js  →  acceso del panel de administración (mismo cliente; lo que puede cada rol lo decide el RLS)
 
 Supabase
   ├── Auth (correo/contraseña y Google)
   ├── PostgreSQL: 21 tablas + roles y permisos, RLS en todas las tablas
-  ├── Funciones SQL: crear_pedido(), tiene_permiso()
+  ├── Funciones SQL: crear_pedido(), tiene_permiso(), es_admin()
+  ├── Migraciones versionadas en web/supabase/migrations/ (01 y 01b aplicadas; 02 y 03 pendientes)
   └── Edge Functions: resenas-google (Mercado Pago y OpenFactura en construcción)
 
 Servicios externos: Google Places · Mercado Pago · OpenFactura/SII · WhatsApp (wa.me)
 ```
 
 Las claves privadas viven solo como secretos de las Edge Functions; nunca en el navegador. Detalle y diagramas UML en el repositorio de documentación (`05-Diseno/`).
+
+## Panel de administración
+
+`admin.html` (también enlazado desde *Mi cuenta* para el equipo). Herramienta de trabajo del dueño y su equipo, separada de la tienda y pensada para usarse desde el celular.
+
+| Sección | Qué permite | Permiso |
+|---|---|---|
+| Pedidos (RF-16) | Indicadores del día y del mes, filtros por estado, búsqueda, detalle con WhatsApp al cliente, cambio de estado (pagado → en preparación → en camino → entregado, o cancelar) | `pedidos.ver` / `pedidos.gestionar` |
+| Catálogo y precios (RF-17) | Crear y editar productos y variantes, publicar u ocultar, editar precios en la lista | `catalogo.gestionar` / `precios.gestionar` |
+| Inventario (RF-18) | Stock por variante con alerta de stock bajo (umbral editable en `parametros.stock_alerta`) | `catalogo.gestionar` (umbral: `config.gestionar`) |
+
+Seguridad en dos capas: el panel muestra solo lo que el rol puede usar y el **RLS** de Supabase bloquea cualquier cambio no permitido. El estado *Pagado* lo marca solo la confirmación de Mercado Pago.
+
+**Crear el primer administrador** (una vez, en Supabase → SQL Editor, con el correo de la cuenta del dueño ya registrada):
+
+```sql
+update public.perfiles set rol = 'admin'
+ where id = (select id from auth.users where email = 'correo-del-dueno@ejemplo.cl');
+```
 
 ## Ejecutar en local con Docker
 
@@ -87,13 +108,13 @@ Requisito: Node.js 20 o superior (no hay que instalar dependencias).
 npm test
 ```
 
-31 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega, validaciones (RUT, celular, correo, contraseña) y franjas horarias. Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
+50 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega, validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados de pedidos, precios, SKU e inventario). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
 
 ## Estructura
 
 ```
-web/          Sitio (index, catálogo, producto, checkout, cuenta) + css/ js/ assets/
-web/supabase/ Edge Functions de Supabase (no se publican en el contenedor)
+web/          Sitio (index, catálogo, producto, checkout, cuenta) y panel (admin.html) + css/ js/ assets/
+web/supabase/ Edge Functions y migraciones SQL de Supabase (no se publican en el contenedor)
 docker/       Configuración de nginx
 tests/        Pruebas automatizadas (npm test)
 ```
