@@ -1,9 +1,9 @@
 -- =====================================================================
--- Migración 04 (PENDIENTE): reglas de cupones — campañas y bienvenida
+-- Migración 04 (APLICADA 20-oct-2026): reglas de cupones — campañas y bienvenida
 -- Proyecto:  Befine Store (Supabase tbnevbvvwwzpnowxqyps)
 -- Requiere:  01_seguridad_roles aplicada. Independiente de 02 y 03.
 -- Aplicar:   junto con la sección Cupones del panel y el cupón del checkout.
--- Reversa:   04_cupones_reglas_reversa.sql
+-- Reversa:   20261020_04_cupones_reglas_reversa.sql
 -- Control de cambios: cambio menor CM-01 (RF-20), aprobado por el líder de sprint (Plan 11, §5).
 --
 -- Qué agrega:

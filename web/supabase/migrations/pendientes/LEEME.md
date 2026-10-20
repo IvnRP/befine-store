@@ -2,7 +2,7 @@
 
 Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla su requisito, se mueven a `../` (carpeta `migrations/`) y se aplican en Supabase como migración. Cada una tiene su archivo de reversa.
 
-Orden: **01 (aplicada) → 02, 03 y 04** (no dependen entre sí).
+Orden: **01, 01b y 04 (aplicadas) → 02 y 03** (no dependen entre sí).
 
 ---
 
@@ -66,27 +66,10 @@ await sb.auth.updateUser({ email: contacto.email, password });   // mismo id, co
 
 ---
 
-## 04 · Reglas de cupones: campañas y bienvenida — `04_cupones_reglas.sql` (RF-20 · cambio menor CM-01)
+## 04 · Reglas de cupones — APLICADA el 20-oct-2026 (RF-20 · cambio menor CM-01)
 
-**Aplicar cuando:** se publique la sección **Cupones** del panel y el campo de cupón del checkout (rama `carlos`).
-
-**Qué agrega**
-- Columnas en `cupones`: `requiere_cuenta`, `solo_primera_compra`, `usos_por_cliente` y `descripcion` (nota interna). Un cupón de primera compra siempre exige cuenta (restricción `cupones_bienvenida_con_cuenta`).
-- `_evaluar_cupon()` (interna, no expuesta): única lógica de cupones — vigencia, usos totales, compra mínima, productos a los que aplica y las reglas nuevas.
-- `revisar_cupon(codigo, items)` (anon y authenticated): el checkout muestra el descuento o el motivo por el que no aplica **antes de pagar**. No gasta usos y, para no revelar datos de terceros, revisa la primera compra solo con la cuenta del propio usuario.
-- `crear_pedido()`: misma versión de la 01, con el bloque de cupón reemplazado por `_evaluar_cupon()`.
-- Trigger `trg_pedido_cancelado_cupon`: al cancelar un pedido con cupón se devuelve su uso.
-
-**Reglas del cupón de bienvenida** (`solo_primera_compra`)
-- Exige cuenta registrada: un invitado ve "Este cupón es para clientes con cuenta. Crea tu cuenta gratis para usarlo."
-- Se rechaza si la **cuenta**, el **correo** o el **teléfono** del pedido ya tienen una compra pagada (pagado, en preparación, en camino o entregado).
-- Un pedido pendiente de pago con el cupón también cuenta: no se pueden crear dos pedidos con él. Si ese pedido se cancela, vuelve a quedar disponible.
-
-**Antes de aplicar:** `crear_pedido()` se reemplaza completa. Verificar en Supabase que la versión en producción es la de la 01:
-```sql
-select pg_get_functiondef('public.crear_pedido(jsonb,jsonb,jsonb,jsonb,jsonb,text,text)'::regprocedure);
-```
-**Prueba en seco:** `04_prueba_en_seco.sql` (20 casos). En el SQL Editor pegar en una misma consulta el contenido de `04_cupones_reglas.sql` seguido del de `04_prueba_en_seco.sql` (sin `begin`/`commit`) y ejecutar; termina con un error intencional que deshace todo y lista T01–T20 (no debe aparecer FALLA). Verificada el 19-oct-2026 sobre una réplica local (schema DEFINITIVO + catálogo + 01 + 01b): 20/20 OK, y la reversa también.
+Se movió a `../20261020_04_cupones_reglas.sql` (con su reversa y su prueba en seco).
+Antes de aplicarla se verificó en producción que `crear_pedido()` era la versión de la 01, y la prueba en seco dio 20/20 OK sin dejar cambios. Después de aplicarla, `revisar_cupon()`, `_evaluar_cupon()`, las columnas nuevas de `cupones` y el trigger `trg_pedido_cancelado_cupon` quedaron disponibles.
 
 ---
 
