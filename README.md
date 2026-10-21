@@ -87,7 +87,16 @@ Requisito: Node.js 20 o superior (no hay que instalar dependencias).
 npm test
 ```
 
-31 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega, validaciones (RUT, celular, correo, contraseña) y franjas horarias. Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
+32 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega (sin feriados), validaciones (RUT, celular, correo, contraseña) y franjas horarias. Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
+
+## Forma de trabajo
+
+- **Kanban:** GitHub Projects "Befine Store - Desarrollo"; un milestone por sprint.
+- **Ramas:** `main` protegida (Pull Request + 1 aprobación) · ramas de trabajo `ivan`, `carlos`, `felipe` o `feature/HU-XX`.
+- **Trazabilidad:** tarjeta `HU-XX` → rama → PR con `Cierra #N` → sección del informe.
+- **Control de cambios:** issues con la etiqueta `tipo:cambio` (SC-01 a SC-04), según el Plan de Gestión de Cambios.
+- **Plantillas:** issues de historia, cambio y bug, y plantilla de Pull Request en `.github/`.
+- **Seguridad:** ninguna clave privada en el repositorio; los secretos viven en Supabase.
 
 ## Estructura
 
