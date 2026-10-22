@@ -21,6 +21,20 @@
     },
     formatoRut: (v) => { const r = Val.limpiarRut(v); if (r.length < 2) return r;
       return r.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "-" + r.slice(-1); },
+    /* Requisitos de contraseña — iguales a los configurados en Supabase Auth
+       (mín. 8, minúscula, mayúscula, número y símbolo). Devuelve lo que falta. */
+    SIMBOLOS: "!@#$%^&*()_+-=[]{};':\"|<>?,./`~\\",
+    reqsClave: (p) => {
+      p = p || "";
+      return [
+        { id: "largo", txt: "8 o más caracteres", ok: p.length >= 8 },
+        { id: "may", txt: "una mayúscula", ok: /[A-Z]/.test(p) },
+        { id: "min", txt: "una minúscula", ok: /[a-z]/.test(p) },
+        { id: "num", txt: "un número", ok: /\d/.test(p) },
+        { id: "sim", txt: "un símbolo (. @ # ! …)", ok: [...p].some((c) => Val.SIMBOLOS.includes(c)) },
+      ];
+    },
+    claveFaltante: (p) => Val.reqsClave(p).filter((r) => !r.ok).map((r) => r.txt),
     /* Fuerza de contraseña 0–4 */
     fuerza: (p) => { p = p || ""; let s = 0; if (p.length >= 8) s++; if (p.length >= 12) s++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++; if (/\d/.test(p) && /[^A-Za-z0-9]/.test(p)) s++; else if (/\d/.test(p)) s += 0.5; return Math.min(4, Math.floor(s)); },
   };

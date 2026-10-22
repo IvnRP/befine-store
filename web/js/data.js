@@ -243,7 +243,8 @@ function _msgAuth(e) {
   if (m.includes("invalid login")) return "Correo o contraseña incorrectos.";
   if (m.includes("already registered") || m.includes("already been registered")) return "Ya existe una cuenta con ese correo. Ingresa o recupera tu contraseña.";
   if (m.includes("email not confirmed")) return "Confirma tu correo: te enviamos un enlace al registrarte.";
-  if (m.includes("password") && (m.includes("at least") || m.includes("6 characters"))) return "La contraseña debe tener al menos 8 caracteres.";
+  if (m.includes("password") && (m.includes("should contain") || m.includes("weak") || m.includes("at least") || m.includes("characters")))
+    return "La contraseña debe tener al menos 8 caracteres, con mayúscula, minúscula, número y símbolo (. @ # ! …).";
   if (m.includes("rate limit") || m.includes("too many")) return "Demasiados intentos. Espera un minuto e inténtalo de nuevo.";
   if (m.includes("provider is not enabled") || m.includes("unsupported provider")) return "El ingreso con Google aún no está activado.";
   if (m.includes("failed to fetch") || m.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
@@ -251,14 +252,14 @@ function _msgAuth(e) {
 }
 
 Befine.auth = {
-  /* Sesión actual + datos de public.perfiles → { id, email, nombre, telefono, rut, razon_social, giro, es_empresa, puntos } | null */
+  /* Sesión actual + datos de public.perfiles → { id, email, nombre, telefono, rut, razon_social, giro, es_empresa, puntos, rol } | null */
   async sesion() {
     try {
       const { data } = await sb.auth.getSession();
       const u = data && data.session && data.session.user;
       if (!u || u.is_anonymous) return null;
       const { data: pf } = await sb.from("perfiles")
-        .select("nombre,apellido,telefono,rut,razon_social,giro,es_empresa,puntos_saldo")
+        .select("nombre,apellido,telefono,rut,razon_social,giro,es_empresa,puntos_saldo,rol")
         .eq("id", u.id).maybeSingle();
       const meta = u.user_metadata || {};
       return {
@@ -267,6 +268,7 @@ Befine.auth = {
         apellido: pf && pf.apellido, telefono: (pf && pf.telefono) || meta.telefono || "",
         rut: pf && pf.rut, razon_social: pf && pf.razon_social, giro: pf && pf.giro,
         es_empresa: !!(pf && pf.es_empresa), puntos: (pf && pf.puntos_saldo) || 0,
+        rol: (pf && pf.rol) || "cliente", // "cliente" o un rol del equipo (admin, chofer…)
       };
     } catch (e) { return null; }
   },
@@ -454,6 +456,27 @@ Befine.crearPedido = async function (payload) {
     };
     return { ok: true, pedido };
   } catch (e) { return { ok: false, error: _msgPedido(e) }; }
+};
+
+/* Revisar un cupón ANTES de pagar (migración 04: revisar_cupon). Solo informa: no gasta usos.
+   El servidor vuelve a validar todo al crear el pedido (crear_pedido).
+   items = [{variante_id, cantidad}] → { valido, codigo, descuento } o { valido:false, mensaje } */
+Befine.revisarCupon = async function (codigo, items) {
+  try {
+    const { data, error } = await sb.rpc("revisar_cupon", {
+      p_codigo: String(codigo || "").trim(),
+      p_items: (items || []).map((i) => ({ variante_id: i.variante_id, cantidad: i.cantidad })),
+    });
+    if (error) {
+      const m = (error.message || "").toLowerCase();
+      if (error.code === "PGRST202" || m.includes("could not find the function")) return { valido: false, mensaje: "Los cupones estarán disponibles muy pronto." };
+      if (m.includes("failed to fetch") || m.includes("network")) return { valido: false, mensaje: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
+      return { valido: false, mensaje: "No pudimos revisar el cupón. Inténtalo de nuevo." };
+    }
+    return data && data.valido
+      ? { valido: true, codigo: data.codigo, descuento: Number(data.descuento) || 0, tipo: data.tipo, valor: data.valor }
+      : { valido: false, mensaje: (data && data.mensaje) || "El cupón no es válido o ya venció." };
+  } catch (e) { return { valido: false, mensaje: "No pudimos revisar el cupón. Inténtalo de nuevo." }; }
 };
 
 /* Pagar con Mercado Pago. SIMULADO hasta el Sprint 3 (HU-08/09): no cambia nada en la base.

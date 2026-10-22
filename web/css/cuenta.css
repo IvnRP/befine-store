@@ -53,6 +53,7 @@ body.tema-claro .acc-brand h1 .serif { background: linear-gradient(90deg, var(--
 .pc-head h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 4vw, 38px); margin: 2px 0 0; letter-spacing: -.02em; }
 .pc-head p { margin: 2px 0 0; }
 .pc-head .btn { margin-left: auto; }
+.pc-head .pc-admin:not([hidden]) + .btn { margin-left: 0; }  /* equipo: los dos botones juntos a la derecha */
 .pc-grid { display: grid; grid-template-columns: 300px 1fr; grid-template-areas: "puntos datos" "puntos pedidos"; gap: 16px; align-items: start; }
 .pc-grid .sheet + .sheet { margin-top: 0; }
 .pc-puntos { grid-area: puntos; } .pc-datos { grid-area: datos; } .pc-pedidos { grid-area: pedidos; }
@@ -76,3 +77,9 @@ body.tema-claro .ped .est { color: var(--accent); }
 .ped .est.pagado { background: rgba(70,185,138,.18); color: #3fcf94; } body.tema-claro .ped .est.pagado { color: #1f8a5b; }
 .vacio-p { text-align: center; color: var(--muted); padding: 18px 0 6px; }
 .vacio-p .btn { margin-top: 12px; }
+
+/* Requisitos de contraseña (se marcan en vivo; mismos que Supabase Auth) */
+.reqs { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .8rem; color: var(--muted, #6b7a80); }
+.reqs li { display: inline-flex; align-items: center; gap: 4px; transition: color .2s; }
+.reqs li span { width: 1em; text-align: center; }
+.reqs li.ok { color: #1f9d6b; }

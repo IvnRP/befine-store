@@ -1,5 +1,5 @@
-/* Pruebas de validaciones de formularios (web/js/forms.js) — 9 pruebas
-   Casos CP-U01 a CP-U04 del Plan de Pruebas. */
+/* Pruebas de validaciones de formularios (web/js/forms.js) — 11 pruebas
+   Casos CP-U01 a CP-U04 y CP-U13 (política de contraseñas) del Plan de Pruebas. */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { cargar } = require("../helpers/cargar");
@@ -60,4 +60,16 @@ test("CP-U04b fuerza de contraseña de 0 a 4", () => {
   assert.equal(Val.fuerza("Abcdefgh"), 2);
   assert.equal(Val.fuerza("Abcdefgh1!"), 3);
   assert.equal(Val.fuerza("Abcdefghijk1!"), 4);
+});
+
+test("CP-U13a contraseña que cumple la política de Supabase Auth", () => {
+  assert.deepEqual(Array.from(Val.claveFaltante("Befine.2026")), []);
+  assert.ok(Val.reqsClave("Agua#Pura9").every((r) => r.ok));
+});
+
+test("CP-U13b contraseña débil informa exactamente lo que falta", () => {
+  assert.deepEqual(Array.from(Val.claveFaltante("befine")),
+    ["8 o más caracteres", "una mayúscula", "un número", "un símbolo (. @ # ! …)"]);
+  assert.deepEqual(Array.from(Val.claveFaltante("BEFINE2026!")), ["una minúscula"]);
+  assert.equal(Val.claveFaltante("").length, 5);
 });

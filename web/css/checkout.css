@@ -99,3 +99,24 @@ body.tema-claro .co-ok .det { background: #f7fbfe; }
 .co-ok .crear .fila { display: flex; gap: 10px; align-items: flex-end; }
 .co-ok .crear .fila .fld { flex: 1; }
 @media (max-width: 520px) { .co-ok .crear .fila { flex-direction: column; align-items: stretch; } }
+
+/* ---------- Cupón de descuento (RF-20) ---------- */
+.r-cupon { margin: 14px 0 0; }
+.r-cupon-abrir { background: none; border: 0; padding: 4px 0; color: var(--accent-soft); font: 700 13.5px var(--font-body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+body.tema-claro .r-cupon-abrir { color: var(--accent); }
+.r-cupon-form { display: flex; gap: 8px; margin-top: 8px; }
+.r-cupon-form .inp { flex: 1; width: 0; min-width: 0; min-height: 44px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(4,16,40,.55);
+  color: var(--ink); font: 700 15px var(--font-body); letter-spacing: .04em; text-transform: uppercase; }
+.r-cupon-form .inp::placeholder { text-transform: none; letter-spacing: 0; font-weight: 500; }
+body.tema-claro .r-cupon-form .inp { background: #fff; border-color: rgba(11,78,122,.22); color: #10333f; }
+.r-cupon-form .inp:focus { outline: none; border-color: var(--accent-soft); }
+.r-cupon-form .btn { min-height: 44px; padding: 10px 16px; }
+.r-cupon-msg { margin: 8px 0 0; font-size: 13px; font-weight: 600; color: #ff8a8a; line-height: 1.4; }
+body.tema-claro .r-cupon-msg { color: #c62828; }
+.r-cupon-msg a { text-decoration: underline; text-underline-offset: 2px; font-weight: 800; }
+.r-cupon-ok { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 9px 12px; border-radius: 12px; font-size: 13.5px;
+  background: rgba(70,185,138,.14); border: 1px solid rgba(70,185,138,.35); color: var(--ink); }
+.r-cupon-ok svg { width: 18px; height: 18px; color: var(--mint); flex: none; }
+body.tema-claro .r-cupon-ok svg { color: #1f8a5b; }
+.r-cupon-ok b { letter-spacing: .04em; }
+.r-cupon-ok button { margin-left: auto; background: none; border: 0; color: var(--muted); font: 600 13px var(--font-body); cursor: pointer; text-decoration: underline; }

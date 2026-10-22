@@ -148,8 +148,22 @@
           <h2>Tu pedido</h2>
           <div class="r-items" id="coItems"></div>
           <div class="r-envio" id="coEnvioMeta" hidden><div class="barra"><span id="coEnvioBar"></span></div><p id="coEnvioTxt"></p></div>
+          <div class="r-cupon" id="coCupon">
+            <button type="button" class="r-cupon-abrir" id="coCuponAbrir" aria-expanded="false">¿Tienes un cupón de descuento?</button>
+            <div class="r-cupon-form" id="coCuponForm" hidden>
+              <input class="inp" id="coCuponInp" placeholder="Código del cupón" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30" aria-label="Código del cupón">
+              <button type="button" class="btn btn-ghost" id="coCuponBtn">Aplicar</button>
+            </div>
+            <p class="r-cupon-msg" id="coCuponMsg" role="status" hidden></p>
+            <div class="r-cupon-ok" id="coCuponOk" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>Cupón <b id="coCuponCod"></b> aplicado</span>
+              <button type="button" id="coCuponQuitar">Quitar</button>
+            </div>
+          </div>
           <dl class="r-tot">
             <div><dt>Subtotal</dt><dd id="coSub">$0</dd></div>
+            <div id="coDescFila" hidden><dt>Descuento</dt><dd id="coDesc" class="gratis">−$0</dd></div>
             <div><dt>Despacho</dt><dd id="coEnvio">Elige tu comuna</dd></div>
             <div class="total"><dt>Total</dt><dd id="coTotal">$0</dd></div>
           </dl>

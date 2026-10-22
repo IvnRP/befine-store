@@ -13,6 +13,9 @@
   // Solo se permite volver a páginas propias (evita redirecciones a otros sitios)
   const volver = /^[\w-]+\.html$/.test(url.get("volver") || "") ? url.get("volver") : null;
   const VISTAS = ["fIngresar", "fRegistro", "fRecuperar", "fNueva", "vRevisa"];
+  // Estado del pedido como lo ve el cliente (mismo enum estado_pedido de la base)
+  const ESTADO_TXT = { pendiente_pago: "Pendiente de pago", pagado: "Pagado", en_preparacion: "En preparación",
+    en_ruta: "En camino", entregado: "Entregado", cancelado: "Cancelado" };
 
   document.addEventListener("DOMContentLoaded", async () => {
     document.querySelectorAll("[data-google]").forEach((b) => { b.innerHTML = GOOGLE_SVG + b.textContent; });
@@ -74,10 +77,23 @@
 
   /* ================= Crear cuenta ================= */
   $("regTel").addEventListener("input", (e) => { e.target.value = Val.formatoTel(e.target.value); });
+  /* Lista de requisitos de la contraseña, marcados en vivo */
+  const pintarReqs = (input, lista) => {
+    lista.innerHTML = Val.reqsClave(input.value).map((r) =>
+      `<li class="${r.ok ? "ok" : ""}"><span aria-hidden="true">${r.ok ? "✓" : "•"}</span>${r.txt}</li>`).join("");
+  };
+  const errorClave = (input) => {
+    const falta = Val.claveFaltante(input.value);
+    if (falta.length) { setError(input, "Tu contraseña necesita: " + falta.join(", ") + "."); return false; }
+    return true;
+  };
+  [["regClave", "regReqs"], ["nvClave", "nvReqs"]].forEach(([i, l]) => {
+    pintarReqs($(i), $(l));
+    $(i).addEventListener("input", () => pintarReqs($(i), $(l)));
+  });
   $("regClave").addEventListener("input", (e) => {
     const n = e.target.value ? Math.max(1, Val.fuerza(e.target.value)) : 0;
     document.querySelector(".fuerza").dataset.n = n;
-    $("regFuerza").textContent = ["Usa 8 o más caracteres; mejor si mezclas letras y números.", "Débil: agrega más caracteres.", "Aceptable: suma números o símbolos.", "Buena contraseña.", "Excelente contraseña."][n];
   });
   $("fRegistro").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -85,7 +101,7 @@
     if (n.value.trim().length < 3) { setError(n, "Escribe tu nombre y apellido."); ok = false; }
     if (!Val.email(em.value)) { setError(em, "Escribe un correo válido."); ok = false; }
     if (tel.value && !Val.telefono(tel.value)) { setError(tel, "Celular de 9 dígitos que empiece con 9."); ok = false; }
-    if (cl.value.length < 8) { setError(cl, "Usa al menos 8 caracteres."); ok = false; }
+    if (!errorClave(cl)) ok = false;
     if (!ac.checked) { msg($("regMsg"), "Para crear tu cuenta debes aceptar los términos y la política de privacidad.", "mal"); ok = false; }
     if (!ok) return;
     cargando($("regBtn"), true, "Creando cuenta…"); msg($("regMsg"), "");
@@ -111,7 +127,7 @@
   $("fNueva").addEventListener("submit", async (e) => {
     e.preventDefault();
     const cl = $("nvClave");
-    if (cl.value.length < 8) return setError(cl, "Usa al menos 8 caracteres.");
+    if (!errorClave(cl)) return;
     cargando($("nvBtn"), true, "Guardando…");
     const r = await Befine.auth.nuevaClave(cl.value);
     cargando($("nvBtn"), false);
@@ -126,6 +142,9 @@
     $("pcAvatar").textContent = (s.nombre || "?")[0].toUpperCase();
     $("pcHola").textContent = "Hola, " + (s.nombre || "").split(" ")[0];
     $("pcEmail").textContent = s.email;
+    // Equipo de Befine (cualquier rol distinto de cliente): acceso al panel. El panel vuelve a
+    // verificar los permisos y el RLS de Supabase bloquea cualquier acción no permitida.
+    $("pcAdmin").hidden = !s.rol || s.rol === "cliente";
     $("pcPuntos").textContent = (s.puntos || 0).toLocaleString("es-CL");
     const fila = (k, v) => `<div><dt>${k}</dt><dd>${v ? esc(v) : '<span class="muted">—</span>'}</dd></div>`;
     $("pcDatos").innerHTML = fila("Nombre", [s.nombre, s.apellido].filter(Boolean).join(" ")) + fila("Correo", s.email) + fila("Celular", s.telefono) +
@@ -134,7 +153,7 @@
     $("pcPedidos").innerHTML = peds.length ? peds.map((p) => `
       <div class="ped"><span class="num">#${p.numero}</span><span class="fe">${new Date(p.created_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}
         · ${p.items.reduce((n, i) => n + i.cantidad, 0)} producto(s)</span><span class="tot">${Befine.clp(p.total)}</span>
-        <span class="est ${p.estado}">${p.estado === "pagado" ? "Pagado · en preparación" : "Pendiente de pago"}</span></div>`).join("")
+        <span class="est ${p.estado}">${ESTADO_TXT[p.estado] || "Pendiente de pago"}</span></div>`).join("")
       : `<div class="vacio-p">Aún no tienes pedidos.<br><a class="btn btn-primary" href="catalogo.html">Hacer mi primer pedido</a></div>`;
   }
   $("pcSalir").addEventListener("click", async () => { await Befine.auth.salir(); location.href = "index.html"; });
