@@ -80,10 +80,11 @@
   /* Filtro de la lista: estado ("todos" | "activos" | un estado) y búsqueda por
      número (#123 o 123), nombre, teléfono o comuna. */
   const ACTIVOS = ["pagado", "en_preparacion", "en_ruta"];
-  function filtrarPedidos(lista, { estado = "todos", q = "" } = {}) {
+  function filtrarPedidos(lista, { estado = "todos", q = "", entrega = null } = {}) {
     const t = norm(q).replace(/^#/, "");
     const tel = t.replace(/\D/g, "");
     return (lista || []).filter((p) => {
+      if (!enRangoEntrega(p, entrega)) return false;
       if (estado === "activos" && !ACTIVOS.includes(p.estado)) return false;
       if (estado !== "todos" && estado !== "activos" && p.estado !== estado) return false;
       if (!t) return true;
@@ -110,6 +111,57 @@
     const x = d instanceof Date ? d : new Date(d);
     return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
   };
+
+  /* ---------- Filtro por fecha de entrega (HU-07) ----------
+     Las fechas se manejan como texto AAAA-MM-DD (igual que la columna
+     pedidos.fecha_entrega, tipo date), así se comparan sin desfases de zona horaria. */
+  const ES_DIA = /^\d{4}-\d{2}-\d{2}$/;
+  const aFecha = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+  const sumarDias = (iso, n) => { const x = aFecha(iso); x.setDate(x.getDate() + n); return diaLocal(x); };
+  const diaSemana = (iso) => aFecha(iso).getDay() || 7;            // 1 = lunes … 7 = domingo
+  function siguienteHabil(iso) {
+    let x = sumarDias(iso, 1);
+    while (diaSemana(x) > 5) x = sumarDias(x, 1);
+    return x;
+  }
+
+  /* Opciones del filtro de entrega. "Siguiente día hábil" porque el despacho
+     es de lunes a viernes: un viernes, la siguiente entrega es el lunes. */
+  const OPCIONES_ENTREGA = { todas: "Cualquier fecha", hoy: "Hoy", siguiente: "Siguiente día hábil", semana: "Esta semana", rango: "Elegir fechas" };
+
+  /* Convierte la opción elegida en un rango { desde, hasta } (inclusive) o null
+     si no hay que filtrar. "Esta semana" va de lunes a domingo de la semana en curso,
+     así también aparecen los pedidos atrasados de días anteriores. */
+  function rangoEntrega(opcion, hoy = new Date(), desde = "", hasta = "") {
+    const d = diaLocal(hoy);
+    switch (opcion) {
+      case "hoy": return { desde: d, hasta: d };
+      case "siguiente": { const s = siguienteHabil(d); return { desde: s, hasta: s }; }
+      case "semana": { const lun = sumarDias(d, 1 - diaSemana(d)); return { desde: lun, hasta: sumarDias(lun, 6) }; }
+      case "rango": {
+        let a = ES_DIA.test(desde || "") ? desde : "", b = ES_DIA.test(hasta || "") ? hasta : "";
+        if (!a && !b) return null;
+        if (a && b && a > b) [a, b] = [b, a];
+        return { desde: a, hasta: b };
+      }
+      default: return null;
+    }
+  }
+
+  function enRangoEntrega(p, r) {
+    if (!r) return true;
+    const f = p && p.fecha_entrega;
+    if (!f || !ES_DIA.test(f)) return false;
+    return (!r.desde || f >= r.desde) && (!r.hasta || f <= r.hasta);
+  }
+
+  /* Texto corto del rango para mostrar junto al filtro: "jueves 22 oct", "26 – 30 oct" */
+  function textoRango(r) {
+    if (!r) return "";
+    const f = (iso, conDia) => aFecha(iso).toLocaleDateString("es-CL", { ...(conDia ? { weekday: "long" } : {}), day: "numeric", month: "short" }).replace(/\.$/, "");
+    if (r.desde && r.hasta) return r.desde === r.hasta ? f(r.desde, true) : f(r.desde) + " – " + f(r.hasta);
+    return r.desde ? "desde el " + f(r.desde) : "hasta el " + f(r.hasta);
+  }
 
   /* Indicadores del inicio de Pedidos. Ventas = pedidos pagados (en cualquier etapa
      posterior al pago) creados en el mes en curso. */
@@ -342,7 +394,7 @@
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
     TRANSICIONES, siguientesEstados, puedeCambiar, ACCION_ESTADO,
-    filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, linkWhatsApp, telefonoVisible,
+    filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, OPCIONES_ENTREGA, rangoEntrega, enRangoEntrega, siguienteHabil, textoRango, linkWhatsApp, telefonoVisible,
     parsePrecio, normalizarSku, validarProducto, validarVariante, filtrarCatalogo,
     UMBRAL_DEFECTO, umbralStock, nivelStock, NIVELES_STOCK, parseStock, sumarStock, resumenStock, filtrarInventario,
     normalizarCodigo, enteroOpcional, estadoCupon, ESTADOS_CUPON, textoDescuento, condicionesCupon, validarCupon, filaCupon, filtrarCupones,

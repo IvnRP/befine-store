@@ -162,6 +162,24 @@ body.page-admin {
 .ad-chips button[aria-selected="true"] { background: var(--ad-deep); border-color: var(--ad-deep); color: #fff; }
 .ad-chips button[aria-selected="true"] span { color: #BFE3F5; }
 
+/* Filtro por fecha de entrega (Pedidos) */
+.ad-entrega { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: -4px 0 12px; }
+.ad-entrega-tit { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ad-muted); }
+.ad-entrega .ad-chips { margin: 0; padding: 0; min-width: 0; max-width: 100%; }
+.ad-chips.sm button { padding: 5px 11px; font-size: 13px; }
+.ad-rango { display: flex; gap: 8px; flex-wrap: wrap; }
+.ad-rango label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ad-muted); font-weight: 600; }
+.ad-rango .ad-inp { width: auto; min-height: 36px; padding: 6px 10px; }
+.ad-rango-txt { font-size: 13px; color: var(--ad-muted); }
+.ad-rango-txt:first-letter { text-transform: uppercase; }
+@media (max-width: 760px) {
+  .ad-entrega-tit { width: 100%; }
+  .ad-entrega .ad-chips { flex-wrap: wrap; overflow: visible; }
+  .ad-rango { width: 100%; }
+  .ad-rango label { flex: 1 1 140px; }
+  .ad-rango .ad-inp { flex: 1; width: 0; }
+}
+
 /* Tabla (en celular cada fila se vuelve tarjeta) */
 .ad-lista { overflow: hidden; }
 .ad-tabla { width: 100%; border-collapse: collapse; }

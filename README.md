@@ -58,7 +58,7 @@ Las claves privadas viven solo como secretos de las Edge Functions; nunca en el 
 
 | Sección | Qué permite | Permiso |
 |---|---|---|
-| Pedidos (RF-16) | Indicadores del día y del mes, filtros por estado, búsqueda, detalle con WhatsApp al cliente, cambio de estado (pagado → en preparación → en camino → entregado, o cancelar) | `pedidos.ver` / `pedidos.gestionar` |
+| Pedidos (RF-16) | Indicadores del día y del mes, filtros por estado y por fecha de entrega (hoy, siguiente día hábil, esta semana o rango), búsqueda, detalle con WhatsApp al cliente, cambio de estado (pagado → en preparación → en camino → entregado, o cancelar) | `pedidos.ver` / `pedidos.gestionar` |
 | Catálogo y precios (RF-17) | Crear y editar productos y variantes, publicar u ocultar, editar precios en la lista | `catalogo.gestionar` / `precios.gestionar` |
 | Inventario (RF-18) | Stock por variante con alerta de stock bajo (umbral editable en `parametros.stock_alerta`) | `catalogo.gestionar` (umbral: `config.gestionar`) |
 | Cupones (RF-20) | Campañas (fechas, usos totales y por cliente, compra mínima, productos) y cupón de bienvenida (solo 1ª compra, con cuenta); pausar y ver usos | `promociones.gestionar` |
@@ -109,7 +109,7 @@ Requisito: Node.js 20 o superior (no hay que instalar dependencias).
 npm test
 ```
 
-58 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega (sin feriados), validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados de pedidos, precios, SKU, inventario y cupones) y el cupón del checkout. Las reglas de cupones en la base tienen además su prueba en seco SQL (`web/supabase/migrations/20261020_04_prueba_en_seco.sql`, 20 casos). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
+62 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega (sin feriados), validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados y filtro por fecha de entrega de pedidos, precios, SKU, inventario y cupones) y el cupón del checkout. Las reglas de cupones en la base tienen además su prueba en seco SQL (`web/supabase/migrations/20261020_04_prueba_en_seco.sql`, 20 casos). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
 
 ## Forma de trabajo
 
