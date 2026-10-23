@@ -1,7 +1,8 @@
 /* =====================================================================
    admin-pedidos.js — Sección "Pedidos" del panel (RF-16)
    ---------------------------------------------------------------------
-   - Indicadores del día y del mes, filtros por estado y búsqueda.
+   - Indicadores del día y del mes, filtros por estado, por fecha de
+     entrega (hoy, siguiente día hábil, esta semana o rango) y búsqueda.
    - Detalle del pedido en panel lateral: cliente (WhatsApp/llamar),
      dirección, productos, montos, documento e historial de estados.
    - Cambios de estado según el flujo (AdminLogic.TRANSICIONES), solo si
@@ -13,7 +14,7 @@
   const A = () => Befine.admin;
   const clp = (n) => Befine.clp(n || 0);
 
-  let el, app, lista = [], filtro = { estado: "activos", q: "" }, cargado = false, timer = null;
+  let el, app, lista = [], filtro = { estado: "activos", q: "", entrega: "todas", desde: "", hasta: "" }, cargado = false, timer = null;
 
   const badge = (e) => `<span class="ad-est ${(L.ESTADOS[e] || {}).tono || ""}">${esc(L.etiquetaEstado(e))}</span>`;
   const dir = (d) => d ? `${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", depto " + esc(d.depto) : ""}` : "—";
@@ -30,6 +31,15 @@
       </div>
       <div class="ad-kpis" id="pqKpis"></div>
       <div class="ad-chips" id="pqChips" role="tablist" aria-label="Filtrar por estado"></div>
+      <div class="ad-entrega">
+        <span class="ad-entrega-tit">Entrega</span>
+        <div class="ad-chips sm" id="pqEntrega" role="tablist" aria-label="Filtrar por fecha de entrega"></div>
+        <div class="ad-rango" id="pqRango" hidden>
+          <label>Desde <input class="ad-inp" type="date" id="pqDesde"></label>
+          <label>Hasta <input class="ad-inp" type="date" id="pqHasta"></label>
+        </div>
+        <small class="ad-rango-txt" id="pqRangoTxt" aria-live="polite"></small>
+      </div>
       <div class="ad-card ad-lista" id="pqLista"><div class="ad-vacio"><span class="ad-spin"></span></div></div>`;
 
     let t;
@@ -41,6 +51,17 @@
       const b = e.target.closest("[data-f]"); if (!b) return;
       filtro.estado = b.dataset.f; pintarChips(); pintarLista();
     });
+    el.querySelector("#pqEntrega").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-e]"); if (!b) return;
+      filtro.entrega = b.dataset.e;
+      el.querySelector("#pqRango").hidden = filtro.entrega !== "rango";
+      if (filtro.entrega === "rango" && !filtro.desde && !filtro.hasta) el.querySelector("#pqDesde").focus();
+      pintarChips(); pintarLista();
+    });
+    ["#pqDesde", "#pqHasta"].forEach((id) => el.querySelector(id).addEventListener("change", () => {
+      filtro.desde = el.querySelector("#pqDesde").value; filtro.hasta = el.querySelector("#pqHasta").value;
+      pintarChips(); pintarLista();
+    }));
     el.querySelector("#pqLista").addEventListener("click", (e) => {
       const fila = e.target.closest("[data-id]"); if (fila) abrir(fila.dataset.id);
     });
@@ -83,15 +104,25 @@
     if (cnt) { cnt.textContent = r.porPreparar; cnt.hidden = !r.porPreparar; }
   }
 
+  const rango = () => L.rangoEntrega(filtro.entrega, new Date(), filtro.desde, filtro.hasta);
+
   function pintarChips() {
-    const c = L.contarPorEstado(lista);
+    const r = rango();
+    // Los contadores por estado consideran el filtro de entrega elegido
+    const c = L.contarPorEstado(L.filtrarPedidos(lista, { entrega: r }));
     const ops = [["activos", "Para gestionar"], ["todos", "Todos"], ...L.ORDEN_ESTADOS.map((e) => [e, L.etiquetaEstado(e)])];
     el.querySelector("#pqChips").innerHTML = ops.map(([k, t]) =>
       `<button type="button" role="tab" data-f="${k}" aria-selected="${filtro.estado === k}">${esc(t)} <span>${c[k] || 0}</span></button>`).join("");
+    el.querySelector("#pqEntrega").innerHTML = Object.entries(L.OPCIONES_ENTREGA).map(([k, t]) =>
+      `<button type="button" role="tab" data-e="${k}" aria-selected="${filtro.entrega === k}">${esc(t)}</button>`).join("");
+    el.querySelector("#pqRangoTxt").textContent = r ? L.textoRango(r) : "";
   }
 
   function pintarLista() {
-    const items = L.filtrarPedidos(lista, filtro);
+    const r = rango();
+    const items = L.filtrarPedidos(lista, { estado: filtro.estado, q: filtro.q, entrega: r });
+    // Con un filtro de entrega, la lista se ordena por fecha de entrega (para planificar el reparto)
+    if (r) items.sort((a, b) => String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)) || a.numero - b.numero);
     const box = el.querySelector("#pqLista");
     if (!items.length) {
       box.innerHTML = `<div class="ad-vacio">${lista.length ? "No hay pedidos con este filtro." : "Aún no hay pedidos en los últimos 90 días."}</div>`;

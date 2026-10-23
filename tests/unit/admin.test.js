@@ -1,5 +1,5 @@
 /* Pruebas de las reglas del panel de administración (web/js/admin-logic.js)
-   Casos CP-U14 (acceso por rol), CP-U15 (pedidos), CP-U16 (catálogo), CP-U17 (inventario) y CP-U18 (cupones) del Plan de Pruebas. */
+   Casos CP-U14 (acceso por rol), CP-U15 (pedidos), CP-U16 (catálogo), CP-U17 (inventario), CP-U18 (cupones) y CP-U20 (pedidos por fecha de entrega) del Plan de Pruebas. */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { cargar } = require("../helpers/cargar");
@@ -217,4 +217,44 @@ test("CP-U18d texto del descuento y condiciones visibles en la lista", () => {
   assert.deepEqual(arr(L.condicionesCupon({ solo_primera_compra: true, requiere_cuenta: true, usos_por_cliente: 1, compra_minima: 0 })), ["solo 1ª compra"]);
   assert.deepEqual(arr(L.condicionesCupon({ compra_minima: 10000, usos_por_cliente: 1, variantes: ["v1", "v2"] })),
     ["mín. $10.000", "1 vez por cliente", "2 productos"]);
+});
+
+/* ---------- Pedidos por fecha de entrega (HU-07, RF-16) — CP-U20 ---------- */
+const jueves = new Date(2026, 9, 22, 15, 0);   // jueves 22-oct-2026
+const viernes = new Date(2026, 9, 23, 9, 0);   // viernes 23-oct-2026
+
+test("CP-U20a atajos de entrega: hoy, siguiente día hábil y esta semana", () => {
+  assert.deepEqual({ ...L.rangoEntrega("hoy", jueves) }, { desde: "2026-10-22", hasta: "2026-10-22" });
+  assert.deepEqual({ ...L.rangoEntrega("siguiente", jueves) }, { desde: "2026-10-23", hasta: "2026-10-23" });
+  // un viernes, la siguiente entrega es el lunes (no hay reparto el fin de semana)
+  assert.deepEqual({ ...L.rangoEntrega("siguiente", viernes) }, { desde: "2026-10-26", hasta: "2026-10-26" });
+  // la semana va de lunes a domingo: incluye entregas atrasadas de días anteriores
+  assert.deepEqual({ ...L.rangoEntrega("semana", jueves) }, { desde: "2026-10-19", hasta: "2026-10-25" });
+  assert.equal(L.rangoEntrega("todas", jueves), null);
+});
+
+test("CP-U20b rango elegido: fechas invertidas se ordenan, un extremo vacío es abierto y sin fechas no filtra", () => {
+  assert.deepEqual({ ...L.rangoEntrega("rango", jueves, "2026-10-30", "2026-10-26") }, { desde: "2026-10-26", hasta: "2026-10-30" });
+  assert.deepEqual({ ...L.rangoEntrega("rango", jueves, "2026-10-26", "") }, { desde: "2026-10-26", hasta: "" });
+  assert.equal(L.rangoEntrega("rango", jueves, "", ""), null);
+  assert.equal(L.rangoEntrega("rango", jueves, "26/10/2026", "x"), null);   // formato inválido se ignora
+});
+
+test("CP-U20c filtrar pedidos por fecha de entrega, combinado con estado y búsqueda", () => {
+  const dia = { desde: "2026-10-20", hasta: "2026-10-20" };
+  assert.deepEqual(nums(L.filtrarPedidos(pedidos, { entrega: dia })), [101, 105]);
+  assert.deepEqual(nums(L.filtrarPedidos(pedidos, { entrega: dia, estado: "pendiente_pago" })), [101]);
+  assert.deepEqual(nums(L.filtrarPedidos(pedidos, { entrega: { desde: "2026-10-19", hasta: "2026-10-19" }, estado: "activos" })), [102, 103]);
+  assert.deepEqual(nums(L.filtrarPedidos(pedidos, { entrega: { desde: "2026-10-19", hasta: "" }, q: "quilicura" })), [101, 105]);
+  assert.deepEqual(nums(L.filtrarPedidos(pedidos, { entrega: { desde: "", hasta: "2026-10-01" } })), [104]);
+  // un pedido sin fecha de entrega no aparece cuando se filtra por fecha
+  assert.deepEqual(nums(L.filtrarPedidos([{ numero: 1, estado: "pagado" }], { entrega: dia })), []);
+  assert.equal(L.filtrarPedidos(pedidos, { entrega: null }).length, pedidos.length);
+});
+
+test("CP-U20d texto del rango que acompaña al filtro", () => {
+  assert.equal(L.textoRango(null), "");
+  assert.match(L.textoRango({ desde: "2026-10-26", hasta: "2026-10-26" }), /lunes.*26/);
+  assert.match(L.textoRango({ desde: "2026-10-26", hasta: "2026-10-30" }), /26.*–.*30/);
+  assert.match(L.textoRango({ desde: "2026-10-26", hasta: "" }), /^desde el 26/);
 });
