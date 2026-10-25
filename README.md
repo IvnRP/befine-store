@@ -109,7 +109,7 @@ Requisito: Node.js 20 o superior (no hay que instalar dependencias).
 npm test
 ```
 
-68 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega (sin feriados), validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados y filtro por fecha de entrega de pedidos, precios, SKU, inventario y cupones) el cupón del checkout y el pago con Mercado Pago (llamada a `crear-pago`, redirección segura y vuelta del pago). Las reglas de cupones en la base tienen además su prueba en seco SQL (`web/supabase/migrations/20261020_04_prueba_en_seco.sql`, 20 casos). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
+74 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega (sin feriados), validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados y filtro por fecha de entrega de pedidos, precios, SKU, inventario y cupones) el cupón del checkout y el pago con Mercado Pago (llamada a `crear-pago`, redirección segura y vuelta del pago) y el historial de pedidos del cliente (detalle y "Volver a pedir" con el precio vigente). Las reglas de cupones en la base tienen además su prueba en seco SQL (`web/supabase/migrations/20261020_04_prueba_en_seco.sql`, 20 casos). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
 
 ## Forma de trabajo
 

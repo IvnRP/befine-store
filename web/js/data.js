@@ -569,5 +569,82 @@ Befine.misPedidos = async function () {
   } catch (e) { return []; }
 };
 
+/* ---------- Historial del cliente (HU-18, RF-10) ---------- */
+/* Pasa una fila de pedidos (con sus relaciones) al formato que usa "Mis pedidos".
+   El enlace de la boleta/factura solo se muestra si el documento fue emitido y la URL es https. */
+Befine.armarDetalle = function (p) {
+  const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" && /^https:\/\//i.test(d.url_pdf || ""));
+  return {
+    id: p.id, numero: p.numero, estado: p.estado, creado: p.created_at, fecha_entrega: p.fecha_entrega || null,
+    subtotal: p.subtotal || 0, despacho: p.costo_despacho || 0, descuento: p.descuento_cupon || 0, total: p.total || 0,
+    documento: p.tipo_documento || "boleta",
+    direccion: p.direccion || null,
+    items: (p.detalle_pedido || []).map((d) => {
+      const v = d.variante || null, prod = v && v.producto;
+      return { variante_id: d.variante_id, nombre: (prod && prod.nombre) || "Producto no disponible", variante: (v && v.nombre) || "",
+        cantidad: d.cantidad, precio_unitario: d.precio_unitario, subtotal: d.subtotal };
+    }),
+    boleta: dte ? { tipo: dte.tipo, folio: dte.folio, url: dte.url_pdf } : null,
+  };
+};
+
+/* Detalle de un pedido propio (RLS: el cliente solo obtiene SUS pedidos). Devuelve el detalle o null. */
+Befine.detallePedido = async function (id) {
+  if (!UUID_RE.test(String(id || ""))) return null;
+  try {
+    const { data, error } = await sb.from("pedidos")
+      .select("id,numero,estado,created_at,fecha_entrega,subtotal,costo_despacho,descuento_cupon,total,tipo_documento," +
+              "direccion:direcciones(calle,numero,depto,comuna,referencia)," +
+              "detalle_pedido(variante_id,cantidad,precio_unitario,subtotal,variante:variantes_producto(nombre,producto:productos(nombre)))," +
+              "documentos_tributarios(tipo,estado,folio,url_pdf)")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) { console.error("detallePedido:", error.message); return null; }
+    return data ? Befine.armarDetalle(data) : null;
+  } catch (e) { console.error("detallePedido:", e); return null; }
+};
+
+/* "Volver a pedir": arma los ítems del carrito con el precio VIGENTE (no el de la compra original).
+   No se agregan productos inactivos, sin precio o sin stock; si hay menos stock que lo pedido, se
+   agrega lo disponible. crear_pedido() vuelve a validar precios y stock al pagar.
+   Devuelve { agregar:[{item, cantidad, categoria_slug}], noDisponibles:[nombre], ajustados:[{nombre, cantidad}] }. */
+Befine.armarRepeticion = function (items, variantes, nivel) {
+  const porId = new Map((variantes || []).map((v) => [v.id, v]));
+  const agregar = [], noDisponibles = [], ajustados = [];
+  for (const it of items || []) {
+    const v = porId.get(it.variante_id), prod = v && v.productos;
+    const precios = (v && v.precios_variante) || [];
+    const pr = precios.find((x) => x.nivel_precio_id === nivel) || precios[0];
+    const nombre = (prod && prod.nombre) || it.nombre || "Producto";
+    if (!v || !v.activo || !prod || !prod.activo || !pr) { noDisponibles.push(nombre); continue; }
+    const cantidad = v.controla_stock ? Math.min(it.cantidad, Math.max(0, v.stock || 0)) : it.cantidad;
+    if (cantidad <= 0) { noDisponibles.push(nombre); continue; }
+    if (cantidad < it.cantidad) ajustados.push({ nombre, cantidad });
+    agregar.push({
+      item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio },
+      cantidad,
+      categoria_slug: (prod.categorias && prod.categorias.slug) || null,
+    });
+  }
+  return { agregar, noDisponibles, ajustados };
+};
+
+/* Consulta el catálogo actual para repetir un pedido. Devuelve { ok, agregar, noDisponibles, ajustados } o { ok:false, error }. */
+Befine.volverAPedir = async function (items) {
+  const ids = [...new Set((items || []).map((i) => String(i.variante_id || "")).filter((id) => UUID_RE.test(id)))];
+  if (!ids.length) return { ok: false, error: "Este pedido no tiene productos para repetir." };
+  try {
+    const nivel = await _nivelRetail();
+    const { data, error } = await sb.from("variantes_producto")
+      .select("id,nombre,stock,controla_stock,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
+      .in("id", ids);
+    if (error) { console.error("volverAPedir:", error.message); return { ok: false, error: "No pudimos revisar los productos. Inténtalo de nuevo." }; }
+    return { ok: true, ...Befine.armarRepeticion(items, data, nivel) };
+  } catch (e) {
+    console.error("volverAPedir:", e);
+    return { ok: false, error: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
+  }
+};
+
 // Exponer en window para que las páginas lo usen sin bundler (igual que antes).
 window.Befine = Befine;
