@@ -92,6 +92,9 @@ body.tema-claro .co-ok .det { background: #f7fbfe; }
 .co-ok .det div { display: flex; gap: 12px; font-size: 14px; }
 .co-ok .det dt { flex: 0 0 96px; color: var(--muted); } .co-ok .det dd { margin: 0; font-weight: 600; }
 .co-ok .acciones { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+/* Confirmando el pago al volver de Mercado Pago (HU-09) */
+.co-ok .okmark.espera circle, .co-ok .okmark.espera path { stroke: var(--accent); }   /* pago aún sin confirmar: reloj, no ✓ */
+.co-ok .co-espera .spin { display: block; width: 40px; height: 40px; border-width: 3.5px; margin: 6px auto 16px; color: var(--accent); }
 .co-ok .crear { text-align: left; }
 .co-ok .crear h3 { font-family: var(--font-display); font-weight: 800; font-size: 19px; margin: 0 0 4px; }
 .co-ok .crear .beneficios { list-style: none; padding: 0; margin: 10px 0 14px; display: grid; gap: 6px; font-size: 13.5px; color: var(--muted); }

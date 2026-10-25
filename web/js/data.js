@@ -320,7 +320,8 @@ Befine.auth = {
    CHECKOUT — cobertura, despacho, días de entrega, pedido y pago.
    Lectura de cobertura: REAL (tablas comunas_cobertura / zonas_despacho /
    parametros, lectura pública). Crear pedido: REAL con crear_pedido() (SC-03), como
-   invitado (sesión anónima) o con cuenta. Pago con Mercado Pago: simulado hasta el Sprint 3.
+   invitado (sesión anónima) o con cuenta. Pago: Mercado Pago Checkout Pro vía Edge Function
+   crear-pago; el pago lo confirma solo el servidor (mp-webhook → confirmar_pago).
    ===================================================================== */
 // Contacto del negocio (pendiente migrar a parametros / Admin)
 const CONTACTO = { whatsapp: "56958549641" };
@@ -479,12 +480,76 @@ Befine.revisarCupon = async function (codigo, items) {
   } catch (e) { return { valido: false, mensaje: "No pudimos revisar el cupón. Inténtalo de nuevo." }; }
 };
 
-/* Pagar con Mercado Pago. SIMULADO hasta el Sprint 3 (HU-08/09): no cambia nada en la base.
-   El pedido queda en 'pendiente_pago'; solo el webhook de Mercado Pago lo marcará 'pagado'.
-   PRODUCCIÓN: una Edge Function crea la preferencia de pago y se redirige a su init_point. */
+/* ---------- Pago con Mercado Pago Checkout Pro (HU-08 / HU-09) ----------
+   1. crear_pedido() deja el pedido en 'pendiente_pago' con el total calculado por el servidor.
+   2. Befine.pagar() pide a la Edge Function `crear-pago` una preferencia de pago (el monto lo lee
+      el servidor desde la base; el navegador solo envía el id del pedido) y devuelve su init_point.
+   3. El cliente paga en Mercado Pago y vuelve a checkout.html?pago=ok|pendiente|error&pedido=<id>.
+   4. El estado 'pagado' lo pone SOLO el servidor (webhook `mp-webhook` → confirmar_pago());
+      la tienda solo lo consulta con Befine.estadoPedido(). */
+const PAGO_FN = "crear-pago";
+const PAGO_VUELTAS = ["ok", "pendiente", "error"];
+const PAGO_HOSTS = /^https:\/\/([a-z0-9-]+\.)*mercadopago\.(cl|com)\//i;   // solo se redirige a Mercado Pago
+const ESTADOS_PAGADOS = ["pagado", "en_preparacion", "en_ruta", "entregado"];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/* Error de la Edge Function → mensaje para el cliente. Los mensajes propios de crear-pago ya vienen
+   en español; los técnicos (secretos, JWT, red) se cambian por uno genérico. */
+async function _msgPago(error) {
+  try {
+    const cuerpo = error && error.context && typeof error.context.json === "function" ? await error.context.json() : null;
+    const m = cuerpo && cuerpo.error;
+    if (m && !/secreto|token|jwt|mp_|supabase/i.test(m)) return m;
+  } catch (e) { /* respuesta sin JSON */ }
+  const low = ((error && error.message) || "").toLowerCase();
+  if (low.includes("failed to fetch") || low.includes("failed to send") || low.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
+  return "No pudimos conectar con Mercado Pago. Inténtalo de nuevo.";
+}
+
+/* ¿La URL es una página de pago de Mercado Pago? Evita redirigir al cliente a otro sitio. */
+Befine.urlPagoSegura = (url) => typeof url === "string" && PAGO_HOSTS.test(url);
+
+/* ¿El estado indica que el pago ya fue confirmado por el servidor? */
+Befine.pedidoPagado = (estado) => ESTADOS_PAGADOS.includes(estado);
+
+/* Crea el pago del pedido (acepta el pedido o su id). Devuelve { ok, url } para redirigir a
+   Mercado Pago, o { ok:false, error }. No cambia nada en la base. */
 Befine.pagar = async function (pedido) {
-  await new Promise((r) => setTimeout(r, 900));
-  return { ok: true, estado: "simulado" };
+  const id = String((pedido && pedido.id) || pedido || "");
+  if (!UUID_RE.test(id)) return { ok: false, error: "Pedido no válido." };
+  try {
+    const { data, error } = await sb.functions.invoke(PAGO_FN, { body: { pedido_id: id } });
+    if (error) { console.error("pagar:", error.message || error); return { ok: false, error: await _msgPago(error) }; }
+    if (!data || !Befine.urlPagoSegura(data.init_point)) {
+      console.error("pagar: la respuesta no trae una URL de Mercado Pago válida");
+      return { ok: false, error: "No pudimos conectar con Mercado Pago. Inténtalo de nuevo." };
+    }
+    return { ok: true, url: data.init_point, preferencia: data.preference_id || null };
+  } catch (e) {
+    console.error("pagar:", e);
+    return { ok: false, error: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
+  }
+};
+
+/* Lee la vuelta desde Mercado Pago (?pago=ok|pendiente|error&pedido=<uuid>).
+   Devuelve { estado, pedido } o null si los parámetros no son válidos. */
+Befine.vueltaPago = function (search) {
+  const q = new URLSearchParams(search || "");
+  const estado = q.get("pago"), pedido = q.get("pedido") || "";
+  return PAGO_VUELTAS.includes(estado) && UUID_RE.test(pedido) ? { estado, pedido } : null;
+};
+
+/* Estado actual de un pedido del cliente (RLS: solo los propios). Devuelve el pedido o null. */
+Befine.estadoPedido = async function (id) {
+  if (!UUID_RE.test(String(id || ""))) return null;
+  try {
+    const { data, error } = await sb.from("pedidos")
+      .select("id,numero,estado,total,descuento_cupon,fecha_entrega,contacto_nombre,contacto_email,tipo_documento")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) { console.error("estadoPedido:", error.message); return null; }
+    return data || null;
+  } catch (e) { console.error("estadoPedido:", e); return null; }
 };
 
 /* Pedidos del cliente con sesión (RLS: solo los propios). Formato que usa cuenta.js:

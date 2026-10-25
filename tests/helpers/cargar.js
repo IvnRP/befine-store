@@ -45,6 +45,7 @@ function cargar(archivos, opciones = {}) {
   window.document = { addEventListener() {}, documentElement: { style: { setProperty() {} } }, body: null };
   window.supabase = { createClient: () => opciones.cliente || {} };   // data.js crea el cliente al cargar (opciones.cliente = Supabase simulado)
   window.console = console;
+  window.URLSearchParams = URLSearchParams;   // API del navegador que usa data.js (vuelta desde Mercado Pago)
   window.location = { protocol: "http:", href: "http://localhost:8080/index.html" };
   if (opciones.fecha) window.Date = dateFija(opciones.fecha);
 

@@ -45,7 +45,7 @@ Supabase
   ├── PostgreSQL: 21 tablas + roles y permisos, RLS en todas las tablas
   ├── Funciones SQL: crear_pedido(), tiene_permiso(), es_admin()
   ├── Migraciones versionadas en web/supabase/migrations/ (01, 01b y 04 aplicadas; 02 y 03 pendientes)
-  └── Edge Functions: resenas-google (Mercado Pago y OpenFactura en construcción)
+  └── Edge Functions: resenas-google, crear-pago y mp-webhook (Mercado Pago); OpenFactura en construcción
 
 Servicios externos: Google Places · Mercado Pago · OpenFactura/SII · WhatsApp (wa.me)
 ```
@@ -109,7 +109,7 @@ Requisito: Node.js 20 o superior (no hay que instalar dependencias).
 npm test
 ```
 
-62 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega (sin feriados), validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados y filtro por fecha de entrega de pedidos, precios, SKU, inventario y cupones) y el cupón del checkout. Las reglas de cupones en la base tienen además su prueba en seco SQL (`web/supabase/migrations/20261020_04_prueba_en_seco.sql`, 20 casos). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
+68 pruebas unitarias (`node:test`) sobre el código real de `web/js/`: carrito, despacho por comuna y envío gratis, días hábiles de entrega (sin feriados), validaciones (RUT, celular, correo, política de contraseñas), franjas horarias y reglas del panel de administración (acceso por rol, flujo de estados y filtro por fecha de entrega de pedidos, precios, SKU, inventario y cupones) el cupón del checkout y el pago con Mercado Pago (llamada a `crear-pago`, redirección segura y vuelta del pago). Las reglas de cupones en la base tienen además su prueba en seco SQL (`web/supabase/migrations/20261020_04_prueba_en_seco.sql`, 20 casos). Detalle en el Plan de Pruebas del repositorio de documentación (`06-Calidad/`).
 
 ## Forma de trabajo
 
