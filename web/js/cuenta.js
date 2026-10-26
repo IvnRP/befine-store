@@ -149,12 +149,100 @@
     const fila = (k, v) => `<div><dt>${k}</dt><dd>${v ? esc(v) : '<span class="muted">—</span>'}</dd></div>`;
     $("pcDatos").innerHTML = fila("Nombre", [s.nombre, s.apellido].filter(Boolean).join(" ")) + fila("Correo", s.email) + fila("Celular", s.telefono) +
       (s.es_empresa ? fila("Empresa", s.razon_social) + fila("RUT", s.rut) : "");
-    const peds = await Befine.misPedidos(s.email);
-    $("pcPedidos").innerHTML = peds.length ? peds.map((p) => `
-      <div class="ped"><span class="num">#${p.numero}</span><span class="fe">${new Date(p.created_at).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}
-        · ${p.items.reduce((n, i) => n + i.cantidad, 0)} producto(s)</span><span class="tot">${Befine.clp(p.total)}</span>
-        <span class="est ${p.estado}">${ESTADO_TXT[p.estado] || "Pendiente de pago"}</span></div>`).join("")
-      : `<div class="vacio-p">Aún no tienes pedidos.<br><a class="btn btn-primary" href="catalogo.html">Hacer mi primer pedido</a></div>`;
+    pintarPedidos(await Befine.misPedidos());
+  }
+
+  /* ================= Mis pedidos (HU-18) =================
+     Lista → al abrir un pedido se carga su detalle desde el servidor (RLS) → "Volver a pedir"
+     agrega los productos al carrito con el precio vigente. */
+  const fmtFecha = (iso, op) => new Date(iso).toLocaleDateString("es-CL", op || { day: "numeric", month: "short", year: "numeric" });
+  const detalles = new Map();   // detalle ya cargado por pedido (evita repetir consultas)
+
+  function pintarPedidos(peds) {
+    const box = $("pcPedidos");
+    if (!peds.length) {
+      box.innerHTML = `<div class="vacio-p">Aún no tienes pedidos.<br><a class="btn btn-primary" href="catalogo.html">Hacer mi primer pedido</a></div>`;
+      return;
+    }
+    box.innerHTML = peds.map((p) => `
+      <div class="ped">
+        <button type="button" class="ped-cab" data-ped="${esc(p.id)}" aria-expanded="false" aria-controls="pd-${esc(p.id)}">
+          <span class="num">#${p.numero}</span>
+          <span class="fe">${fmtFecha(p.created_at)} · ${p.items.reduce((n, i) => n + i.cantidad, 0)} producto(s)</span>
+          <span class="tot">${Befine.clp(p.total)}</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          <span class="est ${esc(p.estado)}">${ESTADO_TXT[p.estado] || "Pendiente de pago"}</span>
+        </button>
+        <div class="ped-det" id="pd-${esc(p.id)}" hidden></div>
+      </div>`).join("");
+    box.onclick = (e) => {
+      const cab = e.target.closest(".ped-cab");
+      if (cab) return alternarPedido(cab);
+      const rep = e.target.closest("[data-repetir]");
+      if (rep) repetirPedido(rep);
+    };
+  }
+
+  async function alternarPedido(cab) {
+    const id = cab.dataset.ped, panel = $("pd-" + id);
+    const abrir = cab.getAttribute("aria-expanded") !== "true";
+    cab.setAttribute("aria-expanded", String(abrir));
+    panel.hidden = !abrir;
+    if (!abrir || detalles.has(id)) return;
+    panel.innerHTML = `<p class="pd-carga"><span class="spin" aria-hidden="true"></span>Cargando el detalle…</p>`;
+    const d = await Befine.detallePedido(id);
+    if (!d) { panel.innerHTML = `<div class="aviso mal">No pudimos cargar este pedido. Inténtalo de nuevo.</div>`; return; }
+    detalles.set(id, d);
+    panel.innerHTML = htmlDetalle(d);
+  }
+
+  function htmlDetalle(d) {
+    const fila = (k, v, cls) => `<div${cls ? ` class="${cls}"` : ""}><dt>${k}</dt><dd>${v}</dd></div>`;
+    const dir = d.direccion;
+    const doc = d.documento === "factura" ? "Factura electrónica" : "Boleta electrónica";
+    const enlace = d.boleta ? ` · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>` : "";
+    return `
+      <ul class="pd-items">${d.items.map((i) => `
+        <li><span class="nm">${i.cantidad} × ${esc(i.nombre)}${i.variante && i.variante !== "Estándar" ? ` <small>${esc(i.variante)}</small>` : ""}</span>
+          <span class="pr">${Befine.clp(i.subtotal)}</span></li>`).join("")}
+      </ul>
+      <dl class="pd-tot">
+        ${fila("Subtotal", Befine.clp(d.subtotal))}
+        ${fila("Despacho", d.despacho ? Befine.clp(d.despacho) : "Gratis")}
+        ${d.descuento ? fila("Descuento", "−" + Befine.clp(d.descuento)) : ""}
+        ${fila("Total", Befine.clp(d.total), "t")}
+      </dl>
+      <dl class="pd-info">
+        ${d.fecha_entrega ? fila("Entrega", fmtFecha(d.fecha_entrega + "T12:00:00", { weekday: "long", day: "numeric", month: "long" })) : ""}
+        ${dir ? fila("Dirección", `${esc(dir.calle)} ${esc(dir.numero || "")}${dir.depto ? ", " + esc(dir.depto) : ""}, ${esc(dir.comuna)}`) : ""}
+        ${fila("Documento", doc + enlace)}
+      </dl>
+      <div class="pd-acc">
+        <button type="button" class="btn btn-primary" data-repetir="${esc(d.id)}">Volver a pedir</button>
+        <div class="pd-msg" role="status" aria-live="polite"></div>
+      </div>`;
+  }
+
+  async function repetirPedido(btn) {
+    const d = detalles.get(btn.dataset.repetir);
+    const msgBox = btn.parentElement.querySelector(".pd-msg");
+    if (!d) return;
+    cargando(btn, true, "Revisando productos…");
+    const r = await Befine.volverAPedir(d.items);
+    cargando(btn, false);
+    if (!r.ok) { msgBox.innerHTML = `<div class="aviso mal">${esc(r.error)}</div>`; return; }
+    const antes = Store.count();   // "Volver a pedir" SUMA al carrito actual (no lo reemplaza): se le informa al cliente
+    r.agregar.forEach((a) => Store.add({ ...a.item, grad: window.catGrad(a.categoria_slug) }, a.cantidad));
+    if (!r.agregar.length) {
+      msgBox.innerHTML = `<div class="aviso mal">Ninguno de estos productos está disponible por ahora.</div>`;
+      return;
+    }
+    const partes = [`Agregamos ${r.agregar.reduce((n, a) => n + a.cantidad, 0)} producto(s) al carrito con el precio de hoy.`];
+    if (antes) partes.push(`Tu carrito ya tenía ${antes} producto(s): ahora tiene ${Store.count()}.`);
+    if (r.ajustados.length) partes.push("Con menos unidades por stock: " + r.ajustados.map((a) => `${esc(a.nombre)} (${a.cantidad})`).join(", ") + ".");
+    if (r.noDisponibles.length) partes.push("No disponibles: " + r.noDisponibles.map(esc).join(", ") + ".");
+    msgBox.innerHTML = `<div class="aviso ${r.noDisponibles.length || r.ajustados.length ? "" : "ok"}">
+      <span>${partes.join(" ")} <a href="checkout.html">Ir a pagar →</a></span></div>`;
   }
   $("pcSalir").addEventListener("click", async () => { await Befine.auth.salir(); location.href = "index.html"; });
 })();

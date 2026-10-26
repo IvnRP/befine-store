@@ -10,11 +10,14 @@
   const $ = (id) => document.getElementById(id);
   const clp = (n) => Befine.clp(n);
   const KEY_DATOS = "befine_datos";            // datos recordados (solo en este dispositivo)
+  const KEY_PAGO = "befine_pago";              // pedido en pago (solo esta pestaña): para la confirmación al volver de Mercado Pago
+  const ESPERAS_MS = [1500, 2500, 4000, 6000, 8000, 10000];   // reintentos (~32 s) mientras el webhook confirma el pago
   const fmtDia = (d, op) => d.toLocaleDateString("es-CL", op || { weekday: "long", day: "numeric", month: "long" });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   let sesion = null, cobertura = null, dias = null, doc = "boleta", fechaAgendada = null, enviando = false;
   let cupon = null;          // { codigo, descuento } revisado por el servidor (revisar_cupon)
+  let reintento = null;      // { firma, pedido }: si Mercado Pago falla, se reintenta con el MISMO pedido (no se duplica)
 
   document.addEventListener("DOMContentLoaded", async () => {
     const form = $("coForm");
@@ -27,6 +30,8 @@
     pintarComunas();
     pintarEntrega();
     precargar();
+    const vuelta = Befine.vueltaPago(location.search);
+    if (vuelta) mostrarVuelta(vuelta);          // volvió desde Mercado Pago: se muestra el resultado del pago
     Store.subscribe((items) => { pintarResumen(items); revisarCuponDeNuevo(); });   // el resumen se actualiza solo al cambiar cantidades
 
     /* ---------- Formato en vivo ---------- */
@@ -156,10 +161,10 @@
   }
 
   function pintarResumen(items) {
-    const vacio = !items.length;
-    $("coVacio").hidden = !vacio || !$("coOk").hidden;
-    $("coForm").hidden = vacio;
-    $("coBar").hidden = vacio;
+    const vacio = !items.length, enResultado = !$("coOk").hidden;   // con el resultado del pago a la vista, el formulario no se muestra
+    $("coVacio").hidden = !vacio || enResultado;
+    $("coForm").hidden = vacio || enResultado;
+    $("coBar").hidden = vacio || enResultado;
     if (vacio) return;
 
     $("coItems").innerHTML = items.map((i) => `
@@ -256,55 +261,179 @@
 
     enviando = true;
     const btns = [$("coPagar"), $("coBarPagar")];
+    // Si Mercado Pago falló y el cliente no cambió nada, se reintenta con el MISMO pedido (no se duplica).
+    const firma = JSON.stringify(payload);
+    const pedido = reintento && reintento.firma === firma ? reintento.pedido : await crearPedido(payload, btns);
+    if (!pedido) return;
+    reintento = { firma, pedido };
+    btns.forEach((b) => textoCargando(b, "Conectando con Mercado Pago…"));
+    const p = await Befine.pagar(pedido);
+    if (!p.ok) {
+      btns.forEach((b) => cargando(b, false)); enviando = false;
+      window.toast(`${p.error} Tu pedido #${pedido.numero} quedó guardado: presiona Pagar para reintentar.`);
+      return;
+    }
+    guardarPagoEnCurso(pedido);
+    window.location.assign(p.url);              // los botones siguen "cargando" mientras se abre Mercado Pago
+  }
+
+  // Muestra "cargando" en el botón, o solo cambia el texto si ya está cargando (conserva el texto original).
+  function textoCargando(btn, texto) {
+    if (btn.classList.contains("is-loading")) btn.innerHTML = `<span class="spin" aria-hidden="true"></span>${texto}`;
+    else cargando(btn, true, texto);
+  }
+
+  // Crea el pedido en el servidor (crear_pedido). Devuelve el pedido o null si no se pudo.
+  async function crearPedido(payload, btns) {
     btns.forEach((b) => cargando(b, true, "Creando pedido…"));
     const r = await Befine.crearPedido(payload);
-    if (!r.ok) {
-      btns.forEach((b) => cargando(b, false)); enviando = false;
-      // Si el servidor rechazó el cupón (ej: el correo o teléfono ya compraron), se quita y el cliente
-      // puede pagar sin descuento: no perdemos la venta.
-      if (cupon && /cup[oó]n/i.test(r.error || "")) {
-        const cod = cupon.codigo; cupon = null; pintarCupon(); pintarResumen(Store.items());
-        mostrarMsgCupon(`Quitamos el cupón ${cod}: ${r.error}`);
-        $("coCupon").scrollIntoView({ behavior: "smooth", block: "center" });
-        window.toast("Revisa el nuevo total y vuelve a pagar.");
-        return;
-      }
-      window.toast(r.error || "No pudimos crear el pedido. Inténtalo de nuevo."); return;
-    }
-    btns.forEach((b) => { b.innerHTML = `<span class="spin" aria-hidden="true"></span>Conectando con Mercado Pago…`; });
-    const p = await Befine.pagar(r.pedido);
+    if (r.ok) return r.pedido;
     btns.forEach((b) => cargando(b, false)); enviando = false;
-    if (!p.ok) { window.toast("El pago no se completó. Tu pedido quedó guardado; puedes reintentar."); return; }
-    confirmar(r.pedido);
+    // Si el servidor rechazó el cupón (ej: el correo o teléfono ya compraron), se quita y el cliente
+    // puede pagar sin descuento: no perdemos la venta.
+    if (cupon && /cup[oó]n/i.test(r.error || "")) {
+      const cod = cupon.codigo; cupon = null; pintarCupon(); pintarResumen(Store.items());
+      mostrarMsgCupon(`Quitamos el cupón ${cod}: ${r.error}`);
+      $("coCupon").scrollIntoView({ behavior: "smooth", block: "center" });
+      window.toast("Revisa el nuevo total y vuelve a pagar.");
+      return null;
+    }
+    window.toast(r.error || "No pudimos crear el pedido. Inténtalo de nuevo.");
+    return null;
+  }
+
+  /* ================= Vuelta desde Mercado Pago ================= */
+  // Se guarda lo necesario para mostrar la confirmación al volver (solo en esta pestaña).
+  // Los montos y el estado se vuelven a leer desde el servidor: esto es solo para mostrar.
+  function guardarPagoEnCurso(p) {
+    try {
+      sessionStorage.setItem(KEY_PAGO, JSON.stringify({ id: p.id, numero: p.numero, contacto: p.contacto,
+        direccion: p.direccion, documento: p.documento, entrega: p.entrega }));
+    } catch (e) {}
+  }
+  function leerPagoEnCurso(id) {
+    try { const p = JSON.parse(sessionStorage.getItem(KEY_PAGO) || "null"); return p && p.id === id ? p : null; }
+    catch (e) { return null; }
+  }
+
+  // Une el pedido del servidor (estado y montos reales) con los datos guardados de la compra.
+  function armarPedido(srv, g) {
+    g = g || {};
+    return {
+      id: srv.id, numero: srv.numero, total: srv.total, descuento_cupon: srv.descuento_cupon,
+      contacto: g.contacto || { nombre: srv.contacto_nombre || "", email: srv.contacto_email || "" },
+      direccion: g.direccion || null,
+      documento: g.documento || { tipo: srv.tipo_documento || "boleta" },
+      entrega: { ...(g.entrega || {}), fecha: srv.fecha_entrega || (g.entrega && g.entrega.fecha) || null },
+    };
+  }
+
+  // El webhook de Mercado Pago confirma el pago en el servidor; aquí solo se consulta el estado.
+  async function esperarConfirmacion(id) {
+    let p = await Befine.estadoPedido(id);
+    for (const ms of ESPERAS_MS) {
+      if (!p || p.estado !== "pendiente_pago") break;
+      await new Promise((r) => setTimeout(r, ms));
+      p = await Befine.estadoPedido(id);
+    }
+    return p;
+  }
+
+  async function mostrarVuelta(v) {
+    const guardado = leerPagoEnCurso(v.pedido);
+    const ok = $("coOk");
+    $("coForm").hidden = true; $("coBar").hidden = true; $("coVacio").hidden = true;
+    document.querySelector(".co-head .trust").hidden = true;
+    ok.hidden = false;
+    if (v.estado === "error") { pintarPagoFallido(v.pedido, guardado); return; }
+
+    // Pago aprobado o en proceso: el pedido ya existe, el carrito no se necesita.
+    Store.clear();
+    document.querySelector(".co-head h1").textContent = "Confirmando tu pago";
+    ok.innerHTML = `<div class="sheet co-espera"><span class="spin" aria-hidden="true"></span>
+      <h2>Confirmando tu pago…</h2>
+      <p class="lead">${guardado ? `Pedido #${guardado.numero}. ` : ""}Esto toma solo unos segundos; no cierres esta página.</p></div>`;
+
+    const srv = await esperarConfirmacion(v.pedido);
+    if (!srv) {
+      document.querySelector(".co-head h1").textContent = "Volviste desde Mercado Pago";
+      ok.innerHTML = `<div class="sheet"><h2>No pudimos revisar tu pedido</h2>
+        <p class="lead">Desde este navegador no tenemos acceso al pedido${guardado ? ` #${guardado.numero}` : ""}. Si pagaste, el pago queda registrado igual.</p>
+        <div class="acciones">${botonWhatsApp(guardado && guardado.numero)}</div></div>`;
+      return;
+    }
+    if (srv.estado === "cancelado") {
+      document.querySelector(".co-head h1").textContent = "Pedido cancelado";
+      ok.innerHTML = `<div class="sheet"><h2>El pedido #${srv.numero} fue cancelado</h2>
+        <p class="lead">Si tienes dudas sobre un cobro, escríbenos y lo revisamos.</p>
+        <div class="acciones"><a class="btn btn-primary" href="catalogo.html">Ver productos</a>${botonWhatsApp(srv.numero)}</div></div>`;
+      return;
+    }
+    const pagado = Befine.pedidoPagado(srv.estado);
+    const aviso = v.estado === "pendiente"
+      ? "Mercado Pago está procesando tu pago. Tu pedido se confirmará apenas se apruebe."
+      : "Recibimos tu pago y lo estamos confirmando con Mercado Pago. Puede tardar unos minutos.";
+    confirmar(armarPedido(srv, guardado), pagado, aviso);
+  }
+
+  function pintarPagoFallido(id, g) {
+    document.querySelector(".co-head h1").textContent = "El pago no se completó";
+    $("coOk").innerHTML = `<div class="sheet">
+        <h2>Mercado Pago no aprobó el pago</h2>
+        <p class="lead">Tu pedido${g ? ` #${g.numero}` : ""} quedó guardado. Puedes intentarlo de nuevo con otro medio de pago.</p>
+        <div class="acciones">
+          <button type="button" class="btn btn-primary" id="coReintentar">Reintentar pago</button>
+          ${botonWhatsApp(g && g.numero)}
+        </div>
+      </div>`;
+    $("coReintentar").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      cargando(btn, true, "Conectando con Mercado Pago…");
+      const p = await Befine.pagar(id);
+      if (!p.ok) { cargando(btn, false); window.toast(p.error); return; }
+      window.location.assign(p.url);
+    });
+  }
+
+  function botonWhatsApp(numero) {
+    const txt = numero ? "Hola Befine, consulta por mi pedido #" + numero : "Hola Befine, tengo una consulta por mi pago";
+    return `<a class="btn btn-ghost" href="https://wa.me/${Befine.contacto.whatsapp}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">¿Dudas? WhatsApp</a>`;
   }
 
   /* ================= Confirmación ================= */
-  function confirmar(pedido) {
-    const fecha = new Date(pedido.entrega.fecha + "T12:00:00");
+  // pagado: el servidor ya confirmó el pago · aviso: texto mientras el pago se confirma
+  function confirmar(pedido, pagado, aviso) {
+    const fecha = pedido.entrega && pedido.entrega.fecha ? new Date(pedido.entrega.fecha + "T12:00:00") : null;
     const d = pedido.direccion;
+    const nombre = esc(((pedido.contacto && pedido.contacto.nombre) || "").split(" ")[0]);
+    const doc = pedido.documento || { tipo: "boleta" };
     $("coForm").hidden = true; $("coBar").hidden = true;
-    document.querySelector(".co-head h1").textContent = "¡Gracias por tu compra!";
+    document.querySelector(".co-head h1").textContent = pagado ? "¡Gracias por tu compra!" : "Estamos confirmando tu pago";
     document.querySelector(".co-head .trust").hidden = true;
     const ok = $("coOk");
     ok.hidden = false;
     ok.innerHTML = `
       <div class="sheet">
-        <svg class="okmark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-15"/></svg>
-        <h2>¡Pedido #${pedido.numero} confirmado!</h2>
-        <p class="lead">Gracias, ${esc(pedido.contacto.nombre.split(" ")[0])}. Te enviamos el comprobante a <b>${esc(pedido.contacto.email)}</b>.</p>
+        ${pagado
+          ? `<svg class="okmark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-15"/></svg>`
+          : `<svg class="okmark espera" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M26 13v14l9 5"/></svg>`}
+        <h2>${pagado ? `¡Pedido #${pedido.numero} confirmado!` : `Pedido #${pedido.numero} recibido`}</h2>
+        <p class="lead">${pagado
+          ? `Gracias${nombre ? ", " + nombre : ""}. Tu pago fue aprobado y ya estamos preparando tu pedido.`
+          : esc(aviso || "Estamos confirmando tu pago.")}</p>
         <dl class="det">
-          <div><dt>Entrega</dt><dd>${fmtDia(fecha)}${pedido.entrega.tipo === "agendada" ? " (agendada)" : ""}</dd></div>
-          <div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>
-          <div><dt>Documento</dt><dd>${pedido.documento.tipo === "factura" ? "Factura · " + esc(pedido.documento.razon_social) : "Boleta electrónica"}</dd></div>
+          ${fecha ? `<div><dt>Entrega</dt><dd>${fmtDia(fecha)}${pedido.entrega.tipo === "agendada" ? " (agendada)" : ""}</dd></div>` : ""}
+          ${d ? `<div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>` : ""}
+          <div><dt>Documento</dt><dd>${doc.tipo === "factura" ? "Factura" + (doc.razon_social ? " · " + esc(doc.razon_social) : "") : "Boleta electrónica"}</dd></div>
           ${pedido.descuento_cupon ? `<div><dt>Descuento</dt><dd>−${clp(pedido.descuento_cupon)}</dd></div>` : ""}
-          <div><dt>Total pagado</dt><dd>${clp(pedido.total)}</dd></div>
+          <div><dt>${pagado ? "Total pagado" : "Total"}</dt><dd>${clp(pedido.total)}</dd></div>
         </dl>
         <div class="acciones">
           <a class="btn btn-primary" href="catalogo.html">Seguir comprando</a>
-          <a class="btn btn-ghost" href="https://wa.me/${Befine.contacto.whatsapp}?text=${encodeURIComponent("Hola Befine, consulta por mi pedido #" + pedido.numero)}" target="_blank" rel="noopener">¿Dudas? WhatsApp</a>
+          ${botonWhatsApp(pedido.numero)}
         </div>
       </div>
-      ${sesion ? "" : `
+      ${sesion || !pedido.contacto.email ? "" : `
       <div class="sheet crear" id="coCrear">
         <h3>Guarda tus datos en 1 paso</h3>
         <p class="hint">Crea tu cuenta con los datos de esta compra: solo elige una contraseña.</p>
@@ -322,13 +451,13 @@
     Store.clear();
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    if (!sesion) {
+    if (!sesion && $("coCrearForm")) {
       $("coCrearForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const inp = $("coClave"), btn = $("coCrearBtn");
         if ((inp.value || "").length < 8) { setError(inp, "Usa al menos 8 caracteres."); inp.focus(); return; }
         clearError(inp); cargando(btn, true, "Creando…");
-        const r = await Befine.auth.registrar({ nombre: pedido.contacto.nombre, email: pedido.contacto.email, password: inp.value, telefono: pedido.contacto.telefono });
+        const r = await Befine.auth.registrar({ nombre: pedido.contacto.nombre, email: pedido.contacto.email, password: inp.value, telefono: pedido.contacto.telefono || "" });
         cargando(btn, false);
         const box = $("coCrear");
         if (!r.ok) { setError(inp, r.error); return; }

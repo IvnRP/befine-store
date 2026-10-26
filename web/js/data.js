@@ -320,7 +320,8 @@ Befine.auth = {
    CHECKOUT — cobertura, despacho, días de entrega, pedido y pago.
    Lectura de cobertura: REAL (tablas comunas_cobertura / zonas_despacho /
    parametros, lectura pública). Crear pedido: REAL con crear_pedido() (SC-03), como
-   invitado (sesión anónima) o con cuenta. Pago con Mercado Pago: simulado hasta el Sprint 3.
+   invitado (sesión anónima) o con cuenta. Pago: Mercado Pago Checkout Pro vía Edge Function
+   crear-pago; el pago lo confirma solo el servidor (mp-webhook → confirmar_pago).
    ===================================================================== */
 // Contacto del negocio (pendiente migrar a parametros / Admin)
 const CONTACTO = { whatsapp: "56958549641" };
@@ -479,12 +480,76 @@ Befine.revisarCupon = async function (codigo, items) {
   } catch (e) { return { valido: false, mensaje: "No pudimos revisar el cupón. Inténtalo de nuevo." }; }
 };
 
-/* Pagar con Mercado Pago. SIMULADO hasta el Sprint 3 (HU-08/09): no cambia nada en la base.
-   El pedido queda en 'pendiente_pago'; solo el webhook de Mercado Pago lo marcará 'pagado'.
-   PRODUCCIÓN: una Edge Function crea la preferencia de pago y se redirige a su init_point. */
+/* ---------- Pago con Mercado Pago Checkout Pro (HU-08 / HU-09) ----------
+   1. crear_pedido() deja el pedido en 'pendiente_pago' con el total calculado por el servidor.
+   2. Befine.pagar() pide a la Edge Function `crear-pago` una preferencia de pago (el monto lo lee
+      el servidor desde la base; el navegador solo envía el id del pedido) y devuelve su init_point.
+   3. El cliente paga en Mercado Pago y vuelve a checkout.html?pago=ok|pendiente|error&pedido=<id>.
+   4. El estado 'pagado' lo pone SOLO el servidor (webhook `mp-webhook` → confirmar_pago());
+      la tienda solo lo consulta con Befine.estadoPedido(). */
+const PAGO_FN = "crear-pago";
+const PAGO_VUELTAS = ["ok", "pendiente", "error"];
+const PAGO_HOSTS = /^https:\/\/([a-z0-9-]+\.)*mercadopago\.(cl|com)\//i;   // solo se redirige a Mercado Pago
+const ESTADOS_PAGADOS = ["pagado", "en_preparacion", "en_ruta", "entregado"];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/* Error de la Edge Function → mensaje para el cliente. Los mensajes propios de crear-pago ya vienen
+   en español; los técnicos (secretos, JWT, red) se cambian por uno genérico. */
+async function _msgPago(error) {
+  try {
+    const cuerpo = error && error.context && typeof error.context.json === "function" ? await error.context.json() : null;
+    const m = cuerpo && cuerpo.error;
+    if (m && !/secreto|token|jwt|mp_|supabase/i.test(m)) return m;
+  } catch (e) { /* respuesta sin JSON */ }
+  const low = ((error && error.message) || "").toLowerCase();
+  if (low.includes("failed to fetch") || low.includes("failed to send") || low.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
+  return "No pudimos conectar con Mercado Pago. Inténtalo de nuevo.";
+}
+
+/* ¿La URL es una página de pago de Mercado Pago? Evita redirigir al cliente a otro sitio. */
+Befine.urlPagoSegura = (url) => typeof url === "string" && PAGO_HOSTS.test(url);
+
+/* ¿El estado indica que el pago ya fue confirmado por el servidor? */
+Befine.pedidoPagado = (estado) => ESTADOS_PAGADOS.includes(estado);
+
+/* Crea el pago del pedido (acepta el pedido o su id). Devuelve { ok, url } para redirigir a
+   Mercado Pago, o { ok:false, error }. No cambia nada en la base. */
 Befine.pagar = async function (pedido) {
-  await new Promise((r) => setTimeout(r, 900));
-  return { ok: true, estado: "simulado" };
+  const id = String((pedido && pedido.id) || pedido || "");
+  if (!UUID_RE.test(id)) return { ok: false, error: "Pedido no válido." };
+  try {
+    const { data, error } = await sb.functions.invoke(PAGO_FN, { body: { pedido_id: id } });
+    if (error) { console.error("pagar:", error.message || error); return { ok: false, error: await _msgPago(error) }; }
+    if (!data || !Befine.urlPagoSegura(data.init_point)) {
+      console.error("pagar: la respuesta no trae una URL de Mercado Pago válida");
+      return { ok: false, error: "No pudimos conectar con Mercado Pago. Inténtalo de nuevo." };
+    }
+    return { ok: true, url: data.init_point, preferencia: data.preference_id || null };
+  } catch (e) {
+    console.error("pagar:", e);
+    return { ok: false, error: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
+  }
+};
+
+/* Lee la vuelta desde Mercado Pago (?pago=ok|pendiente|error&pedido=<uuid>).
+   Devuelve { estado, pedido } o null si los parámetros no son válidos. */
+Befine.vueltaPago = function (search) {
+  const q = new URLSearchParams(search || "");
+  const estado = q.get("pago"), pedido = q.get("pedido") || "";
+  return PAGO_VUELTAS.includes(estado) && UUID_RE.test(pedido) ? { estado, pedido } : null;
+};
+
+/* Estado actual de un pedido del cliente (RLS: solo los propios). Devuelve el pedido o null. */
+Befine.estadoPedido = async function (id) {
+  if (!UUID_RE.test(String(id || ""))) return null;
+  try {
+    const { data, error } = await sb.from("pedidos")
+      .select("id,numero,estado,total,descuento_cupon,fecha_entrega,contacto_nombre,contacto_email,tipo_documento")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) { console.error("estadoPedido:", error.message); return null; }
+    return data || null;
+  } catch (e) { console.error("estadoPedido:", e); return null; }
 };
 
 /* Pedidos del cliente con sesión (RLS: solo los propios). Formato que usa cuenta.js:
@@ -502,6 +567,83 @@ Befine.misPedidos = async function () {
     if (error || !data) return [];
     return data.map((p) => ({ ...p, items: p.detalle_pedido || [] }));
   } catch (e) { return []; }
+};
+
+/* ---------- Historial del cliente (HU-18, RF-10) ---------- */
+/* Pasa una fila de pedidos (con sus relaciones) al formato que usa "Mis pedidos".
+   El enlace de la boleta/factura solo se muestra si el documento fue emitido y la URL es https. */
+Befine.armarDetalle = function (p) {
+  const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" && /^https:\/\//i.test(d.url_pdf || ""));
+  return {
+    id: p.id, numero: p.numero, estado: p.estado, creado: p.created_at, fecha_entrega: p.fecha_entrega || null,
+    subtotal: p.subtotal || 0, despacho: p.costo_despacho || 0, descuento: p.descuento_cupon || 0, total: p.total || 0,
+    documento: p.tipo_documento || "boleta",
+    direccion: p.direccion || null,
+    items: (p.detalle_pedido || []).map((d) => {
+      const v = d.variante || null, prod = v && v.producto;
+      return { variante_id: d.variante_id, nombre: (prod && prod.nombre) || "Producto no disponible", variante: (v && v.nombre) || "",
+        cantidad: d.cantidad, precio_unitario: d.precio_unitario, subtotal: d.subtotal };
+    }),
+    boleta: dte ? { tipo: dte.tipo, folio: dte.folio, url: dte.url_pdf } : null,
+  };
+};
+
+/* Detalle de un pedido propio (RLS: el cliente solo obtiene SUS pedidos). Devuelve el detalle o null. */
+Befine.detallePedido = async function (id) {
+  if (!UUID_RE.test(String(id || ""))) return null;
+  try {
+    const { data, error } = await sb.from("pedidos")
+      .select("id,numero,estado,created_at,fecha_entrega,subtotal,costo_despacho,descuento_cupon,total,tipo_documento," +
+              "direccion:direcciones(calle,numero,depto,comuna,referencia)," +
+              "detalle_pedido(variante_id,cantidad,precio_unitario,subtotal,variante:variantes_producto(nombre,producto:productos(nombre)))," +
+              "documentos_tributarios(tipo,estado,folio,url_pdf)")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) { console.error("detallePedido:", error.message); return null; }
+    return data ? Befine.armarDetalle(data) : null;
+  } catch (e) { console.error("detallePedido:", e); return null; }
+};
+
+/* "Volver a pedir": arma los ítems del carrito con el precio VIGENTE (no el de la compra original).
+   No se agregan productos inactivos, sin precio o sin stock; si hay menos stock que lo pedido, se
+   agrega lo disponible. crear_pedido() vuelve a validar precios y stock al pagar.
+   Devuelve { agregar:[{item, cantidad, categoria_slug}], noDisponibles:[nombre], ajustados:[{nombre, cantidad}] }. */
+Befine.armarRepeticion = function (items, variantes, nivel) {
+  const porId = new Map((variantes || []).map((v) => [v.id, v]));
+  const agregar = [], noDisponibles = [], ajustados = [];
+  for (const it of items || []) {
+    const v = porId.get(it.variante_id), prod = v && v.productos;
+    const precios = (v && v.precios_variante) || [];
+    const pr = precios.find((x) => x.nivel_precio_id === nivel) || precios[0];
+    const nombre = (prod && prod.nombre) || it.nombre || "Producto";
+    if (!v || !v.activo || !prod || !prod.activo || !pr) { noDisponibles.push(nombre); continue; }
+    const cantidad = v.controla_stock ? Math.min(it.cantidad, Math.max(0, v.stock || 0)) : it.cantidad;
+    if (cantidad <= 0) { noDisponibles.push(nombre); continue; }
+    if (cantidad < it.cantidad) ajustados.push({ nombre, cantidad });
+    agregar.push({
+      item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio },
+      cantidad,
+      categoria_slug: (prod.categorias && prod.categorias.slug) || null,
+    });
+  }
+  return { agregar, noDisponibles, ajustados };
+};
+
+/* Consulta el catálogo actual para repetir un pedido. Devuelve { ok, agregar, noDisponibles, ajustados } o { ok:false, error }. */
+Befine.volverAPedir = async function (items) {
+  const ids = [...new Set((items || []).map((i) => String(i.variante_id || "")).filter((id) => UUID_RE.test(id)))];
+  if (!ids.length) return { ok: false, error: "Este pedido no tiene productos para repetir." };
+  try {
+    const nivel = await _nivelRetail();
+    const { data, error } = await sb.from("variantes_producto")
+      .select("id,nombre,stock,controla_stock,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
+      .in("id", ids);
+    if (error) { console.error("volverAPedir:", error.message); return { ok: false, error: "No pudimos revisar los productos. Inténtalo de nuevo." }; }
+    return { ok: true, ...Befine.armarRepeticion(items, data, nivel) };
+  } catch (e) {
+    console.error("volverAPedir:", e);
+    return { ok: false, error: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
+  }
 };
 
 // Exponer en window para que las páginas lo usen sin bundler (igual que antes).
