@@ -12,12 +12,12 @@
   const KEY_DATOS = "befine_datos";            // datos recordados (solo en este dispositivo)
   const KEY_PAGO = "befine_pago";              // pedido en pago (solo esta pestaña): para la confirmación al volver de Mercado Pago
   const ESPERAS_MS = [1500, 2500, 4000, 6000, 8000, 10000];   // reintentos (~32 s) mientras el webhook confirma el pago
+  const KEY_PENDIENTE = "befine_pedido_pendiente"; // { id, numero, firma }: pedido creado y aún sin pagar (M-02). Sin datos personales.
   const fmtDia = (d, op) => d.toLocaleDateString("es-CL", op || { weekday: "long", day: "numeric", month: "long" });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   let sesion = null, cobertura = null, dias = null, doc = "boleta", fechaAgendada = null, enviando = false;
   let cupon = null;          // { codigo, descuento } revisado por el servidor (revisar_cupon)
-  let reintento = null;      // { firma, pedido }: si Mercado Pago falla, se reintenta con el MISMO pedido (no se duplica)
 
   document.addEventListener("DOMContentLoaded", async () => {
     const form = $("coForm");
@@ -65,6 +65,14 @@
     $("coCuponQuitar").addEventListener("click", () => quitarCupon());
 
     form.addEventListener("submit", (e) => { e.preventDefault(); pagar(); });
+  });
+
+  // Al volver con "Atrás" desde Mercado Pago, el navegador restaura la página tal como quedó
+  // (back/forward cache), con los botones en "Conectando…": se reactivan para poder pagar (M-03).
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    enviando = false;
+    [$("coPagar"), $("coBarPagar")].forEach((btn) => { if (btn && btn.classList.contains("is-loading")) cargando(btn, false); });
   });
 
   /* ================= Pintado ================= */
@@ -261,11 +269,11 @@
 
     enviando = true;
     const btns = [$("coPagar"), $("coBarPagar")];
-    // Si Mercado Pago falló y el cliente no cambió nada, se reintenta con el MISMO pedido (no se duplica).
-    const firma = JSON.stringify(payload);
-    const pedido = reintento && reintento.firma === firma ? reintento.pedido : await crearPedido(payload, btns);
+    // M-02: si el cliente ya creó este mismo pedido y no lo pagó, se paga ese (no se duplica).
+    const firma = Befine.firmaPedido(payload);
+    const pedido = (await pedidoPendiente(payload, firma, btns)) || (await crearPedido(payload, btns));
     if (!pedido) return;
-    reintento = { firma, pedido };
+    recordarPendiente(pedido, firma);
     btns.forEach((b) => textoCargando(b, "Conectando con Mercado Pago…"));
     const p = await Befine.pagar(pedido);
     if (!p.ok) {
@@ -283,9 +291,32 @@
     else cargando(btn, true, texto);
   }
 
+  /* ---------- Pedido pendiente de pago (M-02) ---------- */
+  function leerPendiente() {
+    try { return JSON.parse(localStorage.getItem(KEY_PENDIENTE) || "null"); } catch (e) { return null; }
+  }
+  function recordarPendiente(p, firma) {
+    try { localStorage.setItem(KEY_PENDIENTE, JSON.stringify({ id: p.id, numero: p.numero, firma })); } catch (e) {}
+  }
+  function olvidarPendiente(id) {
+    try { const g = leerPendiente(); if (g && (!id || g.id === id)) localStorage.removeItem(KEY_PENDIENTE); } catch (e) {}
+  }
+
+  // Devuelve el pedido pendiente para pagarlo de nuevo, o null si hay que crear uno nuevo.
+  // El servidor decide: solo se reutiliza si sigue 'pendiente_pago', es reciente y el contenido es idéntico.
+  async function pedidoPendiente(payload, firma, btns) {
+    const g = leerPendiente();
+    if (!g || g.firma !== firma) return null;
+    btns.forEach((b) => cargando(b, true, "Revisando tu pedido…"));
+    const srv = await Befine.estadoPedido(g.id);
+    if (!Befine.pedidoReutilizable(srv)) { olvidarPendiente(g.id); return null; }
+    return { ...payload, id: srv.id, numero: srv.numero, estado: srv.estado, total: srv.total, descuento_cupon: srv.descuento_cupon,
+      entrega: { ...payload.entrega, fecha: srv.fecha_entrega || payload.entrega.fecha } };
+  }
+
   // Crea el pedido en el servidor (crear_pedido). Devuelve el pedido o null si no se pudo.
   async function crearPedido(payload, btns) {
-    btns.forEach((b) => cargando(b, true, "Creando pedido…"));
+    btns.forEach((b) => textoCargando(b, "Creando pedido…"));
     const r = await Befine.crearPedido(payload);
     if (r.ok) return r.pedido;
     btns.forEach((b) => cargando(b, false)); enviando = false;
@@ -347,8 +378,10 @@
     ok.hidden = false;
     if (v.estado === "error") { pintarPagoFallido(v.pedido, guardado); return; }
 
-    // Pago aprobado o en proceso: el pedido ya existe, el carrito no se necesita.
+    // Pago aprobado o en proceso: el carrito no se necesita y ese pedido ya no se reutiliza
+    // (evita cobrar dos veces el mismo pedido si el cliente arma otra compra igual).
     Store.clear();
+    olvidarPendiente(v.pedido);
     document.querySelector(".co-head h1").textContent = "Confirmando tu pago";
     ok.innerHTML = `<div class="sheet co-espera"><span class="spin" aria-hidden="true"></span>
       <h2>Confirmando tu pago…</h2>

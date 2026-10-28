@@ -544,7 +544,7 @@ Befine.estadoPedido = async function (id) {
   if (!UUID_RE.test(String(id || ""))) return null;
   try {
     const { data, error } = await sb.from("pedidos")
-      .select("id,numero,estado,total,descuento_cupon,fecha_entrega,contacto_nombre,contacto_email,tipo_documento")
+      .select("id,numero,estado,total,descuento_cupon,fecha_entrega,contacto_nombre,contacto_email,tipo_documento,created_at")
       .eq("id", id)
       .maybeSingle();
     if (error) { console.error("estadoPedido:", error.message); return null; }
@@ -567,6 +567,36 @@ Befine.misPedidos = async function () {
     if (error || !data) return [];
     return data.map((p) => ({ ...p, items: p.detalle_pedido || [] }));
   } catch (e) { return []; }
+};
+
+/* ---------- Reutilizar el pedido pendiente de pago (mejora M-02) ----------
+   Si el cliente vuelve al checkout sin haber pagado (volvió atrás desde Mercado Pago, cerró la
+   pestaña, falló la conexión), se paga el MISMO pedido en vez de crear otro "Pendiente de pago".
+   Se reutiliza solo si el contenido es idéntico (misma firma), sigue pendiente en el servidor y es
+   reciente; si algo cambió, se crea un pedido nuevo con crear_pedido(), que recalcula todo. */
+const PEDIDO_REUSO_HORAS = 24;   // un pedido pendiente más antiguo no se reutiliza (precios o fechas pudieron cambiar)
+
+/* Firma del contenido del pedido: hash (cyrb53) del payload del checkout. Sirve para saber si el
+   cliente cambió algo (productos, cantidades, dirección, fecha, documento, cupón) sin guardar sus
+   datos personales en el navegador: solo se guarda el hash. */
+Befine.firmaPedido = function (payload) {
+  const texto = JSON.stringify(payload || {});
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+};
+
+/* ¿El pedido (tal como lo devuelve estadoPedido) se puede volver a pagar? */
+Befine.pedidoReutilizable = function (pedido, ahora = Date.now()) {
+  if (!pedido || pedido.estado !== "pendiente_pago" || !pedido.created_at) return false;
+  const edad = ahora - new Date(pedido.created_at).getTime();
+  return edad >= 0 && edad < PEDIDO_REUSO_HORAS * 3600 * 1000;
 };
 
 /* ---------- Historial del cliente (HU-18, RF-10) ---------- */
