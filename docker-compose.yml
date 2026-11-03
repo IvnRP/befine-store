@@ -1,0 +1,12 @@
+# Befine Store — levantar el sitio con un solo comando:
+#   docker compose up --build
+# y abrir http://localhost:8080
+
+services:
+  web:
+    build: .
+    image: befine-store:local
+    container_name: befine-store
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped

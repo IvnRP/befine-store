@@ -1,0 +1,14 @@
+{
+  "name": "befine-store",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Befine Store — tienda web de Agua Purificada Befine (Capstone Duoc UC, Grupo N3)",
+  "scripts": {
+    "test": "node --test",
+    "start": "npx --yes http-server web -p 8080 -c-1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

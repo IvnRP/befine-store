@@ -1,0 +1,9 @@
+# Lo que NO entra a la imagen de Docker
+.git
+.gitignore
+.env
+*.md
+web/supabase
+Capstone
+tests
+node_modules
