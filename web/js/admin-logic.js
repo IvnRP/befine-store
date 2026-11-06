@@ -213,7 +213,10 @@
     else if (nombre.length > 120) e.nombre = "El nombre es muy largo (máximo 120 caracteres).";
     if (!p || !p.categoria_id) e.categoria_id = "Elige una categoría.";
     if (p && p.descripcion && String(p.descripcion).length > 1000) e.descripcion = "La descripción es muy larga (máximo 1.000 caracteres).";
-    if (p && p.imagen_url && !/^https:\/\/\S+$/i.test(String(p.imagen_url).trim())) e.imagen_url = "La imagen debe ser un enlace https://";
+    // Imagen: enlace https:// o nombre de archivo del bucket "productos" (migración 07), ej. bidon-12l-1000.webp
+    const img = p && p.imagen_url ? String(p.imagen_url).trim() : "";
+    if (img && !/^https:\/\/\S+$/i.test(img) && !/^[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)*\.(webp|jpe?g|png)$/i.test(img))
+      e.imagen_url = "Usa un enlace https:// o el nombre del archivo subido a Storage (ej. bidon-12l-1000.webp)";
     return e;
   }
 

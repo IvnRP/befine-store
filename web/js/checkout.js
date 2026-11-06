@@ -107,7 +107,7 @@
   }
 
   function pintarEntrega() {
-    $("coFechaStd").textContent = `Llega entre el ${fmtDia(dias.estandar)} y el ${fmtDia(dias.estandarHasta)}, de ${Befine.horarioReparto} h`;
+    $("coFechaStd").textContent = `Llega entre el ${fmtDia(dias.estandar)} y el ${fmtDia(dias.estandarHasta)}, de ${Befine.horarioReparto}\u00a0h`;
     $("coAPedido").hidden = !conAPedido;
     $("coAPedido").innerHTML = `<b>Tu pedido incluye productos disponibles a pedido</b>: ${Befine.plazoAPedido()}. Las fechas ya consideran ese plazo.`;
     fechaAgendada = dias.agendables[0];
@@ -200,7 +200,7 @@
 
     $("coItems").innerHTML = items.map((i) => `
       <div class="r-item">
-        <div class="th" style="background:${i.grad || window.catGrad()}"></div>
+        <div class="th${i.foto ? " con-foto" : ""}" style="${window.fondoItem(i)}"></div>
         <div><div class="nm">${esc(i.nombre)}</div>${i.variante && i.variante !== "Estándar" ? `<div class="vr">${esc(i.variante)}</div>` : ""}${aPedido.get(i.variante_id) ? `<div class="ap">Disponible a pedido</div>` : ""}
           <div class="qty" role="group" aria-label="Cantidad de ${esc(i.nombre)}"><button type="button" data-dec="${i.variante_id}" aria-label="Quitar uno">−</button><span>${i.cantidad}</span><button type="button" data-inc="${i.variante_id}" aria-label="Agregar uno">+</button></div></div>
         <div class="pr">${clp(i.precio * i.cantidad)}<button type="button" data-del="${i.variante_id}">Quitar</button></div>
@@ -486,7 +486,7 @@
         <dl class="det">
           ${fecha ? `<div><dt>Entrega</dt><dd>${pedido.entrega.tipo === "agendada"
             ? `${fmtDia(fecha)} (agendada)`
-            : `Entre el ${fmtDia(fecha)} y el ${fmtDia(Befine.siguienteHabil(fecha))}`}, de ${Befine.horarioReparto} h</dd></div>` : ""}
+            : `Entre el ${fmtDia(fecha)} y el ${fmtDia(Befine.siguienteHabil(fecha))}`}, de ${Befine.horarioReparto}\u00a0h</dd></div>` : ""}
           ${d ? `<div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>` : ""}
           <div><dt>Documento</dt><dd>${doc.tipo === "factura" ? "Factura" + (doc.razon_social ? " · " + esc(doc.razon_social) : "") : "Boleta electrónica"}</dd></div>
           ${pedido.descuento_cupon ? `<div><dt>Descuento</dt><dd>−${clp(pedido.descuento_cupon)}</dd></div>` : ""}

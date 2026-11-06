@@ -467,6 +467,17 @@ Befine.siguienteHabil = function (fecha) {
 };
 Befine.horarioReparto = ENTREGA.horario;
 
+/* Foto del producto (migración 07): imagen_url guarda la ruta del archivo grande en el bucket público
+   "productos" (ej. "bidon-12l-1000.webp") o una URL completa. tam "sm" = versión de 400 px (tarjetas,
+   carrito); "lg" = 1000 px (ficha). Devuelve null si no hay foto (la interfaz muestra el degradado). */
+const FOTOS_URL = SUPABASE_URL + "/storage/v1/object/public/productos/";
+Befine.foto = function (imagenUrl, tam = "lg") {
+  const ruta = String(imagenUrl || "").trim();
+  if (!ruta) return null;
+  const url = /^https?:\/\//.test(ruta) ? ruta : FOTOS_URL + ruta.split("/").map(encodeURIComponent).join("/");
+  return tam === "sm" ? url.replace(/-1000\.webp$/, "-400.webp") : url;
+};
+
 /* Texto legal del producto sin stock (el plazo sale de la misma regla que calcula las fechas) */
 Befine.plazoAPedido = function () {
   return `entrega en ${1 + ENTREGA.diasAPedido} a ${2 + ENTREGA.diasAPedido} días hábiles`;
@@ -739,7 +750,8 @@ Befine.armarRepeticion = function (items, variantes, nivel) {
     if (!v || !v.activo || !prod || !prod.activo || !pr) { noDisponibles.push(nombre); continue; }
     const cantidad = Math.max(1, Math.round(Number(it.cantidad) || 1));
     agregar.push({
-      item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio },
+      item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio,
+              foto: Befine.foto(prod.imagen_url, "sm") },
       cantidad,
       categoria_slug: (prod.categorias && prod.categorias.slug) || null,
     });
@@ -754,7 +766,7 @@ Befine.volverAPedir = async function (items) {
   try {
     const nivel = await _nivelRetail();
     const { data, error } = await sb.from("variantes_producto")
-      .select("id,nombre,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
+      .select("id,nombre,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,imagen_url,categorias(slug))")
       .in("id", ids);
     if (error) { console.error("volverAPedir:", error.message); return { ok: false, error: "No pudimos revisar los productos. Inténtalo de nuevo." }; }
     return { ok: true, ...Befine.armarRepeticion(items, data, nivel) };

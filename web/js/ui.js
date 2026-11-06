@@ -20,6 +20,14 @@
     recargas: "linear-gradient(160deg,#1259B8,#0A2352)",
   };
   window.catGrad = (slug) => GRADS[slug] || "linear-gradient(160deg,#1E6FD0,#0A2A66)";
+  /* Fondo de la miniatura de un ítem del carrito: su foto (si es una URL https segura) o el degradado.
+     El carrito vive en localStorage: no se confía en su contenido para armar el estilo. */
+  window.fondoItem = (i) => {
+    const u = String((i && i.foto) || "");
+    return /^https:\/\/[^"'()\s<>\\]+$/.test(u)
+      ? `background:#fff url('${u}') center/contain no-repeat`
+      : `background:${(i && i.grad) || window.catGrad()}`;
+  };
 
   /* ---------- Toast ---------- */
   let toastT;
@@ -92,7 +100,7 @@
     if (!items.length) { box.innerHTML = `<p class="empty">Aún no agregas productos.</p>`; if (totalEl) totalEl.textContent = "$0"; return; }
     box.innerHTML = items.map((i) => `
       <div class="cart-item">
-        <div class="thumb" style="background:${i.grad || window.catGrad()}"></div>
+        <div class="thumb${i.foto ? " con-foto" : ""}" style="${window.fondoItem(i)}"></div>
         <div class="info">
           <h4>${i.nombre}</h4>
           ${i.variante && i.variante !== "Estándar" ? `<div class="var">${i.variante}</div>` : ""}

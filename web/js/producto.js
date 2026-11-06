@@ -17,11 +17,14 @@
       ? `<b>Disponible a pedido</b> · ${Befine.plazoAPedido()}`
       : "Despacho en tu zona · entrega en 24 a 48 h hábiles";
     let variante = p.variantes[0]; // seleccionada
+    const foto = Befine.foto(p.imagen_url, "lg"), fotoSm = Befine.foto(p.imagen_url, "sm");
 
     document.title = p.nombre + " · Befine Store";
 
     cont.innerHTML = `
-      <div class="media" style="--v-grad:${grad}"></div>
+      <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `
+        <img class="foto-prod" src="${foto}" srcset="${fotoSm} 400w, ${foto} 1000w" sizes="(max-width: 860px) 100vw, 560px"
+             alt="${p.nombre.replace(/"/g, "&quot;")}" width="1000" height="1000" fetchpriority="high" decoding="async">` : ""}</div>
       <div class="buybox">
         <div class="breadcrumb"><a href="index.html">Inicio</a> / <a href="catalogo.html?cat=${p.categoria_slug}">${p.categoria}</a></div>
         <h1>${p.nombre}</h1>
@@ -75,7 +78,7 @@
     // Agregar al carrito / Comprar ahora
     const itemDe = () => ({
       variante_id: variante.id, producto_id: p.id, nombre: p.nombre,
-      variante: variante.nombre, precio: variante.precio, grad, a_pedido: !!variante.a_pedido,
+      variante: variante.nombre, precio: variante.precio, grad, foto: fotoSm, a_pedido: !!variante.a_pedido,
     });
     document.getElementById("fAdd").onclick = () => {
       Store.add(itemDe(), +cant.value);

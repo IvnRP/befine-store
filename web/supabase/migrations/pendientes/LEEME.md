@@ -2,7 +2,13 @@
 
 Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla su requisito, se mueven a `../` (carpeta `migrations/`) y se aplican en Supabase como migración. Cada una tiene su archivo de reversa.
 
-Orden: **01, 01b, 04, 03, 05 y 06 (aplicadas) → 02** (pendiente: se aplica con la vista del chofer).
+Orden: **01, 01b, 04, 03, 05, 06 y 07 (aplicadas) → 02** (pendiente: se aplica con la vista del chofer).
+
+---
+
+## 07 · Fotos de productos — `../20261106_07_fotos_productos.sql` (aplicada el 06-nov-2026)
+
+Bucket público `productos` (solo imágenes, máx. 2 MB), políticas para que solo el admin (`catalogo.gestionar`) suba o borre, y `productos.imagen_url` con la ruta del archivo grande (`*-1000.webp`). La tienda usa la versión `-400` en tarjetas y carrito. Prueba en seco T01..T05 OK, aplicada y las 20 WebP subidas de `D:\CAPSTONE\Fotos_Befine\web_productos` en Storage → productos.
 
 ---
 

@@ -106,3 +106,9 @@ input:focus, select:focus { outline: 2px solid var(--accent-soft); outline-offse
   text-transform:uppercase;color:#3a1f00;background:linear-gradient(180deg,#ffd98a,#f2a63c);
   padding:5px 10px;border-radius:999px;line-height:1;box-shadow:0 4px 12px rgba(0,0,0,.28);white-space:nowrap}
 .card .vessel .oferta{position:absolute;top:12px;right:12px;z-index:1}
+
+/* Foto real del producto (migración 07): reemplaza el degradado de la tarjeta, la ficha y el hero.
+   Las fotos vienen con fondo blanco; object-fit: contain las muestra completas sin recortar. */
+.con-foto { background: #fff; }
+.con-foto::before { display: none; }
+.foto-prod { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 8px; box-sizing: border-box; }

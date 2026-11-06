@@ -47,12 +47,13 @@
     if (qbox) {
       const prod = await Befine.getHero(); // Recarga Bidón 20 L
       const grad = window.catGrad(prod.categoria_slug);
+      const foto = Befine.foto(prod.imagen_url, "sm");
       let vSel = prod.variantes[0];
       const precioHTML = (v) => `${v.precio_comparacion ? `<span class="oferta">Oferta</span> ` : ""}<span class="now">${Befine.clp(v.precio)}</span>${v.precio_comparacion ? ` <s>${Befine.clp(v.precio_comparacion)}</s>` : ""}`;
 
       qbox.innerHTML = `
         <span class="badge">★ Lo más pedido</span>
-        <div class="media" style="--v-grad:${grad}"></div>
+        <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `<img class="foto-prod" src="${foto}" alt="" width="400" height="400" fetchpriority="high" decoding="async">` : ""}</div>
         <h3>${prod.nombre}</h3>
         <div class="price" id="qPrice">${precioHTML(vSel)}</div>
         ${prod.aviso ? `<div class="aviso-recarga"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16-3 3 3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 10.598"/><path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/><path d="m13.378 9.633 4.096 1.098 1.097-4.096"/></svg></span>${prod.aviso}</div>` : ""}
@@ -79,7 +80,7 @@
       });
       qbox.querySelector("#qMas").onclick = () => qCant.value = (+qCant.value + 1);
       qbox.querySelector("#qMenos").onclick = () => qCant.value = Math.max(1, +qCant.value - 1);
-      const itemDe = () => ({ variante_id: vSel.id, producto_id: prod.id, nombre: prod.nombre, variante: vSel.nombre, precio: vSel.precio, grad });
+      const itemDe = () => ({ variante_id: vSel.id, producto_id: prod.id, nombre: prod.nombre, variante: vSel.nombre, precio: vSel.precio, grad, foto });
       qbox.querySelector("#qAdd").onclick = () => { Store.add(itemDe(), +qCant.value); window.toast("Agregado al carrito: " + prod.nombre); };
       qbox.querySelector("#qBuy").onclick = () => { Store.add(itemDe(), +qCant.value); window.openCheckout(); };
     }

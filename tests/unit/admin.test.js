@@ -112,11 +112,16 @@ test("CP-U16b SKU normalizado y único entre todas las variantes", () => {
   assert.ok(L.validarVariante({ sku: "BEF-NUEVO", nombre: "Estándar", precio: "abc" }, [], null).precio);
 });
 
-test("CP-U16c producto: nombre, categoría e imagen https obligatoria si se informa", () => {
+test("CP-U16c producto: nombre, categoría e imagen (https o archivo de Storage) si se informa", () => {
   assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Recarga 20 L", categoria_id: 4 })), []);
   const e = L.validarProducto({ nombre: "ab", categoria_id: "", imagen_url: "http://sitio.cl/a.png" });
   assert.ok(e.nombre && e.categoria_id && e.imagen_url);
   assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Pack", categoria_id: 1, imagen_url: "https://x.supabase.co/a.webp" })), []);
+  // archivo del bucket "productos" (migración 07); sin rutas que salgan del bucket ni formatos que no son imagen
+  assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Pack", categoria_id: 1, imagen_url: "bidon-12l-1000.webp" })), []);
+  for (const malo of ["../secreto.webp", "foto.pdf", "javascript:alert(1)", "a b.webp"]) {
+    assert.ok(L.validarProducto({ nombre: "Pack", categoria_id: 1, imagen_url: malo }).imagen_url, malo);
+  }
 });
 
 test("CP-U16d filtro del catálogo por categoría, visibilidad y SKU", () => {

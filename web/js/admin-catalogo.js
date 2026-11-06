@@ -75,7 +75,7 @@
     box.innerHTML = items.map((p) => `
       <article class="ad-card ad-prod${p.activo ? "" : " oculto"}">
         <header>
-          <div class="ad-prod-img">${p.imagen_url ? `<img src="${esc(p.imagen_url)}" alt="" loading="lazy">` : ICONOS.inventario}</div>
+          <div class="ad-prod-img">${p.imagen_url ? `<img src="${esc(Befine.foto(p.imagen_url, "sm"))}" alt="" loading="lazy">` : ICONOS.inventario}</div>
           <div class="ad-prod-t"><h2>${esc(p.nombre)}</h2><small>${esc(p.categoria)} · ${p.variantes.length} variante${p.variantes.length === 1 ? "" : "s"}</small></div>
           <span class="ad-est ${p.activo ? "ok" : "fin"}">${p.activo ? "Visible en tienda" : "Oculto"}</span>
           ${puedeCat() ? `<div class="ad-prod-acc">
@@ -147,7 +147,7 @@
         <label>Categoría<select class="ad-inp" id="fpCat"><option value="">Elegir…</option>${opcionesCat(p && p.categoria_id)}</select><span class="err" data-err="fpCat"></span></label>
         <label class="chk" style="align-self:end"><input type="checkbox" id="fpActivo" ${!p || p.activo ? "checked" : ""}>Visible en la tienda</label>
         <label class="full">Descripción <small>(opcional)</small><textarea class="ad-inp" id="fpDesc" rows="3" maxlength="1000">${esc(p ? p.descripcion : "")}</textarea><span class="err" data-err="fpDesc"></span></label>
-        <label class="full">Imagen <small>(enlace https; opcional)</small><input class="ad-inp" id="fpImg" value="${esc(p ? p.imagen_url : "")}" placeholder="https://…"><span class="err" data-err="fpImg"></span></label>
+        <label class="full">Imagen <small>(archivo en Storage → productos, ej. bidon-12l-1000.webp, o enlace https; opcional)</small><input class="ad-inp" id="fpImg" value="${esc(p ? p.imagen_url : "")}" placeholder="bidon-12l-1000.webp"><span class="err" data-err="fpImg"></span></label>
         ${nuevo ? `
         <p class="full ad-sub">Primera variante <small>(puedes agregar más después)</small></p>
         <label>Variante<input class="ad-inp" id="fvNombre" value="Estándar" maxlength="60"><span class="err" data-err="fvNombre"></span></label>
