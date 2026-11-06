@@ -241,6 +241,7 @@
       req(f.razon_social, f.razon_social.value.trim().length >= 2, "Escribe la razón social.");
       req(f.giro, f.giro.value.trim().length >= 2, "Escribe el giro.");
     }
+    req(f.acepto, f.acepto.checked, "Debes aceptar los Términos y la Política de privacidad para pagar.");   // Ley 21.719 (HU-25)
     if (errs.length) { errs[0].focus({ preventScroll: true }); errs[0].scrollIntoView({ behavior: "smooth", block: "center" }); }
     return !errs.length;
   }
@@ -258,6 +259,7 @@
       items: items.map((i) => ({ variante_id: i.variante_id, nombre: i.nombre, variante: i.variante, cantidad: i.cantidad, precio_unitario: i.precio })),
       subtotal: t.sub, costo_despacho: t.envio || 0, total: t.total, perfil_id: sesion ? sesion.id : null,
       cupon: cupon ? cupon.codigo : null,
+      acepta_terminos: f.acepto.checked,   // el servidor la exige y la registra con su fecha (migración 06)
     };
 
     // Recordar datos (solo en este dispositivo) para que la próxima compra sea aún más rápida

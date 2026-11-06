@@ -60,6 +60,13 @@ body.tema-claro .r-tot dd.gratis { color: #1f8a5b; }
 .r-tot .total dt { color: var(--ink); font-weight: 800; font-size: 16px; }
 .r-tot .total dd { font-family: var(--font-display); font-weight: 800; font-size: 26px; }
 .legal { font-size: 12px; color: var(--muted); margin: 12px 0 0; line-height: 1.45; }
+/* Casilla de aceptación (HU-25): visible, grande para el dedo y con error junto a ella */
+.acepto { margin: 0 0 12px; }
+.check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 13.5px; line-height: 1.45; }
+.check input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); cursor: pointer; }
+.check input:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+.check a { text-decoration: underline; text-underline-offset: 2px; font-weight: 600; }
+.fld.err .check span { color: #ff6b6b; } body.tema-claro .fld.err .check span { color: #d64545; }
 .legal a { text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- Vacío ---------- */

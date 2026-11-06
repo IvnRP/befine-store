@@ -440,7 +440,7 @@ Befine.crearPedido = async function (payload) {
     const { data, error } = await sb.rpc("crear_pedido", {
       p_items: (payload.items || []).map((i) => ({ variante_id: i.variante_id, cantidad: i.cantidad })),
       p_direccion: { calle: d.calle, numero: d.numero, depto: d.depto || null, comuna: d.comuna, referencia: d.referencia || null },
-      p_contacto: { nombre: c.nombre, telefono: c.telefono, email: c.email },
+      p_contacto: { nombre: c.nombre, telefono: c.telefono, email: c.email, acepta_terminos: payload.acepta_terminos === true },
       p_entrega: payload.entrega || null,
       p_documento: payload.documento || { tipo: "boleta" },
       p_cupon_codigo: payload.cupon || null,
