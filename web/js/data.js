@@ -602,6 +602,15 @@ Befine.pedidoReutilizable = function (pedido, ahora = Date.now()) {
 /* ---------- Historial del cliente (HU-18, RF-10) ---------- */
 /* Pasa una fila de pedidos (con sus relaciones) al formato que usa "Mis pedidos".
    El enlace de la boleta/factura solo se muestra si el documento fue emitido y la URL es https. */
+/* Estado del documento tributario de un pedido, tal como lo ve el cliente (HU-18 CA5/CA6):
+   "descargar" si la boleta/factura está emitida (hay enlace), "en_proceso" si el pago ya se confirmó
+   y OpenFactura aún no la emite, y "ninguno" si el pedido no está pagado (pendiente o cancelado). */
+Befine.estadoDocumento = function (detalle) {
+  if (!detalle) return "ninguno";
+  if (detalle.boleta && detalle.boleta.url) return "descargar";
+  return Befine.pedidoPagado(detalle.estado) ? "en_proceso" : "ninguno";
+};
+
 Befine.armarDetalle = function (p) {
   const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" && /^https:\/\//i.test(d.url_pdf || ""));
   return {

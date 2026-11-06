@@ -1,4 +1,4 @@
-/* Pruebas del historial de pedidos del cliente (web/js/data.js) — 6 pruebas
+/* Pruebas del historial de pedidos del cliente (web/js/data.js) — 7 pruebas
    Casos CP-U22 del Plan de Pruebas (HU-18, RF-10). Supabase se simula: se prueba cómo la tienda
    arma el detalle de un pedido y qué agrega al carrito con "Volver a pedir". */
 const { test } = require("node:test");
@@ -82,4 +82,15 @@ test("CP-U22f detalle y volver a pedir no consultan la base con ids inválidos (
   const r = await B.volverAPedir([{ variante_id: "abc", cantidad: 1 }]);
   assert.equal(r.ok, false);
   assert.equal(consultas, 0);
+});
+
+test("CP-U22g documento del pedido: descargar si está emitido, 'en proceso' si está pagado y nada si no está pagado", () => {
+  const B = befine();
+  const con = (estado, boleta = null) => B.estadoDocumento({ estado, boleta });
+  assert.equal(con("pagado", { url: "https://openfactura.cl/dte/1.pdf" }), "descargar");
+  assert.equal(con("pagado"), "en_proceso");
+  assert.equal(con("entregado"), "en_proceso");
+  assert.equal(con("pendiente_pago"), "ninguno");
+  assert.equal(con("cancelado"), "ninguno");
+  assert.equal(B.estadoDocumento(null), "ninguno");
 });

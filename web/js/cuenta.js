@@ -200,7 +200,10 @@
     const fila = (k, v, cls) => `<div${cls ? ` class="${cls}"` : ""}><dt>${k}</dt><dd>${v}</dd></div>`;
     const dir = d.direccion;
     const doc = d.documento === "factura" ? "Factura electrónica" : "Boleta electrónica";
-    const enlace = d.boleta ? ` · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>` : "";
+    const estadoDoc = Befine.estadoDocumento(d);
+    const enlace = estadoDoc === "descargar"
+      ? ` · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
+      : estadoDoc === "en_proceso" ? ` · <span class="pd-proceso">${d.documento === "factura" ? "Factura" : "Boleta"} en proceso</span>` : "";
     return `
       <ul class="pd-items">${d.items.map((i) => `
         <li><span class="nm">${i.cantidad} × ${esc(i.nombre)}${i.variante && i.variante !== "Estándar" ? ` <small>${esc(i.variante)}</small>` : ""}</span>
