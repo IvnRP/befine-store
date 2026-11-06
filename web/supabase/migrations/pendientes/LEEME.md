@@ -2,7 +2,7 @@
 
 Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla su requisito, se mueven a `../` (carpeta `migrations/`) y se aplican en Supabase como migración. Cada una tiene su archivo de reversa.
 
-Orden: **01, 01b, 04, 03 y 05 (aplicadas) → 02** (pendiente: se aplica con la vista del chofer).
+Orden: **01, 01b, 04, 03, 05 y 06 (aplicadas) → 02** (pendiente: se aplica con la vista del chofer).
 
 ---
 
@@ -35,3 +35,9 @@ Se movieron a `../` con su fecha (`20261105_03_*` y `20261105_05_*`). Prueba en 
 - **03 · Invitados + confirmación de pago:** trigger `on_auth_user_upgraded` (el invitado que crea cuenta conserva su id, pedidos y puntos) y `confirmar_pago()` (solo `service_role`, la llama el webhook `mp-webhook`): `pendiente_pago → pagado → en_preparacion`, descuenta stock, suma puntos, idempotente.
 - **05 · El stock nunca frena una venta (HU-22):** `crear_pedido()` sin rechazo por stock, columna `pedidos.sobreventa` y `confirmar_pago()` con la marca de sobreventa.
 - **Captcha:** activarlo en Authentication → Attack Protection **solo cuando el checkout envíe el token**; activarlo antes bloquea las compras como invitado.
+
+---
+
+## Aplicada el 06-nov-2026: 06
+
+**06 · Aceptación obligatoria de Términos y Privacidad (HU-25, Ley 21.719):** `crear_pedido()` exige `p_contacto.acepta_terminos = true` y guarda `pedidos.terminos_aceptados_at` (hora del servidor) y `terminos_version` (parámetro `terminos_version`, hoy `2026-11`). Se movió a `../20261106_06_*`. Prueba en seco T01..T05 OK.
