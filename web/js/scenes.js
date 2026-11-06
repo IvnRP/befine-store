@@ -38,8 +38,9 @@
 
   /* ---------- (2) Fondo de la web: fotos rotando (responsive) ---------- */
   var FONDO = {
-    desktop: ["assets/fondo-familia-desktop.webp", "assets/fondo-oficina-desktop.webp"],
-    movil:   ["assets/fondo-familia-movil.webp",   "assets/fondo-oficina-movil.webp"]
+    // Fotos reales de Befine (bidones entregados, furgón de despacho); suavizadas y livianas (35–80 KB)
+    desktop: ["assets/fondo-patio-desktop.webp", "assets/fondo-recepcion-desktop.webp"],
+    movil:   ["assets/fondo-furgon-movil.webp", "assets/fondo-bidones-movil.webp", "assets/fondo-lluvia-movil.webp"]
   };
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var mqMovil = window.matchMedia("(max-width: 720px)");
