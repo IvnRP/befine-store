@@ -41,7 +41,7 @@
           <button class="btn btn-ghost" id="fAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="fBuy">Comprar ahora</button>
         </div>
-        <p class="stock">${variante.stock > 0 ? "En stock · despacho en tu zona" : "Sin stock por ahora"}</p>
+        <p class="stock">Despacho en tu zona · entrega en 24 h hábiles</p>
       </div>`;
 
     // Selección de variante

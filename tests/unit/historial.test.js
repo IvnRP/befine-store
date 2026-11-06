@@ -54,23 +54,25 @@ test("CP-U22c volver a pedir: usa el precio VIGENTE del nivel retail, no el de l
   assert.equal(r.noDisponibles.length, 0);
 });
 
-test("CP-U22d volver a pedir: agrega los disponibles y avisa los inactivos, sin precio o sin stock (caso de error)", () => {
+test("CP-U22d volver a pedir: agrega los disponibles y avisa los desactivados o sin precio (caso de error)", () => {
   const items = [{ variante_id: V1, cantidad: 2 }, { variante_id: V2, cantidad: 1, nombre: "Dispensador" }, { variante_id: V3, cantidad: 3 }];
   const r = befine().armarRepeticion(items, [
     variante(V1),
-    variante(V3, { stock: 0, productos: { id: "p3", nombre: "Bidón 12 L", activo: true } }),
-  ], 1);   // V2 ya no existe en el catálogo (inactiva → el RLS no la devuelve)
+    variante(V3, { precios_variante: [], productos: { id: "p3", nombre: "Bidón 12 L", activo: true } }),
+  ], 1);   // V2 ya no existe en el catálogo (desactivada → el RLS no la devuelve); V3 quedó sin precio
   assert.deepEqual(plano(r.agregar.map((a) => a.item.variante_id)), [V1]);
   assert.deepEqual(plano(r.noDisponibles), ["Dispensador", "Bidón 12 L"]);
 });
 
-test("CP-U22e volver a pedir: con menos stock que lo pedido agrega lo disponible; sin control de stock agrega todo", () => {
+test("CP-U22e volver a pedir: el stock nunca frena la venta (se agrega la cantidad original aunque el stock sea 0)", () => {
   const B = befine();
-  let r = B.armarRepeticion([{ variante_id: V1, cantidad: 5 }], [variante(V1, { stock: 2 })], 1);
-  assert.equal(r.agregar[0].cantidad, 2);
-  assert.deepEqual(plano(r.ajustados), [{ nombre: "Recarga 20 L", cantidad: 2 }]);
-  r = B.armarRepeticion([{ variante_id: V1, cantidad: 5 }], [variante(V1, { stock: 0, controla_stock: false })], 1);
+  let r = B.armarRepeticion([{ variante_id: V1, cantidad: 5 }], [variante(V1, { stock: 0, controla_stock: true })], 1);
   assert.equal(r.agregar[0].cantidad, 5);
+  assert.equal(r.noDisponibles.length, 0);
+  r = B.armarRepeticion([{ variante_id: V1, cantidad: 5 }], [variante(V1, { stock: 2 })], 1);
+  assert.equal(r.agregar[0].cantidad, 5);
+  r = B.armarRepeticion([{ variante_id: V1, cantidad: 0 }], [variante(V1)], 1);
+  assert.equal(r.agregar[0].cantidad, 1);   // cantidad inválida: al menos 1
 });
 
 test("CP-U22f detalle y volver a pedir no consultan la base con ids inválidos (caso de error)", async () => {

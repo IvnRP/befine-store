@@ -635,38 +635,36 @@ Befine.detallePedido = async function (id) {
 };
 
 /* "Volver a pedir": arma los ítems del carrito con el precio VIGENTE (no el de la compra original).
-   No se agregan productos inactivos, sin precio o sin stock; si hay menos stock que lo pedido, se
-   agrega lo disponible. crear_pedido() vuelve a validar precios y stock al pagar.
-   Devuelve { agregar:[{item, cantidad, categoria_slug}], noDisponibles:[nombre], ajustados:[{nombre, cantidad}] }. */
+   Se agrega la MISMA cantidad del pedido original: el stock nunca frena una venta (decisión del dueño,
+   HU-22). Solo se omiten los productos desactivados o sin precio. crear_pedido() recalcula todo al pagar.
+   Devuelve { agregar:[{item, cantidad, categoria_slug}], noDisponibles:[nombre] }. */
 Befine.armarRepeticion = function (items, variantes, nivel) {
   const porId = new Map((variantes || []).map((v) => [v.id, v]));
-  const agregar = [], noDisponibles = [], ajustados = [];
+  const agregar = [], noDisponibles = [];
   for (const it of items || []) {
     const v = porId.get(it.variante_id), prod = v && v.productos;
     const precios = (v && v.precios_variante) || [];
     const pr = precios.find((x) => x.nivel_precio_id === nivel) || precios[0];
     const nombre = (prod && prod.nombre) || it.nombre || "Producto";
     if (!v || !v.activo || !prod || !prod.activo || !pr) { noDisponibles.push(nombre); continue; }
-    const cantidad = v.controla_stock ? Math.min(it.cantidad, Math.max(0, v.stock || 0)) : it.cantidad;
-    if (cantidad <= 0) { noDisponibles.push(nombre); continue; }
-    if (cantidad < it.cantidad) ajustados.push({ nombre, cantidad });
+    const cantidad = Math.max(1, Math.round(Number(it.cantidad) || 1));
     agregar.push({
       item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio },
       cantidad,
       categoria_slug: (prod.categorias && prod.categorias.slug) || null,
     });
   }
-  return { agregar, noDisponibles, ajustados };
+  return { agregar, noDisponibles };
 };
 
-/* Consulta el catálogo actual para repetir un pedido. Devuelve { ok, agregar, noDisponibles, ajustados } o { ok:false, error }. */
+/* Consulta el catálogo actual para repetir un pedido. Devuelve { ok, agregar, noDisponibles } o { ok:false, error }. */
 Befine.volverAPedir = async function (items) {
   const ids = [...new Set((items || []).map((i) => String(i.variante_id || "")).filter((id) => UUID_RE.test(id)))];
   if (!ids.length) return { ok: false, error: "Este pedido no tiene productos para repetir." };
   try {
     const nivel = await _nivelRetail();
     const { data, error } = await sb.from("variantes_producto")
-      .select("id,nombre,stock,controla_stock,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
+      .select("id,nombre,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
       .in("id", ids);
     if (error) { console.error("volverAPedir:", error.message); return { ok: false, error: "No pudimos revisar los productos. Inténtalo de nuevo." }; }
     return { ok: true, ...Befine.armarRepeticion(items, data, nivel) };

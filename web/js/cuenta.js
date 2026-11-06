@@ -239,9 +239,8 @@
     }
     const partes = [`Agregamos ${r.agregar.reduce((n, a) => n + a.cantidad, 0)} producto(s) al carrito con el precio de hoy.`];
     if (antes) partes.push(`Tu carrito ya tenía ${antes} producto(s): ahora tiene ${Store.count()}.`);
-    if (r.ajustados.length) partes.push("Con menos unidades por stock: " + r.ajustados.map((a) => `${esc(a.nombre)} (${a.cantidad})`).join(", ") + ".");
     if (r.noDisponibles.length) partes.push("No disponibles: " + r.noDisponibles.map(esc).join(", ") + ".");
-    msgBox.innerHTML = `<div class="aviso ${r.noDisponibles.length || r.ajustados.length ? "" : "ok"}">
+    msgBox.innerHTML = `<div class="aviso ${r.noDisponibles.length ? "" : "ok"}">
       <span>${partes.join(" ")} <a href="checkout.html">Ir a pagar →</a></span></div>`;
   }
   $("pcSalir").addEventListener("click", async () => { await Befine.auth.salir(); location.href = "index.html"; });
