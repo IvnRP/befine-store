@@ -67,14 +67,21 @@
     </div>
   </header>`;
 
+  /* Identificación del proveedor en el pie (Reglamento de Comercio Electrónico): datos de data.js */
+  const PV = (window.Befine && window.Befine.proveedor) || {};
+  const dato = (v) => v ? v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])) : "[Por completar]";
+  const IDENTIFICACION = `${dato(PV.nombre_fantasia)} · ${dato(PV.razon_social)} · RUT ${dato(PV.rut)} · ${dato(PV.domicilio)}`;
+  const WA = `https://wa.me/${(window.Befine && window.Befine.contacto && window.Befine.contacto.whatsapp) || ""}`;
+
   const FOOTER = `
   <footer class="site">
     <div class="wrap cols">
       <div><h5>Befine</h5><p class="muted" style="max-width:26ch">Agua purificada a domicilio en el sector norte de Santiago. 5 años de operación.</p></div>
       <div><h5>Tienda</h5><a href="catalogo.html?cat=recargas">Recargas</a><a href="catalogo.html?cat=bidones">Envase y recarga</a><a href="catalogo.html?cat=dispensadores">Dispensadores</a><a href="catalogo.html?cat=packs">Packs</a></div>
-      <div><h5>Contacto</h5><a href="#">WhatsApp</a><a href="#">Cobertura de zonas</a><a href="#">Preguntas frecuentes</a></div>
+      <div><h5>Contacto</h5><a href="${WA}" target="_blank" rel="noopener">WhatsApp</a><a href="despacho.html#cobertura">Cobertura de zonas</a><a href="cambios.html">Cambios y garantía</a></div>
+      <div><h5>Legal</h5><a href="terminos.html">Términos y condiciones</a><a href="privacidad.html">Política de privacidad</a><a href="despacho.html">Despacho y entregas</a><a href="cambios.html#retracto">Derecho a retracto</a></div>
     </div>
-    <div class="wrap legal">Befine Store · Maqueta de experiencia (datos y colores de demostración).</div>
+    <div class="wrap legal">${IDENTIFICACION}</div>
   </footer>`;
 
   const h = document.getElementById("app-header"); if (h) h.outerHTML = HEADER;

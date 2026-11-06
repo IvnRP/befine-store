@@ -103,7 +103,7 @@
   }
 
   function pintarEntrega() {
-    $("coFechaStd").textContent = "Llega el " + fmtDia(dias.estandar);
+    $("coFechaStd").textContent = `Llega entre el ${fmtDia(dias.estandar)} y el ${fmtDia(dias.estandarHasta)}, de ${Befine.horarioReparto} h`;
     fechaAgendada = dias.agendables[0];
     const box = $("coDias");
     box.innerHTML = dias.agendables.map((d, i) => `<button type="button" class="dia" data-i="${i}" aria-pressed="${i === 0}"
@@ -217,6 +217,9 @@
   function precargar() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY_DATOS) || "{}"); } catch (e) {}
+    // "Recordar mis datos" parte SIN marcar (consentimiento expreso, Ley 21.719); si el cliente ya lo
+    // había aceptado antes en este dispositivo, se muestra marcado para que pueda desmarcarlo.
+    if (d && Object.keys(d).length) $("coRecordar").checked = true;
     const f = $("coForm");
     const set = (name, v) => { if (v && !f[name].value) f[name].value = v; };
     if (sesion) { set("nombre", [sesion.nombre, sesion.apellido].filter(Boolean).join(" ")); set("email", sesion.email); set("telefono", Val.formatoTel(sesion.telefono || "")); }
@@ -457,7 +460,9 @@
           ? `Gracias${nombre ? ", " + nombre : ""}. Tu pago fue aprobado y ya estamos preparando tu pedido.`
           : esc(aviso || "Estamos confirmando tu pago.")}</p>
         <dl class="det">
-          ${fecha ? `<div><dt>Entrega</dt><dd>${fmtDia(fecha)}${pedido.entrega.tipo === "agendada" ? " (agendada)" : ""}</dd></div>` : ""}
+          ${fecha ? `<div><dt>Entrega</dt><dd>${pedido.entrega.tipo === "agendada"
+            ? `${fmtDia(fecha)} (agendada)`
+            : `Entre el ${fmtDia(fecha)} y el ${fmtDia(Befine.siguienteHabil(fecha))}`}, de ${Befine.horarioReparto} h</dd></div>` : ""}
           ${d ? `<div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>` : ""}
           <div><dt>Documento</dt><dd>${doc.tipo === "factura" ? "Factura" + (doc.razon_social ? " · " + esc(doc.razon_social) : "") : "Boleta electrónica"}</dd></div>
           ${pedido.descuento_cupon ? `<div><dt>Descuento</dt><dd>−${clp(pedido.descuento_cupon)}</dd></div>` : ""}
@@ -481,7 +486,7 @@
         </form>
         <div class="divider">o</div>
         <button type="button" class="btn-google" id="coGoogle">${GOOGLE_SVG}Continuar con Google</button>
-        <p class="hint" style="margin-top:10px">Al crear tu cuenta aceptas la <a href="#" style="text-decoration:underline">Política de privacidad</a>.</p>
+        <p class="hint" style="margin-top:10px">Al crear tu cuenta aceptas los <a href="terminos.html" target="_blank" rel="noopener" style="text-decoration:underline">Términos</a> y la <a href="privacidad.html" target="_blank" rel="noopener" style="text-decoration:underline">Política de privacidad</a>.</p>
       </div>`}`;
     Store.clear();
     window.scrollTo({ top: 0, behavior: "smooth" });

@@ -41,7 +41,12 @@
           <button class="btn btn-ghost" id="fAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="fBuy">Comprar ahora</button>
         </div>
-        <p class="stock">Despacho en tu zona · entrega en 24 h hábiles</p>
+        <p class="stock">Despacho en tu zona · entrega en 24 a 48 h hábiles</p>
+        ${(() => { const r = Befine.retractoDe(p.categoria_slug); return `
+        <aside class="retracto" aria-label="Derecho a retracto">
+          <p class="tit">${r.titulo}</p>
+          <p>${r.texto} <a href="cambios.html#retracto">Ver condiciones</a></p>
+        </aside>`; })()}
       </div>`;
 
     // Selección de variante

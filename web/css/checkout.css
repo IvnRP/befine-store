@@ -62,6 +62,8 @@ body.tema-claro .r-tot dd.gratis { color: #1f8a5b; }
 .legal { font-size: 12px; color: var(--muted); margin: 12px 0 0; line-height: 1.45; }
 /* Casilla de aceptación (HU-25): visible, grande para el dedo y con error junto a ella */
 .acepto { margin: 0 0 12px; }
+.retracto-co { font-size: 13px; line-height: 1.45; margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.retracto-co a { text-decoration: underline; font-weight: 600; }
 .check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 13.5px; line-height: 1.45; }
 .check input { flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--accent); cursor: pointer; }
 .check input:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }

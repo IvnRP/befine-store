@@ -59,6 +59,23 @@ test("CP-U10c no se entrega en feriados (mejora M-01)", () => {
   assert.ok(!isos.includes("2026-12-08") && !isos.includes("2026-12-25"));
 });
 
+test("CP-U10d rango de entrega 24 a 48 h hábiles (estandarHasta y siguienteHabil)", () => {
+  const f = (d) => Befine.isoFecha(d);
+  // jueves 15-10 -> llega entre viernes 16-10 y lunes 19-10 (salta el fin de semana)
+  const jue = Befine.diasEntrega(new Date(2026, 9, 15, 15));
+  assert.equal(f(jue.estandar), "2026-10-16");
+  assert.equal(f(jue.estandarHasta), "2026-10-19");
+  // viernes 09-10 (lunes 12-10 feriado) -> entre martes 13-10 y miércoles 14-10
+  const vie = Befine.diasEntrega(new Date(2026, 9, 9, 15));
+  assert.equal(f(vie.estandar), "2026-10-13");
+  assert.equal(f(vie.estandarHasta), "2026-10-14");
+  // siguienteHabil salta fines de semana y feriados
+  assert.equal(f(Befine.siguienteHabil(new Date(2026, 9, 16))), "2026-10-19"); // viernes -> lunes
+  assert.equal(f(Befine.siguienteHabil(new Date(2026, 9, 9))), "2026-10-13");  // viernes -> martes (lunes feriado)
+  assert.equal(f(Befine.siguienteHabil(new Date(2026, 11, 31))), "2027-01-04"); // 31-12 -> lunes 04-01
+  assert.equal(Befine.horarioReparto, "9:00 a 17:00");
+});
+
 test("CP-U10b 20 fechas agendables, en orden, sin sábados ni domingos y sin repetir", () => {
   const { agendables } = Befine.diasEntrega(new Date(2026, 9, 9));
   const isos = Array.from(agendables, Befine.isoFecha);   // Array de Node (el original viene del contexto aislado)

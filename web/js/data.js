@@ -325,7 +325,7 @@ Befine.auth = {
    ===================================================================== */
 // Contacto del negocio (pendiente migrar a parametros / Admin)
 const CONTACTO = { whatsapp: "56958549641" };
-// Regla de entrega: lunes a viernes, sin feriados; el pedido estándar llega el siguiente día hábil.
+// Regla de entrega: lunes a viernes, sin feriados; el pedido estándar llega entre el siguiente y el subsiguiente día hábil.
 // FERIADOS (mejora M-01): feriados legales de Chile en "AAAA-MM-DD". Esta lista es el respaldo;
 // si existe el parámetro "feriados" en la tabla parametros (editable desde el Admin), se usa ese.
 // Mantener al día cada año (cubre la ventana de 20 días hábiles agendables).
@@ -337,7 +337,9 @@ const FERIADOS_CL = [
   "2026-12-25", // Navidad
   "2027-01-01", // Año Nuevo
 ];
-const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: FERIADOS_CL.slice() };
+// Entrega estándar: entre 24 y 48 horas hábiles (del siguiente día hábil al subsiguiente), en horario
+// de reparto sin hora exacta. Pendiente: migrar el horario a parametros (editable desde el Admin).
+const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: FERIADOS_CL.slice(), horario: "9:00 a 17:00" };
 
 /* Feriados guardados en parametros.valor: arreglo JSON ["AAAA-MM-DD", ...] o texto separado por comas.
    Devuelve solo fechas con formato válido; null si no hay ninguna (se mantiene el respaldo local). */
@@ -364,6 +366,47 @@ const _iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2,
 const _esHabil = (d) => ENTREGA.diasHabiles.includes(d.getDay()) && !ENTREGA.feriados.includes(_iso(d));
 
 Befine.contacto = CONTACTO;
+
+/* ---------- Identificación del proveedor (Ley 19.496 y Reglamento de Comercio Electrónico) ----------
+   El sitio debe mostrar nombre de fantasía, razón social, RUT, domicilio, un medio de contacto y,
+   si es persona jurídica, su representante legal. Si un campo queda en null se muestra como
+   "[Por completar]" en las páginas legales.
+   Pendiente: migrar a la tabla parametros para editarlo desde el Admin (HU-26). */
+const PROVEEDOR = {
+  nombre_fantasia: "Agua Purificada Befine",
+  razon_social: "Comercializadora de Agua Purificada e Insumos Iván Rodríguez Pinares E.I.R.L.",
+  rut: "77.861.415-4",
+  domicilio: "Pasaje Los Tailandeses 1156, Villa Juan Francisco Gonzales, Quilicura",
+  representante_legal: "Iván Luis Rodríguez Pinares",
+  correo: "befine.cl@gmail.com",     // consultas, reclamos y derechos sobre datos personales
+  // Origen del agua (lo exige informar el Reglamento de Comercio Electrónico): el agua la elabora un
+  // productor autorizado, titular de la resolución sanitaria; Befine la comercializa y despacha.
+  elaborador: "Comercializadora de Agua Purificada e Insumos Matías Rodríguez Pinares E.I.R.L.",
+  resolucion_sanitaria: "N° 2313190087",
+  instagram: "aguas.befine",
+};
+Befine.proveedor = PROVEEDOR;
+// Versión vigente de los textos legales. Debe coincidir con parametros.terminos_version (migración 06),
+// que es la que queda registrada en cada pedido al aceptar los Términos.
+Befine.legalVersion = "2026-11";
+
+/* ---------- Derecho a retracto por tipo de producto (Ley 19.496 art. 3 bis y Reglamento de exclusiones) ----------
+   Compras a distancia: 10 días desde la entrega. Exclusión permitida para bienes de higiene o que
+   afectan la salud cuyo sello de seguridad fue abierto por el consumidor (agua para consumo humano).
+   La advertencia debe mostrarse junto al precio, antes de pagar, y usar la expresión "derecho a retracto". */
+const RETRACTO_SELLO = ["recargas", "bidones", "packs"];   // productos con agua sellada
+Befine.retractoDe = function (categoriaSlug) {
+  if (RETRACTO_SELLO.includes(categoriaSlug)) {
+    return { aplica: true, condicionado: true,
+      titulo: "Derecho a retracto: 10 días con sello intacto",
+      texto: "Puedes retractarte dentro de 10 días desde la entrega si el sello de seguridad del bidón está intacto. " +
+             "Una vez abierto el sello no procede el derecho a retracto, por tratarse de agua para consumo humano (razones de salud e higiene)." };
+  }
+  return { aplica: true, condicionado: false,
+    titulo: "Derecho a retracto: 10 días",
+    texto: "Puedes retractarte dentro de 10 días desde la entrega si el producto no ha sido instalado ni usado más allá de su revisión " +
+           "y lo devuelves con su embalaje y accesorios." };
+};
 
 /* Comunas con cobertura y su costo → { envioGratisDesde, comunas:[{comuna, zona, zona_id, costo}] } */
 Befine.getCobertura = async function () {
@@ -394,14 +437,22 @@ Befine.costoDespacho = function (cobertura, comuna, subtotal) {
   return c.costo;
 };
 
-/* Días de entrega: { estandar: Date (siguiente día hábil), agendables: [Date...] } */
+/* Días de entrega: { estandar: Date (siguiente día hábil), estandarHasta: Date (subsiguiente día hábil,
+   la entrega estándar es entre 24 y 48 h hábiles), agendables: [Date...] } */
 Befine.diasEntrega = function (desde = new Date()) {
   const d = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
   const sig = () => { do { d.setDate(d.getDate() + 1); } while (!_esHabil(d)); return new Date(d); };
   const estandar = sig(), agendables = [estandar];
   while (agendables.length < ENTREGA.diasAgendables) agendables.push(sig());
-  return { estandar, agendables };
+  return { estandar, estandarHasta: agendables[1], agendables };
 };
+/* Siguiente día hábil después de una fecha (para mostrar el rango de la entrega estándar) */
+Befine.siguienteHabil = function (fecha) {
+  const d = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  do { d.setDate(d.getDate() + 1); } while (!_esHabil(d));
+  return d;
+};
+Befine.horarioReparto = ENTREGA.horario;
 Befine.isoFecha = _iso;
 
 /* Mensajes de crear_pedido() → español claro. Las validaciones del servidor ya vienen en

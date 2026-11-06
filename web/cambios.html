@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cambios, garantía y retracto · Befine Store</title>
+  <meta name="description" content="Garantía legal de 6 meses, derecho a retracto de 10 días y cómo solicitar cambios o devoluciones en Befine Store.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/shell.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/forms.css">
+  <link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+<script>try{document.body.classList.toggle('tema-claro',(localStorage.getItem('befine_tema')||'claro')==='claro');}catch(e){document.body.classList.add('tema-claro');}</script>
+
+<canvas id="water" aria-hidden="true"></canvas>
+<div class="bg-veil"></div>
+<div class="depth" id="depth" aria-hidden="true"></div>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
+<div class="cur-ring" id="curRing" aria-hidden="true"></div>
+<div class="cur-dot" id="curDot" aria-hidden="true"></div>
+
+<div id="app-header"></div>
+
+<div class="app">
+  <main class="wrap legal-page">
+    <article class="sheet legal-doc">
+      <a class="volver" href="index.html">← Volver a la tienda</a>
+      <h1>Cambios, devoluciones, garantía y derecho a retracto</h1>
+      <p class="meta">Versión <span data-version></span> · Vigente desde noviembre de 2026 · Ley N° 19.496, Ley N° 21.398 y Reglamento de exclusiones al derecho a retracto</p>
+      <div class="resumen"><p><b>En simple:</b> si un producto viene con fallas tienes <b>6 meses</b> de garantía legal. Además tienes <b>derecho a retracto de 10 días</b> desde la entrega; en bidones, recargas y packs con agua solo si el <b>sello está intacto</b>.</p></div>
+
+      <h2 id="garantia">1. Garantía legal (6 meses)</h2>
+      <p>Si un producto presenta fallas, defectos o no es apto para el uso al que está destinado, por causas que no son de tu responsabilidad, tienes <b>6 meses desde la entrega</b> para elegir libremente entre:</p>
+      <ul><li>el <b>cambio</b> del producto,</li><li>su <b>reparación gratuita</b>, o</li><li>la <b>devolución de lo pagado</b>.</li></ul>
+      <p>Ejemplos: un dispensador que no enciende o pierde agua, o un bidón que llega dañado o con el agua en mal estado. Para el agua, revisa la fecha de consumo indicada en la etiqueta.</p>
+
+      <h2 id="retracto">2. Derecho a retracto (10 días)</h2>
+      <p>En las compras por este sitio puedes retractarte <b>dentro de 10 días desde que recibes el producto</b>, sin expresar motivo (artículo 3 bis de la Ley N° 19.496). Si no te enviamos la confirmación escrita de la compra, el plazo se extiende a <b>90 días</b>.</p>
+      <div class="tabla-wrap"><table>
+        <thead><tr><th>Producto</th><th>Derecho a retracto</th></tr></thead>
+        <tbody>
+          <tr><td><b>Bidones, recargas y packs con agua</b></td><td>Procede dentro de 10 días <b>solo si el sello de seguridad del bidón está intacto</b>. Una vez abierto el sello <b>no procede el derecho a retracto</b>, por tratarse de agua para consumo humano (razones de salud e higiene, según el Reglamento de exclusiones al derecho a retracto).</td></tr>
+          <tr><td><b>Dispensadores y otros productos</b></td><td>Procede dentro de 10 días si el producto <b>no ha sido instalado ni usado</b> más allá de lo necesario para revisarlo, y lo devuelves con su embalaje, manuales y accesorios.</td></tr>
+        </tbody></table></div>
+      <p>Esta información también se muestra junto al precio de cada producto y en el checkout, antes de pagar.</p>
+
+      <h2 id="como">3. Cómo solicitar un cambio, devolución o retracto</h2>
+      <ol>
+        <li>Escríbenos por <a data-wa href="#">WhatsApp</a> (<span data-wa-num></span>) o al correo <span data-pv="correo"></span> dentro del plazo, con tu <b>número de pedido</b>, el producto y el motivo (en garantía, una foto o video de la falla nos ayuda).</li>
+        <li>Coordinamos el <b>retiro sin costo</b> en tu dirección, si está dentro de nuestras comunas con cobertura.</li>
+        <li>Revisamos el producto y te confirmamos la solución.</li>
+      </ol>
+
+      <h2 id="reembolso">4. Devolución del dinero</h2>
+      <p>Cuando corresponda devolver lo pagado, lo hacemos por el <b>mismo medio de pago</b> (Mercado Pago), dentro de los plazos que establece la ley. Los tiempos de abono en tu tarjeta dependen de Mercado Pago y de tu banco emisor. Si se devuelve un producto con boleta o factura, emitimos el documento tributario que corresponda (nota de crédito).</p>
+
+      <h2 id="reclamos">5. Reclamos</h2>
+      <p>Si no quedas conforme, puedes presentar un reclamo ante el <a href="https://www.sernac.cl" target="_blank" rel="noopener">SERNAC</a> o ante el Juzgado de Policía Local competente. Más información en los <a href="terminos.html">Términos y condiciones</a>.</p>
+    </article>
+  </main>
+
+  <div id="app-footer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/transitions.js"></script>
+<script src="js/scenes.js"></script>
+<button class="sound-btn" id="soundBtn" aria-label="Silenciar"></button>
+<script src="js/ui.js"></script>
+<script src="js/water.js"></script>
+<script src="js/bands.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/perf.js"></script>
+<script src="js/legal.js"></script>
+</body>
+</html>

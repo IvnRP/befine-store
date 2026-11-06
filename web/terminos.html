@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Términos y condiciones · Befine Store</title>
+  <meta name="description" content="Términos y condiciones de compra de Befine Store: precios, pago, despacho, derecho a retracto y garantía legal.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/shell.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/forms.css">
+  <link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+<script>try{document.body.classList.toggle('tema-claro',(localStorage.getItem('befine_tema')||'claro')==='claro');}catch(e){document.body.classList.add('tema-claro');}</script>
+
+<canvas id="water" aria-hidden="true"></canvas>
+<div class="bg-veil"></div>
+<div class="depth" id="depth" aria-hidden="true"></div>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
+<div class="cur-ring" id="curRing" aria-hidden="true"></div>
+<div class="cur-dot" id="curDot" aria-hidden="true"></div>
+
+<div id="app-header"></div>
+
+<div class="app">
+  <main class="wrap legal-page">
+    <article class="sheet legal-doc">
+      <a class="volver" href="index.html">← Volver a la tienda</a>
+      <h1>Términos y condiciones</h1>
+      <p class="meta">Versión <span data-version></span> · Vigentes desde noviembre de 2026 · Ley N° 19.496 sobre Protección de los Derechos de los Consumidores</p>
+      <div class="resumen"><p><b>En simple:</b> compras en pesos chilenos con IVA incluido, pagas con Mercado Pago, recibes boleta o factura electrónica, te despachamos de lunes a viernes hábiles y tienes garantía legal de 6 meses y derecho a retracto de 10 días según las condiciones de cada producto.</p></div>
+      <nav class="indice" aria-label="Contenido"><b>Contenido</b><ol>
+        <li><a href="#quienes">Quiénes somos</a></li><li><a href="#aceptacion">Aceptación</a></li><li><a href="#cuenta">Cuenta y compra como invitado</a></li>
+        <li><a href="#precios">Productos, precios y disponibilidad</a></li><li><a href="#envases">Envases retornables</a></li><li><a href="#pago">Pago</a></li>
+        <li><a href="#confirmacion">Confirmación y documentos</a></li><li><a href="#despacho">Despacho</a></li><li><a href="#retracto">Derecho a retracto</a></li>
+        <li><a href="#garantia">Garantía legal</a></li><li><a href="#cupones">Cupones y promociones</a></li><li><a href="#puntos">Programa de puntos</a></li>
+        <li><a href="#uso">Uso del sitio</a></li><li><a href="#datos">Datos personales</a></li><li><a href="#cambios-terminos">Cambios a estos términos</a></li>
+        <li><a href="#reclamos">Consultas, reclamos y ley aplicable</a></li></ol></nav>
+
+      <h2 id="quienes">1. Quiénes somos</h2>
+      <p>Este sitio es operado por el siguiente proveedor, responsable de las ventas realizadas en él:</p>
+      <dl class="datos">
+        <dt>Nombre comercial</dt><dd data-pv="nombre_fantasia"></dd>
+        <dt>Razón social</dt><dd data-pv="razon_social"></dd>
+        <dt>RUT</dt><dd data-pv="rut"></dd>
+        <dt>Domicilio legal</dt><dd data-pv="domicilio"></dd>
+        <dt>Representante legal</dt><dd data-pv="representante_legal"></dd>
+        <dt>Correo de contacto</dt><dd data-pv="correo"></dd>
+        <dt>WhatsApp</dt><dd><a data-wa data-wa-num href="#"></a></dd>
+        <dt>Elaboración del agua</dt><dd><span data-pv="elaborador"></span>, Resolución Sanitaria <span data-pv="resolucion_sanitaria"></span> (productor autorizado; Befine comercializa y despacha)</dd>
+      </dl>
+
+      <h2 id="aceptacion">2. Aceptación de estos términos</h2>
+      <p>Para comprar debes leer y aceptar estos términos y la <a href="privacidad.html">Política de privacidad</a>, marcando la casilla correspondiente antes de pagar. La casilla nunca viene marcada por defecto. Guardamos en tu pedido la fecha y hora de tu aceptación y la versión de los textos que aceptaste. La versión aceptada al comprar es la que rige ese pedido.</p>
+
+      <h2 id="cuenta">3. Cuenta y compra como invitado</h2>
+      <ul>
+        <li>Puedes comprar <b>sin crear cuenta</b> (como invitado). Si creas una cuenta, puedes ver tus pedidos, descargar tus documentos y, cuando esté disponible, acumular puntos.</li>
+        <li>Los datos que ingreses deben ser verdaderos y estar actualizados, porque los usamos para despachar y emitir tu documento tributario.</li>
+        <li>Eres responsable de mantener tu contraseña en reserva. Si sospechas un uso indebido de tu cuenta, avísanos de inmediato.</li>
+        <li>Para comprar debes ser mayor de 18 años.</li>
+      </ul>
+
+      <h2 id="precios">4. Productos, precios y disponibilidad</h2>
+      <ul>
+        <li>Los precios están en <b>pesos chilenos (CLP) e incluyen IVA</b>. Antes de pagar ves el precio de cada producto, el <b>costo de despacho por separado</b>, los descuentos aplicados y el <b>total a pagar</b>.</li>
+        <li>El precio que pagas es el que aparece en el resumen final del checkout. Las ofertas indican su precio anterior y rigen mientras estén publicadas.</li>
+        <li>Las fotos y descripciones corresponden a los productos que vendemos.</li>
+        <li><b>Disponibilidad:</b> si un producto no está disponible, te lo informaremos antes de pagar. Si por una causa excepcional no pudiéramos entregar un producto ya pagado, te contactaremos para ofrecerte una nueva fecha de entrega o la devolución íntegra de lo pagado, a tu elección.</li>
+      </ul>
+
+      <h2 id="envases">5. Envases retornables (recargas)</h2>
+      <p>La <b>recarga</b> es solo el agua: al recibirla, entregas a cambio un bidón vacío de la misma capacidad, limpio y en buen estado. Aceptamos envases de otras marcas en buen estado. Si no tienes envase para el intercambio, debes comprar la opción <b>envase y recarga</b>. Si el envase entregado no está en condiciones sanitarias de uso, el repartidor puede no recibirlo y te contactaremos para coordinar.</p>
+
+      <h2 id="pago">6. Pago</h2>
+      <ul>
+        <li>Pagas en el sitio seguro de <b>Mercado Pago</b> con tarjeta de crédito, débito o prepago, u otros medios que Mercado Pago ofrezca.</li>
+        <li><b>Befine no recibe ni guarda los datos de tu tarjeta.</b></li>
+        <li>Tu pedido queda confirmado cuando Mercado Pago aprueba el pago. Un pedido pendiente de pago no se despacha.</li>
+      </ul>
+
+      <h2 id="confirmacion">7. Confirmación de la compra y documentos</h2>
+      <ul>
+        <li>Al confirmarse el pago te enviamos al correo que ingresaste la <b>confirmación de compra</b> con el detalle del pedido y sus condiciones. También la ves en pantalla al volver de Mercado Pago.</li>
+        <li>Emitimos <b>boleta o factura electrónica</b> según lo que elijas en el checkout. Puedes descargarla desde la página de confirmación y, si tienes cuenta, desde <b>Mi cuenta → Mis pedidos</b>.</li>
+      </ul>
+
+      <h2 id="despacho">8. Despacho</h2>
+      <p>Despachamos en las comunas con cobertura, de lunes a viernes hábiles, sin feriados. El costo, los plazos y las condiciones están en <a href="despacho.html">Despacho y entregas</a>. La fecha de entrega se informa antes de pagar.</p>
+
+      <h2 id="retracto">9. Derecho a retracto</h2>
+      <p>En las compras por este sitio tienes <b>derecho a retracto dentro de 10 días</b> desde que recibes el producto (artículo 3 bis de la Ley N° 19.496). En <b>bidones, recargas y packs con agua</b>, el derecho a retracto procede solo si el <b>sello de seguridad está intacto</b>: una vez abierto, no procede por tratarse de agua para consumo humano (razones de salud e higiene). Si no te enviamos la confirmación escrita de la compra, el plazo se extiende a 90 días. Condiciones y forma de ejercerlo en <a href="cambios.html#retracto">Cambios, devoluciones, garantía y retracto</a>.</p>
+
+      <h2 id="garantia">10. Garantía legal</h2>
+      <p>Si un producto presenta fallas o no es apto para el uso al que está destinado, tienes <b>6 meses</b> desde la entrega para elegir entre el <b>cambio</b>, la <b>reparación</b> gratuita o la <b>devolución de lo pagado</b> (Ley N° 19.496, modificada por la Ley N° 21.398). Detalles en <a href="cambios.html#garantia">Garantía legal</a>.</p>
+
+      <h2 id="cupones">11. Cupones y promociones</h2>
+      <ul>
+        <li>Cada cupón muestra sus condiciones (descuento, compra mínima, vigencia y productos a los que aplica) antes de pagar. El descuento lo calcula el sistema y se ve en el total.</li>
+        <li>El <b>cupón de bienvenida</b> es solo para la primera compra y requiere cuenta.</li>
+        <li>Si un pedido con cupón se cancela, el uso del cupón se devuelve.</li>
+      </ul>
+
+      <h2 id="puntos">12. Programa de puntos</h2>
+      <p>Cuando el programa de puntos esté disponible publicaremos aquí sus condiciones (cómo se ganan, cómo se canjean y su vencimiento). Los puntos de una compra se suman solo cuando su pago se confirma.</p>
+
+      <h2 id="uso">13. Uso del sitio y propiedad intelectual</h2>
+      <p>Debes usar el sitio de buena fe y no intentar acceder a datos de otras personas ni afectar su funcionamiento. La marca Befine, sus logos, fotos y textos pertenecen a su titular y no pueden usarse sin autorización.</p>
+
+      <h2 id="datos">14. Datos personales</h2>
+      <p>Tratamos tus datos según la Ley N° 19.628 y la Ley N° 21.719. Qué datos usamos, para qué, por cuánto tiempo y cómo ejercer tus derechos está en la <a href="privacidad.html">Política de privacidad</a>.</p>
+
+      <h2 id="cambios-terminos">15. Cambios a estos términos</h2>
+      <p>Podemos actualizar estos términos para cumplir cambios legales o de nuestro servicio. Cada versión indica su número y fecha. Los cambios no afectan los pedidos ya realizados, que se rigen por la versión que aceptaste al comprar.</p>
+
+      <h2 id="reclamos">16. Consultas, reclamos y ley aplicable</h2>
+      <ul>
+        <li>Para consultas, reclamos, cambios o devoluciones escríbenos por <a data-wa href="#">WhatsApp</a> (<span data-wa-num></span>) o al correo <span data-pv="correo"></span>, indicando tu número de pedido.</li>
+        <li>Estos términos se rigen por las leyes de Chile, en especial la Ley N° 19.496. Puedes presentar reclamos ante el <a href="https://www.sernac.cl" target="_blank" rel="noopener">SERNAC</a> y ejercer tus acciones ante el Juzgado de Policía Local competente, incluido el de tu domicilio.</li>
+      </ul>
+    </article>
+  </main>
+
+  <div id="app-footer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/transitions.js"></script>
+<script src="js/scenes.js"></script>
+<button class="sound-btn" id="soundBtn" aria-label="Silenciar"></button>
+<script src="js/ui.js"></script>
+<script src="js/water.js"></script>
+<script src="js/bands.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/perf.js"></script>
+<script src="js/legal.js"></script>
+</body>
+</html>
