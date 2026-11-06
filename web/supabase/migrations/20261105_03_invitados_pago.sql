@@ -1,9 +1,9 @@
 -- =====================================================================
--- Migración 03 (PENDIENTE): compra como invitado + confirmación de pago
+-- Migración 03: compra como invitado + confirmación de pago (aplicada el 05-nov-2026)
 -- Proyecto:  Befine Store (Supabase tbnevbvvwwzpnowxqyps)
 -- Requiere:  01_seguridad_roles aplicada.
 -- Aplicar:   junto con la Edge Function del webhook de Mercado Pago.
--- Reversa:   03_invitados_pago_reversa.sql
+-- Reversa:   20261105_03_invitados_pago_reversa.sql
 --
 -- Invitados:
 --   El checkout inicia una sesión anónima de Supabase (signInAnonymously)
