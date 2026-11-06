@@ -53,6 +53,7 @@
 .card .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .card .body h3 { font-family: var(--font-display); font-weight: 700; font-size: 17px; margin: 0; letter-spacing: -.01em; line-height: 1.15; }
 .card .body .cat { color: var(--muted); font-size: 12px; }
+.card .body .a-pedido { display: block; margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--ink); }
 .card .price-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
 .card .price { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .card .price small { color: var(--muted); font-weight: 500; font-size: 12px; }

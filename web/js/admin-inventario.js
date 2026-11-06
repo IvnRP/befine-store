@@ -6,7 +6,7 @@
    - Ajuste rápido (− / + o escribir la cantidad) y Guardar por fila.
    - Umbral de "stock bajo" editable (parámetro stock_alerta), si el rol
      tiene config.gestionar; si no, se usa el valor guardado o 10.
-   crear_pedido() ya rechaza pedidos sin stock suficiente (migración 01).
+   El stock nunca frena una venta (migración 05): con 0 unidades la tienda lo muestra "a pedido".
    ===================================================================== */
 (function () {
   const L = window.AdminLogic;
@@ -19,7 +19,7 @@
     el = seccion; app = appCtx;
     el.innerHTML = `
       <div class="ad-head">
-        <div><h1>Inventario</h1><p>Stock por variante. Los pedidos sin stock suficiente se rechazan al comprar.</p></div>
+        <div><h1>Inventario</h1><p>Stock por variante. Con stock 0 se sigue vendiendo como «Disponible a pedido» (entrega 2 días hábiles más tarde). Para dejar de vender, oculta el producto.</p></div>
         <div class="acciones">
           <label class="ad-buscar">${ICONOS.buscar}<input class="ad-inp" id="inBuscar" type="search" placeholder="Producto, variante o SKU" aria-label="Buscar en inventario"></label>
           <button class="ad-btn ghost" type="button" id="inRecargar">${ICONOS.recargar}<span>Actualizar</span></button>

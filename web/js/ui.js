@@ -96,6 +96,7 @@
         <div class="info">
           <h4>${i.nombre}</h4>
           ${i.variante && i.variante !== "Estándar" ? `<div class="var">${i.variante}</div>` : ""}
+          ${i.a_pedido ? `<div class="var"><b>Disponible a pedido</b></div>` : ""}
           <div class="price">${Befine.clp(i.precio)} · x${i.cantidad}</div>
           <div class="stepper" style="margin-top:6px">
             <button data-dec="${i.variante_id}">−</button>

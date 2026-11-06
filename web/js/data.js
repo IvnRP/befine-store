@@ -59,7 +59,7 @@ const HERO_SKU = "BEF-REC-20-BEFINE"; // Recarga Bidón 20 L (protagonista del i
 const SELECT_PRODUCTO =
   "id,categoria_id,nombre,descripcion,imagen_url,activo," +
   "categorias(nombre,slug)," +
-  "variantes_producto(id,producto_id,sku,nombre,atributos,stock,activo," +
+  "variantes_producto(id,producto_id,sku,nombre,atributos,stock,controla_stock,activo," +
   "precios_variante(nivel_precio_id,precio))";
 
 /* Resuelve el id del nivel de precio "retail" una sola vez (no lo quema). */
@@ -70,6 +70,13 @@ async function _nivelRetail() {
   const r = (data || []).find((n) => /retail/i.test(n.codigo || "")) || (data || [])[0];
   _retailId = r ? r.id : 1;
   return _retailId;
+}
+
+/* "Disponible a pedido": la variante controla stock y no le quedan unidades. Nunca frena la venta
+   (decisión del dueño, HU v2.4); solo se informa antes de comprar (Reglamento de Comercio
+   Electrónico: la falta de stock se informa antes de comprar) y la entrega se aplaza ENTREGA.diasAPedido días hábiles. */
+function _esAPedido(v) {
+  return !!v.controla_stock && (Number(v.stock) || 0) <= 0;
 }
 
 /* Convierte una fila de Supabase al MISMO view-model que usaba la maqueta,
@@ -90,6 +97,8 @@ function _armarProducto(p, nivel) {
         atributos: v.atributos || {},
         stock: v.stock,
         activo: v.activo,
+        a_pedido: _esAPedido(v),
+
         precio: pr ? pr.precio : null,
         precio_comparacion: OFERTAS[v.sku] || null,
       };
@@ -109,6 +118,7 @@ function _armarProducto(p, nivel) {
     variantes,
     desde_precio: desde,
     desde_comparacion: varMin ? varMin.precio_comparacion : null,
+    a_pedido: variantes.length > 0 && variantes.every((v) => v.a_pedido), // todas sus opciones a pedido
     aviso: variantes.some((v) => (v.sku || "").startsWith("BEF-REC-")) ? AVISO_RECARGA : null,
   };
 }
@@ -337,9 +347,10 @@ const FERIADOS_CL = [
   "2026-12-25", // Navidad
   "2027-01-01", // Año Nuevo
 ];
-// Entrega estándar: entre 24 y 48 horas hábiles (del siguiente día hábil al subsiguiente), en horario
-// de reparto sin hora exacta. Pendiente: migrar el horario a parametros (editable desde el Admin).
-const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: FERIADOS_CL.slice(), horario: "9:00 a 17:00" };
+// Entrega estándar: entre 24 y 48 horas hábiles (del siguiente día hábil al subsiguiente); con productos
+// "a pedido" (sin stock) se suma diasAPedido días hábiles. Reparto en horario
+// fijo, sin hora exacta. Pendiente: migrar el horario a parametros (editable desde el Admin).
+const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: FERIADOS_CL.slice(), horario: "9:00 a 17:00", diasAPedido: 2 };
 
 /* Feriados guardados en parametros.valor: arreglo JSON ["AAAA-MM-DD", ...] o texto separado por comas.
    Devuelve solo fechas con formato válido; null si no hay ninguna (se mantiene el respaldo local). */
@@ -439,9 +450,11 @@ Befine.costoDespacho = function (cobertura, comuna, subtotal) {
 
 /* Días de entrega: { estandar: Date (siguiente día hábil), estandarHasta: Date (subsiguiente día hábil,
    la entrega estándar es entre 24 y 48 h hábiles), agendables: [Date...] } */
-Befine.diasEntrega = function (desde = new Date()) {
+Befine.diasEntrega = function (desde = new Date(), opciones = {}) {
   const d = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
   const sig = () => { do { d.setDate(d.getDate() + 1); } while (!_esHabil(d)); return new Date(d); };
+  // Con productos "a pedido" la entrega (estándar y agendada) parte diasAPedido días hábiles después
+  for (let i = 0; opciones.aPedido && i < ENTREGA.diasAPedido; i++) sig();
   const estandar = sig(), agendables = [estandar];
   while (agendables.length < ENTREGA.diasAgendables) agendables.push(sig());
   return { estandar, estandarHasta: agendables[1], agendables };
@@ -453,6 +466,23 @@ Befine.siguienteHabil = function (fecha) {
   return d;
 };
 Befine.horarioReparto = ENTREGA.horario;
+
+/* Texto legal del producto sin stock (el plazo sale de la misma regla que calcula las fechas) */
+Befine.plazoAPedido = function () {
+  return `entrega en ${1 + ENTREGA.diasAPedido} a ${2 + ENTREGA.diasAPedido} días hábiles`;
+};
+
+/* Disponibilidad ACTUAL de variantes del carrito (el carrito guarda una foto que puede quedar vieja).
+   Devuelve un Set con los id "a pedido", o null si no se pudo consultar (se usa la foto del carrito). */
+Befine.disponibilidad = async function (varianteIds) {
+  const ids = Array.from(new Set(varianteIds || [])).filter(Boolean);
+  if (!ids.length) return new Set();
+  try {
+    const { data, error } = await sb.from("variantes_producto").select("id,stock,controla_stock").in("id", ids);
+    if (error) return null;
+    return new Set((data || []).filter(_esAPedido).map((v) => v.id));
+  } catch (e) { return null; }
+};
 Befine.isoFecha = _iso;
 
 /* Mensajes de crear_pedido() → español claro. Las validaciones del servidor ya vienen en

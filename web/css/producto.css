@@ -28,6 +28,7 @@
 
 .ficha .buybox .add-row { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
 .ficha .buybox .stock { color: var(--muted); font-size: 13px; margin-top: 14px; }
+.ficha .buybox .stock.a-pedido { color: var(--ink); font-size: 15px; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 /* Derecho a retracto (Reglamento de exclusiones al derecho a retracto): advertencia clara y destacada,
    junto al precio y antes de pagar. El título usa el mismo tamaño que el precio. */
 .retracto { margin-top: 16px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line);

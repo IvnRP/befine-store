@@ -17,12 +17,12 @@
         </a>
         <div class="body">
           <a href="producto.html?id=${p.id}"><h3>${p.nombre}</h3></a>
-          <span class="cat">${p.categoria}</span>
+          <span class="cat">${p.categoria}</span>${p.a_pedido ? `<span class="a-pedido">Disponible a pedido · ${Befine.plazoAPedido()}</span>` : ""}
           <div class="price-row">
             <span class="price">${desde ? "<small>desde </small>" : ""}${Befine.clp(p.desde_precio)}${p.desde_comparacion ? ` <s>${Befine.clp(p.desde_comparacion)}</s>` : ""}</span>
             <button class="btn btn-primary"
               data-add="${v.id}" data-prod="${p.id}" data-nombre="${p.nombre.replace(/"/g, "&quot;")}"
-              data-variante="${v.nombre}" data-precio="${v.precio}" data-grad="${grad}">
+              data-variante="${v.nombre}" data-precio="${v.precio}" data-grad="${grad}"${v.a_pedido ? " data-apedido" : ""}>
               ${desde ? "Elegir" : "Comprar"}
             </button>
           </div>
@@ -43,6 +43,7 @@
       variante: btn.dataset.variante,
       precio: Number(btn.dataset.precio),
       grad: btn.dataset.grad,
+      a_pedido: "apedido" in btn.dataset,
     }, 1);
     window.toast("Agregado al carrito: " + btn.dataset.nombre);
   });

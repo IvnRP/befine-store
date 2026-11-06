@@ -18,6 +18,10 @@
 
   let sesion = null, cobertura = null, dias = null, doc = "boleta", fechaAgendada = null, enviando = false;
   let cupon = null;          // { codigo, descuento } revisado por el servidor (revisar_cupon)
+  // Productos "a pedido" (sin stock): disponibilidad ACTUAL por variante (id -> true/false). No frenan la
+  // venta; se informan antes de pagar y aplazan la entrega (Reglamento de Comercio Electrónico, HU v2.4).
+  const aPedido = new Map();
+  let conAPedido = false, revisandoStock = Promise.resolve();
 
   document.addEventListener("DOMContentLoaded", async () => {
     const form = $("coForm");
@@ -32,7 +36,7 @@
     precargar();
     const vuelta = Befine.vueltaPago(location.search);
     if (vuelta) mostrarVuelta(vuelta);          // volvió desde Mercado Pago: se muestra el resultado del pago
-    Store.subscribe((items) => { pintarResumen(items); revisarCuponDeNuevo(); });   // el resumen se actualiza solo al cambiar cantidades
+    Store.subscribe((items) => { pintarResumen(items); revisarCuponDeNuevo(); revisandoStock = revisarStock(items); });   // el resumen se actualiza solo al cambiar cantidades
 
     /* ---------- Formato en vivo ---------- */
     $("coTel").addEventListener("input", (e) => { e.target.value = Val.formatoTel(e.target.value); });
@@ -104,15 +108,34 @@
 
   function pintarEntrega() {
     $("coFechaStd").textContent = `Llega entre el ${fmtDia(dias.estandar)} y el ${fmtDia(dias.estandarHasta)}, de ${Befine.horarioReparto} h`;
+    $("coAPedido").hidden = !conAPedido;
+    $("coAPedido").innerHTML = `<b>Tu pedido incluye productos disponibles a pedido</b>: ${Befine.plazoAPedido()}. Las fechas ya consideran ese plazo.`;
     fechaAgendada = dias.agendables[0];
     const box = $("coDias");
     box.innerHTML = dias.agendables.map((d, i) => `<button type="button" class="dia" data-i="${i}" aria-pressed="${i === 0}"
       aria-label="${fmtDia(d)}"><span class="dw">${fmtDia(d, { weekday: "short" }).replace(".", "")}</span><span class="dd">${d.getDate()}</span><span class="dm">${fmtDia(d, { month: "short" }).replace(".", "")}</span></button>`).join("");
-    box.addEventListener("click", (e) => {
+    box.onclick = (e) => {   // onclick (no addEventListener): pintarEntrega se repite si cambia la disponibilidad
       const b = e.target.closest(".dia"); if (!b) return;
       box.querySelectorAll(".dia").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       fechaAgendada = dias.agendables[+b.dataset.i];
-    });
+    };
+  }
+
+  /* Consulta solo las variantes que aún no conoce; si no se puede consultar, usa la foto del carrito.
+     Si cambia la presencia de productos a pedido, recalcula las fechas de entrega. */
+  async function revisarStock(items) {
+    const nuevos = items.map((i) => i.variante_id).filter((id) => !aPedido.has(id));
+    if (nuevos.length) {
+      const set = await Befine.disponibilidad(nuevos);
+      nuevos.forEach((id) => aPedido.set(id, set ? set.has(id) : !!(items.find((i) => i.variante_id === id) || {}).a_pedido));
+    }
+    const hay = Store.items().some((i) => aPedido.get(i.variante_id));
+    if (hay !== conAPedido) {
+      conAPedido = hay;
+      dias = Befine.diasEntrega(new Date(), { aPedido: hay });
+      pintarEntrega();
+    }
+    if (nuevos.length) pintarResumen(Store.items());   // muestra la etiqueta "A pedido" en el resumen
   }
 
   function totales(items) {
@@ -178,7 +201,7 @@
     $("coItems").innerHTML = items.map((i) => `
       <div class="r-item">
         <div class="th" style="background:${i.grad || window.catGrad()}"></div>
-        <div><div class="nm">${esc(i.nombre)}</div>${i.variante && i.variante !== "Estándar" ? `<div class="vr">${esc(i.variante)}</div>` : ""}
+        <div><div class="nm">${esc(i.nombre)}</div>${i.variante && i.variante !== "Estándar" ? `<div class="vr">${esc(i.variante)}</div>` : ""}${aPedido.get(i.variante_id) ? `<div class="ap">Disponible a pedido</div>` : ""}
           <div class="qty" role="group" aria-label="Cantidad de ${esc(i.nombre)}"><button type="button" data-dec="${i.variante_id}" aria-label="Quitar uno">−</button><span>${i.cantidad}</span><button type="button" data-inc="${i.variante_id}" aria-label="Agregar uno">+</button></div></div>
         <div class="pr">${clp(i.precio * i.cantidad)}<button type="button" data-del="${i.variante_id}">Quitar</button></div>
       </div>`).join("");
@@ -251,6 +274,7 @@
 
   async function pagar() {
     if (enviando || !validar()) return;
+    await revisandoStock;   // las fechas deben considerar los productos a pedido antes de crear el pedido
     const f = $("coForm"), items = Store.items(), t = totales(items);
     const agendada = f.entrega.value === "agendada";
     const payload = {
