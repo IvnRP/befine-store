@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Política de privacidad · Befine Store</title>
+  <meta name="description" content="Política de privacidad de Befine Store según la Ley 19.628 y la Ley 21.719: qué datos usamos, para qué, plazos y cómo ejercer tus derechos.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/shell.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/forms.css">
+  <link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+<script>try{document.body.classList.toggle('tema-claro',(localStorage.getItem('befine_tema')||'claro')==='claro');}catch(e){document.body.classList.add('tema-claro');}</script>
+
+<canvas id="water" aria-hidden="true"></canvas>
+<div class="bg-veil"></div>
+<div class="depth" id="depth" aria-hidden="true"></div>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
+<div class="cur-ring" id="curRing" aria-hidden="true"></div>
+<div class="cur-dot" id="curDot" aria-hidden="true"></div>
+
+<div id="app-header"></div>
+
+<div class="app">
+  <main class="wrap legal-page">
+    <article class="sheet legal-doc">
+      <a class="volver" href="index.html">← Volver a la tienda</a>
+      <h1>Política de privacidad</h1>
+      <p class="meta">Versión <span data-version></span> · Vigente desde noviembre de 2026 · Ley N° 19.628 y Ley N° 21.719 sobre protección de datos personales</p>
+      <div class="resumen"><p><b>En simple:</b> usamos tus datos solo para venderte, despacharte y emitir tu boleta o factura. No vendemos tus datos ni usamos publicidad de terceros. Puedes pedir acceso, corrección, eliminación, oposición, portabilidad o bloqueo cuando quieras, gratis, y te respondemos en un máximo de 30 días corridos.</p></div>
+      <nav class="indice" aria-label="Contenido"><b>Contenido</b><ol>
+        <li><a href="#responsable">Responsable</a></li><li><a href="#marco">Marco legal</a></li><li><a href="#datos">Qué datos usamos y para qué</a></li>
+        <li><a href="#dispositivo">Datos en tu dispositivo</a></li><li><a href="#terceros">Con quién los compartimos</a></li><li><a href="#internacional">Transferencias internacionales</a></li>
+        <li><a href="#seguridad">Seguridad</a></li><li><a href="#derechos">Tus derechos y cómo ejercerlos</a></li><li><a href="#consentimiento">Consentimiento y su retiro</a></li>
+        <li><a href="#menores">Menores de edad</a></li><li><a href="#automatizadas">Decisiones automatizadas</a></li><li><a href="#brechas">Incidentes de seguridad</a></li>
+        <li><a href="#cambios">Cambios a esta política</a></li></ol></nav>
+
+      <h2 id="responsable">1. Responsable del tratamiento</h2>
+      <dl class="datos">
+        <dt>Responsable</dt><dd data-pv="razon_social"></dd>
+        <dt>Nombre comercial</dt><dd data-pv="nombre_fantasia"></dd>
+        <dt>RUT</dt><dd data-pv="rut"></dd>
+        <dt>Domicilio</dt><dd data-pv="domicilio"></dd>
+        <dt>Contacto para datos personales</dt><dd><span data-pv="correo"></span> · WhatsApp <a data-wa data-wa-num href="#"></a></dd>
+      </dl>
+
+      <h2 id="marco">2. Marco legal</h2>
+      <p>Tratamos tus datos conforme a la Ley N° 19.628 sobre protección de la vida privada y a la <b>Ley N° 21.719</b>, que la moderniza y crea la Agencia de Protección de Datos Personales, con entrada en vigencia fijada para el <b>1 de diciembre de 2026</b>. Si esa fecha se modificara por ley, igualmente aplicamos desde ya los estándares de la Ley N° 21.719 descritos en esta política: licitud, finalidad, proporcionalidad, calidad, seguridad, transparencia y responsabilidad.</p>
+
+      <h2 id="datos">3. Qué datos usamos, para qué y por cuánto tiempo</h2>
+      <p>Solo pedimos los datos necesarios. <b>No tratamos datos sensibles</b> (como salud, origen étnico u opiniones políticas).</p>
+      <div class="tabla-wrap"><table>
+        <thead><tr><th>Datos</th><th>Para qué</th><th>Base de licitud</th><th>Plazo de conservación</th></tr></thead>
+        <tbody>
+          <tr><td>Nombre, correo y celular</td><td>Gestionar tu pedido, coordinar la entrega, enviarte la confirmación de compra y avisos del despacho</td><td>Ejecución del contrato de compraventa</td><td>6 años desde la compra, junto con el pedido (plazo de prescripción tributaria)</td></tr>
+          <tr><td>Dirección y comuna de entrega</td><td>Despachar tu pedido y calcular el costo de envío</td><td>Ejecución del contrato</td><td>6 años con el pedido; las direcciones guardadas en tu cuenta, hasta que las borres</td></tr>
+          <tr><td>RUT, razón social y giro (si pides factura)</td><td>Emitir el documento tributario</td><td>Cumplimiento de una obligación legal (normativa del SII)</td><td>6 años (Código Tributario)</td></tr>
+          <tr><td>Datos de tu cuenta: correo, contraseña cifrada, puntos e historial</td><td>Darte acceso a tu cuenta, tus pedidos y documentos</td><td>Ejecución del contrato</td><td>Mientras tu cuenta esté activa; luego se eliminan, salvo lo que la ley obliga a conservar</td></tr>
+          <tr><td>Fecha, hora y versión de tu aceptación de los Términos y esta Política</td><td>Acreditar que aceptaste las condiciones de tu compra</td><td>Cumplimiento de obligaciones legales e interés legítimo</td><td>El mismo plazo del pedido</td></tr>
+          <tr><td>Correo para novedades (si te suscribes)</td><td>Enviarte ofertas y novedades</td><td>Tu consentimiento</td><td>Hasta que te des de baja</td></tr>
+          <tr><td>Mensajes de contacto</td><td>Responder tus consultas o reclamos</td><td>Ejecución del contrato o interés legítimo</td><td>12 meses desde la última respuesta</td></tr>
+          <tr><td>Datos técnicos (sesión, fecha y hora de acceso, registros de seguridad de nuestros proveedores)</td><td>Mantener la sesión, proteger el sitio y prevenir fraudes</td><td>Interés legítimo en la seguridad</td><td>El plazo técnico mínimo de cada proveedor</td></tr>
+        </tbody></table></div>
+      <p><b>No tratamos los datos de tu tarjeta:</b> el pago se realiza en el sitio de Mercado Pago.</p>
+
+      <h2 id="dispositivo">4. Datos guardados en tu dispositivo</h2>
+      <p>No usamos cookies de publicidad ni de seguimiento de terceros. El sitio guarda en el almacenamiento de tu navegador solo lo necesario para funcionar:</p>
+      <ul>
+        <li><b>Carrito</b> y <b>preferencias</b> (tema claro u oscuro, sonido y animaciones).</li>
+        <li><b>Sesión de inicio</b>, para mantenerte conectado o comprar como invitado.</li>
+        <li><b>Tus datos de despacho</b>, solo si activas "Recordar mis datos en este dispositivo" (viene desactivado). Puedes desactivarlo en tu próxima compra o borrar los datos de tu navegador.</li>
+        <li>Una <b>huella del pedido pendiente</b>, sin datos personales, para no duplicar pedidos si vuelves sin pagar.</li>
+      </ul>
+      <p>El sitio carga tipografías desde Google Fonts; al hacerlo, Google recibe la dirección IP de tu dispositivo.</p>
+
+      <h2 id="terceros">5. Con quién compartimos tus datos</h2>
+      <p><b>No vendemos ni arrendamos tus datos.</b> Solo los compartimos con proveedores que nos prestan servicios (encargados del tratamiento), que deben protegerlos y usarlos únicamente para ese fin:</p>
+      <ul>
+        <li><b>Supabase</b>: base de datos e inicio de sesión de la tienda.</li>
+        <li><b>Mercado Pago</b>: procesamiento de pagos.</li>
+        <li><b>Haulmer (OpenFactura)</b>: emisión de boletas y facturas electrónicas ante el SII.</li>
+        <li><b>Resend</b>: envío del correo de confirmación de compra.</li>
+        <li><b>Google</b>: inicio de sesión con Google (solo si lo eliges) y tipografías del sitio.</li>
+        <li><b>WhatsApp (Meta)</b>: cuando nos escribes o te enviamos avisos de tu pedido por ese medio.</li>
+      </ul>
+      <p>También podemos entregar datos cuando una ley o una autoridad competente lo exija (por ejemplo, el Servicio de Impuestos Internos o los tribunales).</p>
+
+      <h2 id="internacional">6. Transferencias internacionales</h2>
+      <p>Algunos proveedores almacenan datos fuera de Chile: la base de datos de Supabase está en Brasil (São Paulo) y Resend y Google operan en Estados Unidos, entre otros países. Elegimos proveedores que ofrecen garantías contractuales de protección y de seguridad, y realizamos estas transferencias conforme a las reglas de la Ley N° 21.719.</p>
+
+      <h2 id="seguridad">7. Seguridad</h2>
+      <ul>
+        <li>Conexión cifrada (HTTPS) y contraseñas almacenadas cifradas por el proveedor de autenticación.</li>
+        <li>Acceso a los datos controlado en el servidor: cada cliente ve solo sus pedidos y el personal accede según su rol.</li>
+        <li>Las claves de los servicios externos se guardan en el servidor y nunca se envían al navegador.</li>
+        <li>Pedimos solo los datos necesarios y los eliminamos cuando vence su plazo.</li>
+      </ul>
+
+      <h2 id="derechos">8. Tus derechos y cómo ejercerlos</h2>
+      <p>Puedes ejercer en cualquier momento los siguientes derechos:</p>
+      <ul>
+        <li><b>Acceso</b>: saber qué datos tuyos tratamos y cómo.</li>
+        <li><b>Rectificación</b>: corregir datos inexactos, incompletos o desactualizados.</li>
+        <li><b>Supresión</b>: pedir que eliminemos tus datos, salvo los que la ley nos obliga a conservar (por ejemplo, los tributarios).</li>
+        <li><b>Oposición</b>: oponerte a ciertos tratamientos, como el envío de publicidad.</li>
+        <li><b>Portabilidad</b>: recibir tus datos en un formato estructurado y de uso común.</li>
+        <li><b>Bloqueo temporal</b>: suspender el tratamiento mientras resolvemos una solicitud de rectificación, supresión u oposición.</li>
+      </ul>
+      <h3>Cómo hacerlo</h3>
+      <ul>
+        <li>Escríbenos al correo <span data-pv="correo"></span> o por <a data-wa href="#">WhatsApp</a> (<span data-wa-num></span>) indicando qué derecho quieres ejercer. Podremos pedirte datos para verificar tu identidad.</li>
+        <li>Respondemos en un plazo máximo de <b>30 días corridos</b>, prorrogable una vez por otros 30 días corridos si es necesario, informándote el motivo. Las solicitudes de <b>bloqueo</b> las resolvemos en <b>2 días hábiles</b>.</li>
+        <li>El ejercicio de estos derechos es <b>gratuito</b> (el acceso, al menos una vez por trimestre).</li>
+        <li>Si rechazamos total o parcialmente tu solicitud o no respondemos a tiempo, puedes reclamar ante la <b>Agencia de Protección de Datos Personales</b> dentro de 30 días hábiles, una vez que esté en funciones según la Ley N° 21.719. Mientras tanto, puedes recurrir a los tribunales conforme a la Ley N° 19.628.</li>
+      </ul>
+
+      <h2 id="consentimiento">9. Consentimiento y su retiro</h2>
+      <p>Cuando usamos tus datos en base a tu consentimiento (por ejemplo, para novedades o para recordar tus datos en tu dispositivo), lo pedimos de forma expresa y nunca con casillas marcadas por defecto. Puedes retirarlo cuando quieras, sin afectar lo realizado antes de retirarlo.</p>
+
+      <h2 id="menores">10. Menores de edad</h2>
+      <p>El sitio está dirigido a personas mayores de 18 años, que son quienes pueden comprar. No recolectamos a sabiendas datos de menores de 14 años. Si detectamos que lo hicimos, los eliminaremos.</p>
+
+      <h2 id="automatizadas">11. Decisiones automatizadas</h2>
+      <p>No tomamos decisiones sobre ti basadas únicamente en tratamientos automatizados ni elaboramos perfiles con efectos jurídicos o significativos.</p>
+
+      <h2 id="brechas">12. Incidentes de seguridad</h2>
+      <p>Si ocurre una vulneración de seguridad que afecte tus datos, la informaremos a la Agencia de Protección de Datos Personales y, cuando corresponda, a las personas afectadas, sin dilaciones indebidas, junto con las medidas adoptadas.</p>
+
+      <h2 id="cambios">13. Cambios a esta política</h2>
+      <p>Podemos actualizar esta política para cumplir cambios legales o de nuestro servicio. Cada versión indica su número y fecha, y la publicamos en esta página. Si el cambio requiere tu consentimiento, te lo pediremos.</p>
+    </article>
+  </main>
+
+  <div id="app-footer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/transitions.js"></script>
+<script src="js/scenes.js"></script>
+<button class="sound-btn" id="soundBtn" aria-label="Silenciar"></button>
+<script src="js/ui.js"></script>
+<script src="js/water.js"></script>
+<script src="js/bands.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/perf.js"></script>
+<script src="js/legal.js"></script>
+</body>
+</html>

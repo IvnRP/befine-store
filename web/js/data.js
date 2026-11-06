@@ -59,7 +59,7 @@ const HERO_SKU = "BEF-REC-20-BEFINE"; // Recarga Bidón 20 L (protagonista del i
 const SELECT_PRODUCTO =
   "id,categoria_id,nombre,descripcion,imagen_url,activo," +
   "categorias(nombre,slug)," +
-  "variantes_producto(id,producto_id,sku,nombre,atributos,stock,activo," +
+  "variantes_producto(id,producto_id,sku,nombre,atributos,stock,controla_stock,activo," +
   "precios_variante(nivel_precio_id,precio))";
 
 /* Resuelve el id del nivel de precio "retail" una sola vez (no lo quema). */
@@ -70,6 +70,13 @@ async function _nivelRetail() {
   const r = (data || []).find((n) => /retail/i.test(n.codigo || "")) || (data || [])[0];
   _retailId = r ? r.id : 1;
   return _retailId;
+}
+
+/* "Disponible a pedido": la variante controla stock y no le quedan unidades. Nunca frena la venta
+   (decisión del dueño, HU v2.4); solo se informa antes de comprar (Reglamento de Comercio
+   Electrónico: la falta de stock se informa antes de comprar) y la entrega se aplaza ENTREGA.diasAPedido días hábiles. */
+function _esAPedido(v) {
+  return !!v.controla_stock && (Number(v.stock) || 0) <= 0;
 }
 
 /* Convierte una fila de Supabase al MISMO view-model que usaba la maqueta,
@@ -90,6 +97,8 @@ function _armarProducto(p, nivel) {
         atributos: v.atributos || {},
         stock: v.stock,
         activo: v.activo,
+        a_pedido: _esAPedido(v),
+
         precio: pr ? pr.precio : null,
         precio_comparacion: OFERTAS[v.sku] || null,
       };
@@ -109,6 +118,7 @@ function _armarProducto(p, nivel) {
     variantes,
     desde_precio: desde,
     desde_comparacion: varMin ? varMin.precio_comparacion : null,
+    a_pedido: variantes.length > 0 && variantes.every((v) => v.a_pedido), // todas sus opciones a pedido
     aviso: variantes.some((v) => (v.sku || "").startsWith("BEF-REC-")) ? AVISO_RECARGA : null,
   };
 }
@@ -325,7 +335,7 @@ Befine.auth = {
    ===================================================================== */
 // Contacto del negocio (pendiente migrar a parametros / Admin)
 const CONTACTO = { whatsapp: "56958549641" };
-// Regla de entrega: lunes a viernes, sin feriados; el pedido estándar llega el siguiente día hábil.
+// Regla de entrega: lunes a viernes, sin feriados; el pedido estándar llega entre el siguiente y el subsiguiente día hábil.
 // FERIADOS (mejora M-01): feriados legales de Chile en "AAAA-MM-DD". Esta lista es el respaldo;
 // si existe el parámetro "feriados" en la tabla parametros (editable desde el Admin), se usa ese.
 // Mantener al día cada año (cubre la ventana de 20 días hábiles agendables).
@@ -337,7 +347,10 @@ const FERIADOS_CL = [
   "2026-12-25", // Navidad
   "2027-01-01", // Año Nuevo
 ];
-const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: FERIADOS_CL.slice() };
+// Entrega estándar: entre 24 y 48 horas hábiles (del siguiente día hábil al subsiguiente); con productos
+// "a pedido" (sin stock) se suma diasAPedido días hábiles. Reparto en horario
+// fijo, sin hora exacta. Pendiente: migrar el horario a parametros (editable desde el Admin).
+const ENTREGA = { diasHabiles: [1, 2, 3, 4, 5], diasAgendables: 20, feriados: FERIADOS_CL.slice(), horario: "9:00 a 17:00", diasAPedido: 2 };
 
 /* Feriados guardados en parametros.valor: arreglo JSON ["AAAA-MM-DD", ...] o texto separado por comas.
    Devuelve solo fechas con formato válido; null si no hay ninguna (se mantiene el respaldo local). */
@@ -364,6 +377,47 @@ const _iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2,
 const _esHabil = (d) => ENTREGA.diasHabiles.includes(d.getDay()) && !ENTREGA.feriados.includes(_iso(d));
 
 Befine.contacto = CONTACTO;
+
+/* ---------- Identificación del proveedor (Ley 19.496 y Reglamento de Comercio Electrónico) ----------
+   El sitio debe mostrar nombre de fantasía, razón social, RUT, domicilio, un medio de contacto y,
+   si es persona jurídica, su representante legal. Si un campo queda en null se muestra como
+   "[Por completar]" en las páginas legales.
+   Pendiente: migrar a la tabla parametros para editarlo desde el Admin (HU-26). */
+const PROVEEDOR = {
+  nombre_fantasia: "Agua Purificada Befine",
+  razon_social: "Comercializadora de Agua Purificada e Insumos Iván Rodríguez Pinares E.I.R.L.",
+  rut: "77.861.415-4",
+  domicilio: "Pasaje Los Tailandeses 1156, Villa Juan Francisco Gonzales, Quilicura",
+  representante_legal: "Iván Luis Rodríguez Pinares",
+  correo: "befine.cl@gmail.com",     // consultas, reclamos y derechos sobre datos personales
+  // Origen del agua (lo exige informar el Reglamento de Comercio Electrónico): el agua la elabora un
+  // productor autorizado, titular de la resolución sanitaria; Befine la comercializa y despacha.
+  elaborador: "Comercializadora de Agua Purificada e Insumos Matías Rodríguez Pinares E.I.R.L.",
+  resolucion_sanitaria: "N° 2313190087",
+  instagram: "aguas.befine",
+};
+Befine.proveedor = PROVEEDOR;
+// Versión vigente de los textos legales. Debe coincidir con parametros.terminos_version (migración 06),
+// que es la que queda registrada en cada pedido al aceptar los Términos.
+Befine.legalVersion = "2026-11";
+
+/* ---------- Derecho a retracto por tipo de producto (Ley 19.496 art. 3 bis y Reglamento de exclusiones) ----------
+   Compras a distancia: 10 días desde la entrega. Exclusión permitida para bienes de higiene o que
+   afectan la salud cuyo sello de seguridad fue abierto por el consumidor (agua para consumo humano).
+   La advertencia debe mostrarse junto al precio, antes de pagar, y usar la expresión "derecho a retracto". */
+const RETRACTO_SELLO = ["recargas", "bidones", "packs"];   // productos con agua sellada
+Befine.retractoDe = function (categoriaSlug) {
+  if (RETRACTO_SELLO.includes(categoriaSlug)) {
+    return { aplica: true, condicionado: true,
+      titulo: "Derecho a retracto: 10 días con sello intacto",
+      texto: "Puedes retractarte dentro de 10 días desde la entrega si el sello de seguridad del bidón está intacto. " +
+             "Una vez abierto el sello no procede el derecho a retracto, por tratarse de agua para consumo humano (razones de salud e higiene)." };
+  }
+  return { aplica: true, condicionado: false,
+    titulo: "Derecho a retracto: 10 días",
+    texto: "Puedes retractarte dentro de 10 días desde la entrega si el producto no ha sido instalado ni usado más allá de su revisión " +
+           "y lo devuelves con su embalaje y accesorios." };
+};
 
 /* Comunas con cobertura y su costo → { envioGratisDesde, comunas:[{comuna, zona, zona_id, costo}] } */
 Befine.getCobertura = async function () {
@@ -394,13 +448,40 @@ Befine.costoDespacho = function (cobertura, comuna, subtotal) {
   return c.costo;
 };
 
-/* Días de entrega: { estandar: Date (siguiente día hábil), agendables: [Date...] } */
-Befine.diasEntrega = function (desde = new Date()) {
+/* Días de entrega: { estandar: Date (siguiente día hábil), estandarHasta: Date (subsiguiente día hábil,
+   la entrega estándar es entre 24 y 48 h hábiles), agendables: [Date...] } */
+Befine.diasEntrega = function (desde = new Date(), opciones = {}) {
   const d = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate());
   const sig = () => { do { d.setDate(d.getDate() + 1); } while (!_esHabil(d)); return new Date(d); };
+  // Con productos "a pedido" la entrega (estándar y agendada) parte diasAPedido días hábiles después
+  for (let i = 0; opciones.aPedido && i < ENTREGA.diasAPedido; i++) sig();
   const estandar = sig(), agendables = [estandar];
   while (agendables.length < ENTREGA.diasAgendables) agendables.push(sig());
-  return { estandar, agendables };
+  return { estandar, estandarHasta: agendables[1], agendables };
+};
+/* Siguiente día hábil después de una fecha (para mostrar el rango de la entrega estándar) */
+Befine.siguienteHabil = function (fecha) {
+  const d = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  do { d.setDate(d.getDate() + 1); } while (!_esHabil(d));
+  return d;
+};
+Befine.horarioReparto = ENTREGA.horario;
+
+/* Texto legal del producto sin stock (el plazo sale de la misma regla que calcula las fechas) */
+Befine.plazoAPedido = function () {
+  return `entrega en ${1 + ENTREGA.diasAPedido} a ${2 + ENTREGA.diasAPedido} días hábiles`;
+};
+
+/* Disponibilidad ACTUAL de variantes del carrito (el carrito guarda una foto que puede quedar vieja).
+   Devuelve un Set con los id "a pedido", o null si no se pudo consultar (se usa la foto del carrito). */
+Befine.disponibilidad = async function (varianteIds) {
+  const ids = Array.from(new Set(varianteIds || [])).filter(Boolean);
+  if (!ids.length) return new Set();
+  try {
+    const { data, error } = await sb.from("variantes_producto").select("id,stock,controla_stock").in("id", ids);
+    if (error) return null;
+    return new Set((data || []).filter(_esAPedido).map((v) => v.id));
+  } catch (e) { return null; }
 };
 Befine.isoFecha = _iso;
 
@@ -440,7 +521,7 @@ Befine.crearPedido = async function (payload) {
     const { data, error } = await sb.rpc("crear_pedido", {
       p_items: (payload.items || []).map((i) => ({ variante_id: i.variante_id, cantidad: i.cantidad })),
       p_direccion: { calle: d.calle, numero: d.numero, depto: d.depto || null, comuna: d.comuna, referencia: d.referencia || null },
-      p_contacto: { nombre: c.nombre, telefono: c.telefono, email: c.email },
+      p_contacto: { nombre: c.nombre, telefono: c.telefono, email: c.email, acepta_terminos: payload.acepta_terminos === true },
       p_entrega: payload.entrega || null,
       p_documento: payload.documento || { tipo: "boleta" },
       p_cupon_codigo: payload.cupon || null,
@@ -544,7 +625,7 @@ Befine.estadoPedido = async function (id) {
   if (!UUID_RE.test(String(id || ""))) return null;
   try {
     const { data, error } = await sb.from("pedidos")
-      .select("id,numero,estado,total,descuento_cupon,fecha_entrega,contacto_nombre,contacto_email,tipo_documento")
+      .select("id,numero,estado,total,descuento_cupon,fecha_entrega,contacto_nombre,contacto_email,tipo_documento,created_at")
       .eq("id", id)
       .maybeSingle();
     if (error) { console.error("estadoPedido:", error.message); return null; }
@@ -569,9 +650,48 @@ Befine.misPedidos = async function () {
   } catch (e) { return []; }
 };
 
+/* ---------- Reutilizar el pedido pendiente de pago (mejora M-02) ----------
+   Si el cliente vuelve al checkout sin haber pagado (volvió atrás desde Mercado Pago, cerró la
+   pestaña, falló la conexión), se paga el MISMO pedido en vez de crear otro "Pendiente de pago".
+   Se reutiliza solo si el contenido es idéntico (misma firma), sigue pendiente en el servidor y es
+   reciente; si algo cambió, se crea un pedido nuevo con crear_pedido(), que recalcula todo. */
+const PEDIDO_REUSO_HORAS = 24;   // un pedido pendiente más antiguo no se reutiliza (precios o fechas pudieron cambiar)
+
+/* Firma del contenido del pedido: hash (cyrb53) del payload del checkout. Sirve para saber si el
+   cliente cambió algo (productos, cantidades, dirección, fecha, documento, cupón) sin guardar sus
+   datos personales en el navegador: solo se guarda el hash. */
+Befine.firmaPedido = function (payload) {
+  const texto = JSON.stringify(payload || {});
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+};
+
+/* ¿El pedido (tal como lo devuelve estadoPedido) se puede volver a pagar? */
+Befine.pedidoReutilizable = function (pedido, ahora = Date.now()) {
+  if (!pedido || pedido.estado !== "pendiente_pago" || !pedido.created_at) return false;
+  const edad = ahora - new Date(pedido.created_at).getTime();
+  return edad >= 0 && edad < PEDIDO_REUSO_HORAS * 3600 * 1000;
+};
+
 /* ---------- Historial del cliente (HU-18, RF-10) ---------- */
 /* Pasa una fila de pedidos (con sus relaciones) al formato que usa "Mis pedidos".
    El enlace de la boleta/factura solo se muestra si el documento fue emitido y la URL es https. */
+/* Estado del documento tributario de un pedido, tal como lo ve el cliente (HU-18 CA5/CA6):
+   "descargar" si la boleta/factura está emitida (hay enlace), "en_proceso" si el pago ya se confirmó
+   y OpenFactura aún no la emite, y "ninguno" si el pedido no está pagado (pendiente o cancelado). */
+Befine.estadoDocumento = function (detalle) {
+  if (!detalle) return "ninguno";
+  if (detalle.boleta && detalle.boleta.url) return "descargar";
+  return Befine.pedidoPagado(detalle.estado) ? "en_proceso" : "ninguno";
+};
+
 Befine.armarDetalle = function (p) {
   const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" && /^https:\/\//i.test(d.url_pdf || ""));
   return {
@@ -605,38 +725,36 @@ Befine.detallePedido = async function (id) {
 };
 
 /* "Volver a pedir": arma los ítems del carrito con el precio VIGENTE (no el de la compra original).
-   No se agregan productos inactivos, sin precio o sin stock; si hay menos stock que lo pedido, se
-   agrega lo disponible. crear_pedido() vuelve a validar precios y stock al pagar.
-   Devuelve { agregar:[{item, cantidad, categoria_slug}], noDisponibles:[nombre], ajustados:[{nombre, cantidad}] }. */
+   Se agrega la MISMA cantidad del pedido original: el stock nunca frena una venta (decisión del dueño,
+   HU-22). Solo se omiten los productos desactivados o sin precio. crear_pedido() recalcula todo al pagar.
+   Devuelve { agregar:[{item, cantidad, categoria_slug}], noDisponibles:[nombre] }. */
 Befine.armarRepeticion = function (items, variantes, nivel) {
   const porId = new Map((variantes || []).map((v) => [v.id, v]));
-  const agregar = [], noDisponibles = [], ajustados = [];
+  const agregar = [], noDisponibles = [];
   for (const it of items || []) {
     const v = porId.get(it.variante_id), prod = v && v.productos;
     const precios = (v && v.precios_variante) || [];
     const pr = precios.find((x) => x.nivel_precio_id === nivel) || precios[0];
     const nombre = (prod && prod.nombre) || it.nombre || "Producto";
     if (!v || !v.activo || !prod || !prod.activo || !pr) { noDisponibles.push(nombre); continue; }
-    const cantidad = v.controla_stock ? Math.min(it.cantidad, Math.max(0, v.stock || 0)) : it.cantidad;
-    if (cantidad <= 0) { noDisponibles.push(nombre); continue; }
-    if (cantidad < it.cantidad) ajustados.push({ nombre, cantidad });
+    const cantidad = Math.max(1, Math.round(Number(it.cantidad) || 1));
     agregar.push({
       item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio },
       cantidad,
       categoria_slug: (prod.categorias && prod.categorias.slug) || null,
     });
   }
-  return { agregar, noDisponibles, ajustados };
+  return { agregar, noDisponibles };
 };
 
-/* Consulta el catálogo actual para repetir un pedido. Devuelve { ok, agregar, noDisponibles, ajustados } o { ok:false, error }. */
+/* Consulta el catálogo actual para repetir un pedido. Devuelve { ok, agregar, noDisponibles } o { ok:false, error }. */
 Befine.volverAPedir = async function (items) {
   const ids = [...new Set((items || []).map((i) => String(i.variante_id || "")).filter((id) => UUID_RE.test(id)))];
   if (!ids.length) return { ok: false, error: "Este pedido no tiene productos para repetir." };
   try {
     const nivel = await _nivelRetail();
     const { data, error } = await sb.from("variantes_producto")
-      .select("id,nombre,stock,controla_stock,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
+      .select("id,nombre,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
       .in("id", ids);
     if (error) { console.error("volverAPedir:", error.message); return { ok: false, error: "No pudimos revisar los productos. Inténtalo de nuevo." }; }
     return { ok: true, ...Befine.armarRepeticion(items, data, nivel) };

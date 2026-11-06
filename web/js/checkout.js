@@ -12,12 +12,16 @@
   const KEY_DATOS = "befine_datos";            // datos recordados (solo en este dispositivo)
   const KEY_PAGO = "befine_pago";              // pedido en pago (solo esta pestaña): para la confirmación al volver de Mercado Pago
   const ESPERAS_MS = [1500, 2500, 4000, 6000, 8000, 10000];   // reintentos (~32 s) mientras el webhook confirma el pago
+  const KEY_PENDIENTE = "befine_pedido_pendiente"; // { id, numero, firma }: pedido creado y aún sin pagar (M-02). Sin datos personales.
   const fmtDia = (d, op) => d.toLocaleDateString("es-CL", op || { weekday: "long", day: "numeric", month: "long" });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   let sesion = null, cobertura = null, dias = null, doc = "boleta", fechaAgendada = null, enviando = false;
   let cupon = null;          // { codigo, descuento } revisado por el servidor (revisar_cupon)
-  let reintento = null;      // { firma, pedido }: si Mercado Pago falla, se reintenta con el MISMO pedido (no se duplica)
+  // Productos "a pedido" (sin stock): disponibilidad ACTUAL por variante (id -> true/false). No frenan la
+  // venta; se informan antes de pagar y aplazan la entrega (Reglamento de Comercio Electrónico, HU v2.4).
+  const aPedido = new Map();
+  let conAPedido = false, revisandoStock = Promise.resolve();
 
   document.addEventListener("DOMContentLoaded", async () => {
     const form = $("coForm");
@@ -32,7 +36,7 @@
     precargar();
     const vuelta = Befine.vueltaPago(location.search);
     if (vuelta) mostrarVuelta(vuelta);          // volvió desde Mercado Pago: se muestra el resultado del pago
-    Store.subscribe((items) => { pintarResumen(items); revisarCuponDeNuevo(); });   // el resumen se actualiza solo al cambiar cantidades
+    Store.subscribe((items) => { pintarResumen(items); revisarCuponDeNuevo(); revisandoStock = revisarStock(items); });   // el resumen se actualiza solo al cambiar cantidades
 
     /* ---------- Formato en vivo ---------- */
     $("coTel").addEventListener("input", (e) => { e.target.value = Val.formatoTel(e.target.value); });
@@ -67,6 +71,14 @@
     form.addEventListener("submit", (e) => { e.preventDefault(); pagar(); });
   });
 
+  // Al volver con "Atrás" desde Mercado Pago, el navegador restaura la página tal como quedó
+  // (back/forward cache), con los botones en "Conectando…": se reactivan para poder pagar (M-03).
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    enviando = false;
+    [$("coPagar"), $("coBarPagar")].forEach((btn) => { if (btn && btn.classList.contains("is-loading")) cargando(btn, false); });
+  });
+
   /* ================= Pintado ================= */
   function pintarSesion() {
     const box = $("coSesion");
@@ -95,16 +107,35 @@
   }
 
   function pintarEntrega() {
-    $("coFechaStd").textContent = "Llega el " + fmtDia(dias.estandar);
+    $("coFechaStd").textContent = `Llega entre el ${fmtDia(dias.estandar)} y el ${fmtDia(dias.estandarHasta)}, de ${Befine.horarioReparto} h`;
+    $("coAPedido").hidden = !conAPedido;
+    $("coAPedido").innerHTML = `<b>Tu pedido incluye productos disponibles a pedido</b>: ${Befine.plazoAPedido()}. Las fechas ya consideran ese plazo.`;
     fechaAgendada = dias.agendables[0];
     const box = $("coDias");
     box.innerHTML = dias.agendables.map((d, i) => `<button type="button" class="dia" data-i="${i}" aria-pressed="${i === 0}"
       aria-label="${fmtDia(d)}"><span class="dw">${fmtDia(d, { weekday: "short" }).replace(".", "")}</span><span class="dd">${d.getDate()}</span><span class="dm">${fmtDia(d, { month: "short" }).replace(".", "")}</span></button>`).join("");
-    box.addEventListener("click", (e) => {
+    box.onclick = (e) => {   // onclick (no addEventListener): pintarEntrega se repite si cambia la disponibilidad
       const b = e.target.closest(".dia"); if (!b) return;
       box.querySelectorAll(".dia").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       fechaAgendada = dias.agendables[+b.dataset.i];
-    });
+    };
+  }
+
+  /* Consulta solo las variantes que aún no conoce; si no se puede consultar, usa la foto del carrito.
+     Si cambia la presencia de productos a pedido, recalcula las fechas de entrega. */
+  async function revisarStock(items) {
+    const nuevos = items.map((i) => i.variante_id).filter((id) => !aPedido.has(id));
+    if (nuevos.length) {
+      const set = await Befine.disponibilidad(nuevos);
+      nuevos.forEach((id) => aPedido.set(id, set ? set.has(id) : !!(items.find((i) => i.variante_id === id) || {}).a_pedido));
+    }
+    const hay = Store.items().some((i) => aPedido.get(i.variante_id));
+    if (hay !== conAPedido) {
+      conAPedido = hay;
+      dias = Befine.diasEntrega(new Date(), { aPedido: hay });
+      pintarEntrega();
+    }
+    if (nuevos.length) pintarResumen(Store.items());   // muestra la etiqueta "A pedido" en el resumen
   }
 
   function totales(items) {
@@ -170,7 +201,7 @@
     $("coItems").innerHTML = items.map((i) => `
       <div class="r-item">
         <div class="th" style="background:${i.grad || window.catGrad()}"></div>
-        <div><div class="nm">${esc(i.nombre)}</div>${i.variante && i.variante !== "Estándar" ? `<div class="vr">${esc(i.variante)}</div>` : ""}
+        <div><div class="nm">${esc(i.nombre)}</div>${i.variante && i.variante !== "Estándar" ? `<div class="vr">${esc(i.variante)}</div>` : ""}${aPedido.get(i.variante_id) ? `<div class="ap">Disponible a pedido</div>` : ""}
           <div class="qty" role="group" aria-label="Cantidad de ${esc(i.nombre)}"><button type="button" data-dec="${i.variante_id}" aria-label="Quitar uno">−</button><span>${i.cantidad}</span><button type="button" data-inc="${i.variante_id}" aria-label="Agregar uno">+</button></div></div>
         <div class="pr">${clp(i.precio * i.cantidad)}<button type="button" data-del="${i.variante_id}">Quitar</button></div>
       </div>`).join("");
@@ -209,6 +240,9 @@
   function precargar() {
     let d = {};
     try { d = JSON.parse(localStorage.getItem(KEY_DATOS) || "{}"); } catch (e) {}
+    // "Recordar mis datos" parte SIN marcar (consentimiento expreso, Ley 21.719); si el cliente ya lo
+    // había aceptado antes en este dispositivo, se muestra marcado para que pueda desmarcarlo.
+    if (d && Object.keys(d).length) $("coRecordar").checked = true;
     const f = $("coForm");
     const set = (name, v) => { if (v && !f[name].value) f[name].value = v; };
     if (sesion) { set("nombre", [sesion.nombre, sesion.apellido].filter(Boolean).join(" ")); set("email", sesion.email); set("telefono", Val.formatoTel(sesion.telefono || "")); }
@@ -233,12 +267,14 @@
       req(f.razon_social, f.razon_social.value.trim().length >= 2, "Escribe la razón social.");
       req(f.giro, f.giro.value.trim().length >= 2, "Escribe el giro.");
     }
+    req(f.acepto, f.acepto.checked, "Debes aceptar los Términos y la Política de privacidad para pagar.");   // Ley 21.719 (HU-25)
     if (errs.length) { errs[0].focus({ preventScroll: true }); errs[0].scrollIntoView({ behavior: "smooth", block: "center" }); }
     return !errs.length;
   }
 
   async function pagar() {
     if (enviando || !validar()) return;
+    await revisandoStock;   // las fechas deben considerar los productos a pedido antes de crear el pedido
     const f = $("coForm"), items = Store.items(), t = totales(items);
     const agendada = f.entrega.value === "agendada";
     const payload = {
@@ -250,6 +286,7 @@
       items: items.map((i) => ({ variante_id: i.variante_id, nombre: i.nombre, variante: i.variante, cantidad: i.cantidad, precio_unitario: i.precio })),
       subtotal: t.sub, costo_despacho: t.envio || 0, total: t.total, perfil_id: sesion ? sesion.id : null,
       cupon: cupon ? cupon.codigo : null,
+      acepta_terminos: f.acepto.checked,   // el servidor la exige y la registra con su fecha (migración 06)
     };
 
     // Recordar datos (solo en este dispositivo) para que la próxima compra sea aún más rápida
@@ -261,11 +298,11 @@
 
     enviando = true;
     const btns = [$("coPagar"), $("coBarPagar")];
-    // Si Mercado Pago falló y el cliente no cambió nada, se reintenta con el MISMO pedido (no se duplica).
-    const firma = JSON.stringify(payload);
-    const pedido = reintento && reintento.firma === firma ? reintento.pedido : await crearPedido(payload, btns);
+    // M-02: si el cliente ya creó este mismo pedido y no lo pagó, se paga ese (no se duplica).
+    const firma = Befine.firmaPedido(payload);
+    const pedido = (await pedidoPendiente(payload, firma, btns)) || (await crearPedido(payload, btns));
     if (!pedido) return;
-    reintento = { firma, pedido };
+    recordarPendiente(pedido, firma);
     btns.forEach((b) => textoCargando(b, "Conectando con Mercado Pago…"));
     const p = await Befine.pagar(pedido);
     if (!p.ok) {
@@ -283,9 +320,32 @@
     else cargando(btn, true, texto);
   }
 
+  /* ---------- Pedido pendiente de pago (M-02) ---------- */
+  function leerPendiente() {
+    try { return JSON.parse(localStorage.getItem(KEY_PENDIENTE) || "null"); } catch (e) { return null; }
+  }
+  function recordarPendiente(p, firma) {
+    try { localStorage.setItem(KEY_PENDIENTE, JSON.stringify({ id: p.id, numero: p.numero, firma })); } catch (e) {}
+  }
+  function olvidarPendiente(id) {
+    try { const g = leerPendiente(); if (g && (!id || g.id === id)) localStorage.removeItem(KEY_PENDIENTE); } catch (e) {}
+  }
+
+  // Devuelve el pedido pendiente para pagarlo de nuevo, o null si hay que crear uno nuevo.
+  // El servidor decide: solo se reutiliza si sigue 'pendiente_pago', es reciente y el contenido es idéntico.
+  async function pedidoPendiente(payload, firma, btns) {
+    const g = leerPendiente();
+    if (!g || g.firma !== firma) return null;
+    btns.forEach((b) => cargando(b, true, "Revisando tu pedido…"));
+    const srv = await Befine.estadoPedido(g.id);
+    if (!Befine.pedidoReutilizable(srv)) { olvidarPendiente(g.id); return null; }
+    return { ...payload, id: srv.id, numero: srv.numero, estado: srv.estado, total: srv.total, descuento_cupon: srv.descuento_cupon,
+      entrega: { ...payload.entrega, fecha: srv.fecha_entrega || payload.entrega.fecha } };
+  }
+
   // Crea el pedido en el servidor (crear_pedido). Devuelve el pedido o null si no se pudo.
   async function crearPedido(payload, btns) {
-    btns.forEach((b) => cargando(b, true, "Creando pedido…"));
+    btns.forEach((b) => textoCargando(b, "Creando pedido…"));
     const r = await Befine.crearPedido(payload);
     if (r.ok) return r.pedido;
     btns.forEach((b) => cargando(b, false)); enviando = false;
@@ -347,8 +407,10 @@
     ok.hidden = false;
     if (v.estado === "error") { pintarPagoFallido(v.pedido, guardado); return; }
 
-    // Pago aprobado o en proceso: el pedido ya existe, el carrito no se necesita.
+    // Pago aprobado o en proceso: el carrito no se necesita y ese pedido ya no se reutiliza
+    // (evita cobrar dos veces el mismo pedido si el cliente arma otra compra igual).
     Store.clear();
+    olvidarPendiente(v.pedido);
     document.querySelector(".co-head h1").textContent = "Confirmando tu pago";
     ok.innerHTML = `<div class="sheet co-espera"><span class="spin" aria-hidden="true"></span>
       <h2>Confirmando tu pago…</h2>
@@ -422,7 +484,9 @@
           ? `Gracias${nombre ? ", " + nombre : ""}. Tu pago fue aprobado y ya estamos preparando tu pedido.`
           : esc(aviso || "Estamos confirmando tu pago.")}</p>
         <dl class="det">
-          ${fecha ? `<div><dt>Entrega</dt><dd>${fmtDia(fecha)}${pedido.entrega.tipo === "agendada" ? " (agendada)" : ""}</dd></div>` : ""}
+          ${fecha ? `<div><dt>Entrega</dt><dd>${pedido.entrega.tipo === "agendada"
+            ? `${fmtDia(fecha)} (agendada)`
+            : `Entre el ${fmtDia(fecha)} y el ${fmtDia(Befine.siguienteHabil(fecha))}`}, de ${Befine.horarioReparto} h</dd></div>` : ""}
           ${d ? `<div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>` : ""}
           <div><dt>Documento</dt><dd>${doc.tipo === "factura" ? "Factura" + (doc.razon_social ? " · " + esc(doc.razon_social) : "") : "Boleta electrónica"}</dd></div>
           ${pedido.descuento_cupon ? `<div><dt>Descuento</dt><dd>−${clp(pedido.descuento_cupon)}</dd></div>` : ""}
@@ -446,7 +510,7 @@
         </form>
         <div class="divider">o</div>
         <button type="button" class="btn-google" id="coGoogle">${GOOGLE_SVG}Continuar con Google</button>
-        <p class="hint" style="margin-top:10px">Al crear tu cuenta aceptas la <a href="#" style="text-decoration:underline">Política de privacidad</a>.</p>
+        <p class="hint" style="margin-top:10px">Al crear tu cuenta aceptas los <a href="terminos.html" target="_blank" rel="noopener" style="text-decoration:underline">Términos</a> y la <a href="privacidad.html" target="_blank" rel="noopener" style="text-decoration:underline">Política de privacidad</a>.</p>
       </div>`}`;
     Store.clear();
     window.scrollTo({ top: 0, behavior: "smooth" });

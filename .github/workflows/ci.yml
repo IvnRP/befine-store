@@ -1,0 +1,63 @@
+# =====================================================================
+# Integración continua (CI) — Befine Store
+# En cada Pull Request a main (y en cada merge a main) GitHub revisa
+# automáticamente que el código esté sano antes de integrarlo:
+#   1. Sintaxis de todos los JS de la tienda y pruebas unitarias (npm test).
+#   2. Que la imagen Docker se construya y el sitio responda con sus
+#      cabeceras de seguridad (nginx).
+# Costo: $0 (GitHub Actions es gratis en repositorios públicos, SC-04).
+# No usa secretos: el backend (Supabase) no se toca desde aquí.
+# =====================================================================
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Sintaxis de los JS de la tienda
+        run: for f in web/js/*.js; do node --check "$f" || exit 1; done
+      - name: Pruebas unitarias (node:test)
+        run: npm test
+
+  docker:
+    name: Imagen Docker
+    runs-on: ubuntu-latest
+    needs: pruebas
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir la imagen
+        run: docker build -t befine-store:ci .
+      - name: Levantar el sitio y comprobar que responde
+        run: |
+          docker run -d --name befine -p 8080:80 befine-store:ci
+          for i in $(seq 1 15); do curl -fsS http://localhost:8080/ > /dev/null && break; sleep 1; done
+          curl -fsS http://localhost:8080/ | grep -q "Befine Store"
+          curl -fsS http://localhost:8080/checkout.html > /dev/null
+      - name: Cabeceras de seguridad de nginx
+        run: |
+          curl -fsSI http://localhost:8080/ | tee cabeceras.txt
+          grep -qi "x-content-type-options: nosniff" cabeceras.txt
+          grep -qi "x-frame-options: sameorigin" cabeceras.txt
+      - name: Detener el contenedor
+        if: always()
+        run: docker rm -f befine || true

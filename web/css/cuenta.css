@@ -95,6 +95,7 @@ body.tema-claro .pd-items { background: #f7fbfe; }
 .pd-tot dt, .pd-info dt { color: var(--muted); } .pd-tot dd, .pd-info dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pd-tot .t { padding-top: 6px; border-top: 1px dashed var(--line); } .pd-tot .t dt, .pd-tot .t dd { color: var(--ink); font-weight: 800; }
 .pd-info a, .pd-msg a { text-decoration: underline; font-weight: 700; }
+.pd-proceso { color: var(--muted); font-weight: 600; }   /* boleta pagada aún sin emitir (HU-18 CA6) */
 .pd-acc { display: grid; gap: 10px; justify-items: start; }
 .pd-msg:empty { display: none; }
 .vacio-p { text-align: center; color: var(--muted); padding: 18px 0 6px; }

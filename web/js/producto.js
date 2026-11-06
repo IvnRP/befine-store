@@ -12,6 +12,10 @@
     if (!p) { cont.innerHTML = `<p class="empty-state">Producto no encontrado. <a href="catalogo.html">Volver al catálogo</a>.</p>`; return; }
 
     const grad = window.catGrad(p.categoria_slug);
+    // Sin stock no se deja de vender: se informa antes de comprar y se aplaza la entrega (HU v2.4)
+    const stockHTML = (v) => v.a_pedido
+      ? `<b>Disponible a pedido</b> · ${Befine.plazoAPedido()}`
+      : "Despacho en tu zona · entrega en 24 a 48 h hábiles";
     let variante = p.variantes[0]; // seleccionada
 
     document.title = p.nombre + " · Befine Store";
@@ -41,7 +45,12 @@
           <button class="btn btn-ghost" id="fAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="fBuy">Comprar ahora</button>
         </div>
-        <p class="stock">${variante.stock > 0 ? "En stock · despacho en tu zona" : "Sin stock por ahora"}</p>
+        <p class="stock${variante.a_pedido ? " a-pedido" : ""}" id="fStock" aria-live="polite">${stockHTML(variante)}</p>
+        ${(() => { const r = Befine.retractoDe(p.categoria_slug); return `
+        <aside class="retracto" aria-label="Derecho a retracto">
+          <p class="tit">${r.titulo}</p>
+          <p>${r.texto} <a href="cambios.html#retracto">Ver condiciones</a></p>
+        </aside>`; })()}
       </div>`;
 
     // Selección de variante
@@ -52,6 +61,9 @@
       opts.querySelectorAll(".opt").forEach((x) => x.classList.remove("active"));
       b.classList.add("active");
       variante = p.variantes.find((v) => v.id === b.dataset.v);
+      const st = document.getElementById("fStock");
+      st.innerHTML = stockHTML(variante);
+      st.classList.toggle("a-pedido", !!variante.a_pedido);
       precioEl.innerHTML = (variante.precio_comparacion ? `<span class="oferta">Oferta</span> ` : "") + Befine.clp(variante.precio) + (variante.precio_comparacion ? ` <s>${Befine.clp(variante.precio_comparacion)}</s>` : "");
     });
 
@@ -63,7 +75,7 @@
     // Agregar al carrito / Comprar ahora
     const itemDe = () => ({
       variante_id: variante.id, producto_id: p.id, nombre: p.nombre,
-      variante: variante.nombre, precio: variante.precio, grad,
+      variante: variante.nombre, precio: variante.precio, grad, a_pedido: !!variante.a_pedido,
     });
     document.getElementById("fAdd").onclick = () => {
       Store.add(itemDe(), +cant.value);

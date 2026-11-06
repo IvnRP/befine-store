@@ -200,7 +200,10 @@
     const fila = (k, v, cls) => `<div${cls ? ` class="${cls}"` : ""}><dt>${k}</dt><dd>${v}</dd></div>`;
     const dir = d.direccion;
     const doc = d.documento === "factura" ? "Factura electrónica" : "Boleta electrónica";
-    const enlace = d.boleta ? ` · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>` : "";
+    const estadoDoc = Befine.estadoDocumento(d);
+    const enlace = estadoDoc === "descargar"
+      ? ` · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
+      : estadoDoc === "en_proceso" ? ` · <span class="pd-proceso">${d.documento === "factura" ? "Factura" : "Boleta"} en proceso</span>` : "";
     return `
       <ul class="pd-items">${d.items.map((i) => `
         <li><span class="nm">${i.cantidad} × ${esc(i.nombre)}${i.variante && i.variante !== "Estándar" ? ` <small>${esc(i.variante)}</small>` : ""}</span>
@@ -239,9 +242,8 @@
     }
     const partes = [`Agregamos ${r.agregar.reduce((n, a) => n + a.cantidad, 0)} producto(s) al carrito con el precio de hoy.`];
     if (antes) partes.push(`Tu carrito ya tenía ${antes} producto(s): ahora tiene ${Store.count()}.`);
-    if (r.ajustados.length) partes.push("Con menos unidades por stock: " + r.ajustados.map((a) => `${esc(a.nombre)} (${a.cantidad})`).join(", ") + ".");
     if (r.noDisponibles.length) partes.push("No disponibles: " + r.noDisponibles.map(esc).join(", ") + ".");
-    msgBox.innerHTML = `<div class="aviso ${r.noDisponibles.length || r.ajustados.length ? "" : "ok"}">
+    msgBox.innerHTML = `<div class="aviso ${r.noDisponibles.length ? "" : "ok"}">
       <span>${partes.join(" ")} <a href="checkout.html">Ir a pagar →</a></span></div>`;
   }
   $("pcSalir").addEventListener("click", async () => { await Befine.auth.salir(); location.href = "index.html"; });
