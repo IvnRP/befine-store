@@ -38,8 +38,12 @@ test("CP-U25d la versión de los textos legales coincide con la que registra la 
   const dir = path.join(__dirname, "..", "..", "web", "supabase", "migrations");
   const archivo = fs.readdirSync(dir).find((f) => /_06_aceptacion_terminos\.sql$/.test(f));
   assert.ok(archivo, "falta la migración 06");
-  const sql = fs.readFileSync(path.join(dir, archivo), "utf8");
-  const m = sql.match(/'terminos_version',\s*'([^']+)'/);
-  assert.ok(m, "la migración 06 no define terminos_version");
-  assert.equal(Befine.legalVersion, m[1]);
+  // La versión vigente es la última que fija alguna migración (06 la crea; las siguientes la actualizan)
+  let ultima = null;
+  for (const f of fs.readdirSync(dir).filter((x) => /^\d{8}_\d+\w*\.sql$/.test(x) && !/reversa|prueba/.test(x)).sort()) {
+    const sql = fs.readFileSync(path.join(dir, f), "utf8");
+    for (const m of sql.matchAll(/'terminos_version',\s*'([^']+)'|valor = '([^']+)'[^;]*clave = 'terminos_version'/g)) ultima = m[1] || m[2];
+  }
+  assert.ok(ultima, "ninguna migración define terminos_version");
+  assert.equal(Befine.legalVersion, ultima);
 });
