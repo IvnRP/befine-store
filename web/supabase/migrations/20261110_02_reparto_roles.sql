@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Migración 02: reparto del chofer, avisos por WhatsApp y asignación de roles
---               (pendiente de aplicar)
+--               (aplicada el 11-nov-2026; prueba en seco T01..T13 OK)
 -- Proyecto:  Befine Store (Supabase tbnevbvvwwzpnowxqyps)
 -- Historias: HU-16 (vista del chofer) · HU-17 (avisos por WhatsApp) · HU-31 (roles)
 --            RF-16, RF-09, RF-02 · RNF-09 (auditoría)

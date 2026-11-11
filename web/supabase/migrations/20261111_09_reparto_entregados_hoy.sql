@@ -1,5 +1,5 @@
 -- =====================================================================
--- Migración 09: corrección del reparto del día (pendiente de aplicar)
+-- Migración 09: corrección del reparto del día (aplicada el 11-nov-2026; prueba en seco T01..T02 OK)
 -- Proyecto:  Befine Store (Supabase tbnevbvvwwzpnowxqyps)
 -- Historia:  HU-16 (vista del chofer) · defecto hallado en la prueba manual del 11-nov-2026
 -- Requiere:  02 aplicada.

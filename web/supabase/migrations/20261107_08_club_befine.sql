@@ -1,5 +1,5 @@
 -- =====================================================================
--- Migración 08: Club Befine — programa de puntos (pendiente de aplicar)
+-- Migración 08: Club Befine — programa de puntos (aplicada; prueba en seco T01..T14 OK)
 -- Proyecto:  Befine Store (Supabase tbnevbvvwwzpnowxqyps)
 -- Historia:  HU-19 (puntos) · RF-11 (fidelización)
 -- Requiere:  01, 01b, 04, 03, 05, 06 y 07 aplicadas.
