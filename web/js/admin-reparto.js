@@ -98,7 +98,7 @@
       <article class="ad-card rp-ped ${p.estado}${p.atrasado ? " atrasado" : ""}">
         <header>
           <b>#${esc(p.numero_pedido)}</b> ${badge(p.estado)}
-          ${p.atrasado ? `<span class="ad-est mal">Atrasado · ${esc(p.fecha_entrega)}</span>` : ""}
+          ${p.atrasado && p.estado !== "entregado" ? `<span class="ad-est mal">Atrasado · ${esc(p.fecha_entrega)}</span>` : ""}
           ${p.es_canje ? `<span class="ad-est info">Premio Club</span>` : ""}
         </header>
         <p class="rp-nom">${esc(p.nombre || "Cliente")}</p>
