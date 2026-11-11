@@ -7,9 +7,9 @@
    solo deciden qué MUESTRA la interfaz a cada rol (segunda capa).
    ===================================================================== */
 (function (root) {
-  /* ---------- Permisos (mismo catálogo que public.permisos, migración 01) ---------- */
+  /* ---------- Permisos (mismo catálogo que public.permisos, migraciones 01 y 02) ---------- */
   const PERMISOS = [
-    "pedidos.ver", "pedidos.gestionar", "catalogo.gestionar", "precios.gestionar",
+    "pedidos.ver", "pedidos.gestionar", "pedidos.repartir", "catalogo.gestionar", "precios.gestionar",
     "promociones.gestionar", "despacho.gestionar", "clientes.ver", "clientes.gestionar",
     "pagos.gestionar", "documentos.gestionar", "puntos.gestionar", "config.gestionar",
   ];
@@ -27,15 +27,18 @@
 
   const puede = (permisos, p) => Array.isArray(permisos) && permisos.includes(p);
 
-  /* Secciones del panel y el permiso que habilita cada una (basta con uno de la lista) */
+  /* Secciones del panel y el permiso que habilita cada una (basta con uno de la lista).
+     soloAdmin: la gestiona solo el rol admin (igual que es_admin() en la base, migración 02). */
   const SECCIONES = [
     { id: "pedidos", txt: "Pedidos", requiere: ["pedidos.ver", "pedidos.gestionar"] },
+    { id: "reparto", txt: "Reparto", requiere: ["pedidos.repartir"] },
     { id: "catalogo", txt: "Catálogo y precios", requiere: ["catalogo.gestionar", "precios.gestionar"] },
     { id: "inventario", txt: "Inventario", requiere: ["catalogo.gestionar"] },
     { id: "cupones", txt: "Cupones", requiere: ["promociones.gestionar"] },
+    { id: "equipo", txt: "Equipo y roles", soloAdmin: true },
   ];
-  const seccionesVisibles = (permisos) =>
-    SECCIONES.filter((s) => s.requiere.some((p) => puede(permisos, p)));
+  const seccionesVisibles = (permisos, rol) =>
+    SECCIONES.filter((s) => s.soloAdmin ? rol === "admin" : s.requiere.some((p) => puede(permisos, p)));
 
   /* ---------- Estados del pedido (enum public.estado_pedido) ---------- */
   const ESTADOS = {
@@ -213,7 +216,10 @@
     else if (nombre.length > 120) e.nombre = "El nombre es muy largo (máximo 120 caracteres).";
     if (!p || !p.categoria_id) e.categoria_id = "Elige una categoría.";
     if (p && p.descripcion && String(p.descripcion).length > 1000) e.descripcion = "La descripción es muy larga (máximo 1.000 caracteres).";
-    if (p && p.imagen_url && !/^https:\/\/\S+$/i.test(String(p.imagen_url).trim())) e.imagen_url = "La imagen debe ser un enlace https://";
+    // Imagen: enlace https:// o nombre de archivo del bucket "productos" (migración 07), ej. bidon-12l-1000.webp
+    const img = p && p.imagen_url ? String(p.imagen_url).trim() : "";
+    if (img && !/^https:\/\/\S+$/i.test(img) && !/^[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)*\.(webp|jpe?g|png)$/i.test(img))
+      e.imagen_url = "Usa un enlace https:// o el nombre del archivo subido a Storage (ej. bidon-12l-1000.webp)";
     return e;
   }
 
@@ -390,6 +396,75 @@
     });
   }
 
+  /* ================= REPARTO (HU-16, HU-17) =================
+     Los pedidos llegan de reparto_del_dia() (migración 02): solo pagados y solo datos de entrega. */
+  const PASO_REPARTO = {
+    en_preparacion: { estado: "en_ruta", txt: "En camino" },
+    en_ruta:        { estado: "entregado", txt: "Entregado" },
+  };
+  const accionReparto = (estado) => PASO_REPARTO[estado] || null;
+
+  /* Orden de trabajo: primero lo que va en camino, luego lo por salir (atrasados primero) y
+     al final lo entregado; dentro de cada estado, por comuna y calle (ruta). Agrupa por comuna. */
+  const PRIORIDAD_REPARTO = { en_ruta: 0, en_preparacion: 1, entregado: 2 };
+  function ordenarReparto(lista) {
+    return (lista || []).slice().sort((a, b) =>
+      (PRIORIDAD_REPARTO[a.estado] ?? 9) - (PRIORIDAD_REPARTO[b.estado] ?? 9) ||
+      (b.atrasado === true) - (a.atrasado === true) ||
+      norm(a.comuna).localeCompare(norm(b.comuna)) ||
+      norm(a.calle).localeCompare(norm(b.calle)) ||
+      (Number(a.numero_pedido) || 0) - (Number(b.numero_pedido) || 0));
+  }
+  function resumenReparto(lista) {
+    const r = { porSalir: 0, enRuta: 0, entregados: 0, atrasados: 0, total: 0 };
+    for (const p of lista || []) {
+      r.total++;
+      if (p.estado === "en_preparacion") r.porSalir++;
+      else if (p.estado === "en_ruta") r.enRuta++;
+      else if (p.estado === "entregado") r.entregados++;
+      if (p.atrasado && p.estado !== "entregado") r.atrasados++;
+    }
+    return r;
+  }
+  function agruparPorComuna(lista) {
+    const grupos = [];
+    for (const p of ordenarReparto(lista)) {
+      const c = p.comuna || "Sin comuna";
+      let g = grupos.find((x) => x.comuna === c);
+      if (!g) grupos.push(g = { comuna: c, pedidos: [] });
+      g.pedidos.push(p);
+    }
+    return grupos;
+  }
+  /* Enlace a Google Maps con la dirección (no se envía nada a Google hasta que el chofer lo abre) */
+  function linkMaps(d) {
+    if (!d || !String(d.calle || "").trim()) return null;
+    const q = [String(d.calle).trim() + " " + String(d.numero || "").trim(), d.comuna, "Chile"].filter(Boolean).join(", ");
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+  }
+  const telLink = (t) => { const d = String(t || "").replace(/\D/g, ""); return /^569\d{8}$/.test(d) ? "tel:+" + d : null; };
+
+  /* ================= EQUIPO Y ROLES (HU-31) =================
+     Mismas reglas que asignar_rol() en el servidor (migración 02): la interfaz avisa antes. */
+  const ROLES_ASIGNABLES = ["chofer", "admin", "cliente"];
+  function validarAsignacion({ yo, persona, rolNuevo, adminsActivos }) {
+    if (!persona || !persona.id) return "Busca primero a la persona por su correo.";
+    if (persona.id === yo) return "No puedes cambiar tu propio rol.";
+    if (!ROLES_ASIGNABLES.includes(rolNuevo)) return "Elige un rol válido.";
+    if (persona.rol === rolNuevo) return "La persona ya tiene ese rol.";
+    if (persona.rol === "admin" && rolNuevo !== "admin" && (Number(adminsActivos) || 0) <= 1)
+      return "Debe quedar al menos un administrador.";
+    return null;
+  }
+  /* Matriz de permisos: filas = permisos, columnas = roles; el admin tiene todos, el cliente ninguno */
+  function matrizPermisos(roles, filasRolPermisos, permisos) {
+    return (permisos || []).map((p) => ({
+      codigo: p.codigo, modulo: p.modulo, descripcion: p.descripcion,
+      roles: Object.fromEntries((roles || []).map((r) => [r.id,
+        r.id === "admin" || (r.id !== "cliente" && (filasRolPermisos || []).some((f) => f.rol_id === r.id && f.permiso === p.codigo))])),
+    }));
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
@@ -398,5 +473,7 @@
     parsePrecio, normalizarSku, validarProducto, validarVariante, filtrarCatalogo,
     UMBRAL_DEFECTO, umbralStock, nivelStock, NIVELES_STOCK, parseStock, sumarStock, resumenStock, filtrarInventario,
     normalizarCodigo, enteroOpcional, estadoCupon, ESTADOS_CUPON, textoDescuento, condicionesCupon, validarCupon, filaCupon, filtrarCupones,
+    accionReparto, ordenarReparto, resumenReparto, agruparPorComuna, linkMaps, telLink,
+    ROLES_ASIGNABLES, validarAsignacion, matrizPermisos,
   };
 })(typeof window !== "undefined" ? window : globalThis);

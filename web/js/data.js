@@ -59,7 +59,7 @@ const HERO_SKU = "BEF-REC-20-BEFINE"; // Recarga Bidón 20 L (protagonista del i
 const SELECT_PRODUCTO =
   "id,categoria_id,nombre,descripcion,imagen_url,activo," +
   "categorias(nombre,slug)," +
-  "variantes_producto(id,producto_id,sku,nombre,atributos,stock,controla_stock,activo," +
+  "variantes_producto(id,producto_id,sku,nombre,atributos,stock,controla_stock,suma_puntos,activo," +
   "precios_variante(nivel_precio_id,precio))";
 
 /* Resuelve el id del nivel de precio "retail" una sola vez (no lo quema). */
@@ -98,6 +98,7 @@ function _armarProducto(p, nivel) {
         stock: v.stock,
         activo: v.activo,
         a_pedido: _esAPedido(v),
+        suma_puntos: !!v.suma_puntos,   // Club Befine (migración 08): recargas con envase Befine
 
         precio: pr ? pr.precio : null,
         precio_comparacion: OFERTAS[v.sku] || null,
@@ -399,7 +400,7 @@ const PROVEEDOR = {
 Befine.proveedor = PROVEEDOR;
 // Versión vigente de los textos legales. Debe coincidir con parametros.terminos_version (migración 06),
 // que es la que queda registrada en cada pedido al aceptar los Términos.
-Befine.legalVersion = "2026-11";
+Befine.legalVersion = "2026-11-07"; // debe coincidir con parametros.terminos_version (migración 08: programa de puntos)
 
 /* ---------- Derecho a retracto por tipo de producto (Ley 19.496 art. 3 bis y Reglamento de exclusiones) ----------
    Compras a distancia: 10 días desde la entrega. Exclusión permitida para bienes de higiene o que
@@ -467,6 +468,17 @@ Befine.siguienteHabil = function (fecha) {
 };
 Befine.horarioReparto = ENTREGA.horario;
 
+/* Foto del producto (migración 07): imagen_url guarda la ruta del archivo grande en el bucket público
+   "productos" (ej. "bidon-12l-1000.webp") o una URL completa. tam "sm" = versión de 400 px (tarjetas,
+   carrito); "lg" = 1000 px (ficha). Devuelve null si no hay foto (la interfaz muestra el degradado). */
+const FOTOS_URL = SUPABASE_URL + "/storage/v1/object/public/productos/";
+Befine.foto = function (imagenUrl, tam = "lg") {
+  const ruta = String(imagenUrl || "").trim();
+  if (!ruta) return null;
+  const url = /^https?:\/\//.test(ruta) ? ruta : FOTOS_URL + ruta.split("/").map(encodeURIComponent).join("/");
+  return tam === "sm" ? url.replace(/-1000\.webp$/, "-400.webp") : url;
+};
+
 /* Texto legal del producto sin stock (el plazo sale de la misma regla que calcula las fechas) */
 Befine.plazoAPedido = function () {
   return `entrega en ${1 + ENTREGA.diasAPedido} a ${2 + ENTREGA.diasAPedido} días hábiles`;
@@ -475,13 +487,73 @@ Befine.plazoAPedido = function () {
 /* Disponibilidad ACTUAL de variantes del carrito (el carrito guarda una foto que puede quedar vieja).
    Devuelve un Set con los id "a pedido", o null si no se pudo consultar (se usa la foto del carrito). */
 Befine.disponibilidad = async function (varianteIds) {
+  const info = await Befine.infoVariantes(varianteIds);
+  return info ? new Set([...info].filter(([, v]) => v.a_pedido).map(([id]) => id)) : null;
+};
+/* Datos ACTUALES de variantes del carrito: Map id → { a_pedido, suma_puntos }, o null si no se pudo consultar. */
+Befine.infoVariantes = async function (varianteIds) {
   const ids = Array.from(new Set(varianteIds || [])).filter(Boolean);
-  if (!ids.length) return new Set();
+  if (!ids.length) return new Map();
   try {
-    const { data, error } = await sb.from("variantes_producto").select("id,stock,controla_stock").in("id", ids);
+    const { data, error } = await sb.from("variantes_producto").select("id,stock,controla_stock,suma_puntos").in("id", ids);
     if (error) return null;
-    return new Set((data || []).filter(_esAPedido).map((v) => v.id));
+    return new Map((data || []).map((v) => [v.id, { a_pedido: _esAPedido(v), suma_puntos: !!v.suma_puntos }]));
   } catch (e) { return null; }
+};
+
+/* =====================================================================
+   Club Befine (migración 08) — el servidor manda: estas reglas solo sirven para
+   MOSTRAR cuántos puntos sumará un pedido antes de pagar. Deben coincidir con
+   parametros (clp_por_punto, club_bono_min_recargas, club_bono_puntos, club_referido_puntos).
+   ===================================================================== */
+const CLUB = { clpPorPunto: 1000, bonoMin: 6, bonoPuntos: 2, referidoPuntos: 10 };
+Befine.club = {
+  reglas: CLUB,
+  /* Puntos de un pedido: lineas = [{ precio, cantidad, suma_puntos }]; descuentoPts = parte del
+     descuento que cae en recargas Befine. → { puntos, base, recargas, bono, faltanBono } */
+  puntosPedido(lineas, descuentoPts = 0) {
+    let base = 0, recargas = 0;
+    for (const l of lineas || []) {
+      if (!l || !l.suma_puntos) continue;
+      const cant = Math.max(0, Math.floor(Number(l.cantidad) || 0));
+      base += (Number(l.precio) || 0) * cant; recargas += cant;
+    }
+    const pagado = Math.max(base - Math.max(0, Number(descuentoPts) || 0), 0);
+    const bono = recargas >= CLUB.bonoMin ? CLUB.bonoPuntos : 0;
+    return { puntos: Math.floor(pagado / CLUB.clpPorPunto) + bono, base, recargas, bono,
+             faltanBono: recargas > 0 && recargas < CLUB.bonoMin ? CLUB.bonoMin - recargas : 0 };
+  },
+  async estado() {
+    try {
+      const { data, error } = await sb.rpc("club_estado");
+      return error ? { ok: false, error: "No pudimos cargar tus puntos." } : { ok: true, ...data };
+    } catch (e) { return { ok: false, error: "Sin conexión. Revisa tu internet." }; }
+  },
+  async canjear(codigo) {
+    try {
+      const { data, error } = await sb.rpc("canjear_recompensa", { p_codigo: codigo });
+      return error ? { ok: false, error: _msgPedido(error) } : { ok: true, ...data };
+    } catch (e) { return { ok: false, error: "Sin conexión. Revisa tu internet." }; }
+  },
+  async registrarReferido(codigo) {
+    try {
+      const { data, error } = await sb.rpc("registrar_referido", { p_codigo: codigo });
+      return error ? { ok: false, error: "No pudimos registrar la invitación." } : data;
+    } catch (e) { return { ok: false, error: "Sin conexión." }; }
+  },
+  /* Trae un amigo: el enlace trae ?ref=BEFxxxxx; se guarda en este navegador hasta que el
+     invitado tenga cuenta (cuenta.js / checkout.js lo registran en el servidor). */
+  REF_RE: /^BEF[0-9A-F]{5}$/,
+  guardarRef(search) {
+    const c = String(new URLSearchParams(search || "").get("ref") || "").trim().toUpperCase();
+    if (!this.REF_RE.test(c)) return null;
+    try { localStorage.setItem("befine_ref", c); } catch (e) {}
+    return c;
+  },
+  refPendiente() {
+    try { const c = localStorage.getItem("befine_ref"); return c && this.REF_RE.test(c) ? c : null; } catch (e) { return null; }
+  },
+  olvidarRef() { try { localStorage.removeItem("befine_ref"); } catch (e) {} },
 };
 Befine.isoFecha = _iso;
 
@@ -532,7 +604,7 @@ Befine.crearPedido = async function (payload) {
       ...payload,
       id: data.id, numero: data.numero, estado: data.estado,
       subtotal: data.subtotal, costo_despacho: data.costo_despacho, descuento_cupon: data.descuento_cupon,
-      total: data.total, puntos_ganados: data.puntos_ganados,
+      total: data.total, puntos_ganados: data.puntos_ganados, es_canje: !!data.es_canje,
       entrega: { ...(payload.entrega || {}), fecha: data.fecha_entrega || (payload.entrega && payload.entrega.fecha) },
       created_at: new Date().toISOString(),
     };
@@ -569,6 +641,7 @@ Befine.revisarCupon = async function (codigo, items) {
    4. El estado 'pagado' lo pone SOLO el servidor (webhook `mp-webhook` → confirmar_pago());
       la tienda solo lo consulta con Befine.estadoPedido(). */
 const PAGO_FN = "crear-pago";
+const CORREO_FN = "enviar-correo";   // confirmación de compra por correo (HU-10)
 const PAGO_VUELTAS = ["ok", "pendiente", "error"];
 const PAGO_HOSTS = /^https:\/\/([a-z0-9-]+\.)*mercadopago\.(cl|com)\//i;   // solo se redirige a Mercado Pago
 const ESTADOS_PAGADOS = ["pagado", "en_preparacion", "en_ruta", "entregado"];
@@ -610,6 +683,19 @@ Befine.pagar = async function (pedido) {
     console.error("pagar:", e);
     return { ok: false, error: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
   }
+};
+
+/* Pide el correo de confirmación de compra de un pedido pagado (o canje de $0). El servidor lo
+   envía UNA sola vez (idempotente) y solo para pedidos del propio cliente; normalmente ya lo
+   envió mp-webhook, así que esto es un respaldo. Nunca bloquea la interfaz: { ok, enviado }. */
+Befine.enviarCorreo = async function (pedidoId) {
+  const id = String(pedidoId || "");
+  if (!UUID_RE.test(id)) return { ok: false };
+  try {
+    const { data, error } = await sb.functions.invoke(CORREO_FN, { body: { pedido_id: id } });
+    if (error) { console.warn("enviarCorreo:", error.message || error); return { ok: false }; }
+    return { ok: true, enviado: !!(data && data.enviado) };
+  } catch (e) { return { ok: false }; }
 };
 
 /* Lee la vuelta desde Mercado Pago (?pago=ok|pendiente|error&pedido=<uuid>).
@@ -739,7 +825,8 @@ Befine.armarRepeticion = function (items, variantes, nivel) {
     if (!v || !v.activo || !prod || !prod.activo || !pr) { noDisponibles.push(nombre); continue; }
     const cantidad = Math.max(1, Math.round(Number(it.cantidad) || 1));
     agregar.push({
-      item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio },
+      item: { variante_id: v.id, producto_id: prod.id, nombre: prod.nombre, variante: v.nombre, precio: pr.precio,
+              foto: Befine.foto(prod.imagen_url, "sm"), suma_puntos: !!v.suma_puntos },
       cantidad,
       categoria_slug: (prod.categorias && prod.categorias.slug) || null,
     });
@@ -754,7 +841,7 @@ Befine.volverAPedir = async function (items) {
   try {
     const nivel = await _nivelRetail();
     const { data, error } = await sb.from("variantes_producto")
-      .select("id,nombre,activo,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,categorias(slug))")
+      .select("id,nombre,activo,suma_puntos,precios_variante(nivel_precio_id,precio),productos(id,nombre,activo,imagen_url,categorias(slug))")
       .in("id", ids);
     if (error) { console.error("volverAPedir:", error.message); return { ok: false, error: "No pudimos revisar los productos. Inténtalo de nuevo." }; }
     return { ok: true, ...Befine.armarRepeticion(items, data, nivel) };
@@ -766,3 +853,5 @@ Befine.volverAPedir = async function (items) {
 
 // Exponer en window para que las páginas lo usen sin bundler (igual que antes).
 window.Befine = Befine;
+// Trae un amigo: guarda la invitación (?ref=) si se llega desde un enlace de un cliente
+try { Befine.club.guardarRef(window.location && window.location.search); } catch (e) {}

@@ -2,30 +2,19 @@
 
 Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla su requisito, se mueven a `../` (carpeta `migrations/`) y se aplican en Supabase como migración. Cada una tiene su archivo de reversa.
 
-Orden: **01, 01b, 04, 03, 05 y 06 (aplicadas) → 02** (pendiente: se aplica con la vista del chofer).
+Orden: **01, 01b, 04, 03, 05, 06, 07 y 08 (aplicadas) → 02** (escrita y movida a `../`; se aplica con las secciones Reparto y Equipo y roles). Esta carpeta queda vacía de migraciones.
 
 ---
 
-## 02 · Reparto y avisos por WhatsApp — `02_reparto_whatsapp.sql`
+## 07 · Fotos de productos — `../20261106_07_fotos_productos.sql` (aplicada el 06-nov-2026)
 
-**Aplicar cuando:** exista la pantalla del chofer en el frontend.
+Bucket público `productos` (solo imágenes, máx. 2 MB), políticas para que solo el admin (`catalogo.gestionar`) suba o borre, y `productos.imagen_url` con la ruta del archivo grande (`*-1000.webp`). La tienda usa la versión `-400` en tarjetas y carrito. Prueba en seco T01..T05 OK, aplicada y las 20 WebP subidas de `D:\CAPSTONE\Fotos_Befine\web_productos` en Storage → productos.
 
-**Qué agrega**
-- Permiso `pedidos.repartir` (asignado al rol `chofer`).
-- Función `marcar_reparto(pedido, estado)`. Solo permite:
-  - `en_preparacion → en_ruta` (botón **"En camino"**)
-  - `en_ruta → entregado` (botón **"Entregado"**, cierra el ciclo)
-- Cada cambio queda en `historial_pedido` con el chofer y la hora.
-- Devuelve `telefono` (569XXXXXXXX) y `mensaje` listo para WhatsApp.
+---
 
-**Qué hace el frontend**
-```js
-const { data, error } = await sb.rpc("marcar_reparto", { p_pedido: id, p_estado: "en_ruta" }); // o "entregado"
-if (!error) window.open(`https://wa.me/${data.telefono}?text=${encodeURIComponent(data.mensaje)}`);
-```
+## 02 · Reparto, WhatsApp y roles — movida a `../20261110_02_reparto_roles.sql` (10-nov-2026)
 
-**Futuro (API WhatsApp Business):** reemplazar el `window.open` por una Edge Function que envíe `data.mensaje` con la API de Meta. Requiere: verificación del negocio en Meta, número dedicado, plantillas aprobadas ("en camino" y "entregado"), token como secreto en Supabase.
-
+Revisada y ampliada: el chofer pasa de `pedidos.ver` (veía todos los pedidos) a `pedidos.repartir` y ve solo los pedidos **pagados** de una fecha con `reparto_del_dia()`; `marcar_reparto()` y `aviso_reparto()` devuelven el teléfono y el mensaje para WhatsApp; `equipo()`, `buscar_usuario()` y `asignar_rol()` (solo admin, auditado en `cambios_rol`). Prueba en seco `../20261110_02_prueba_en_seco.sql` (T01..T13). Se aplica junto con las secciones Reparto y Equipo y roles del panel.
 ---
 
 ## Aplicadas el 05-nov-2026: 03 y 05

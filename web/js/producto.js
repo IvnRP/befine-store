@@ -13,15 +13,21 @@
 
     const grad = window.catGrad(p.categoria_slug);
     // Sin stock no se deja de vender: se informa antes de comprar y se aplaza la entrega (HU v2.4)
+    // Club Befine: solo las recargas con envase Befine suman puntos
+    const R = Befine.club.reglas;
+    const clubHTML = `<b>★ Suma puntos Club Befine</b> · 1 punto por cada ${Befine.clp(R.clpPorPunto)} · ${R.bonoMin} o más recargas: +${R.bonoPuntos} de bono. <a href="terminos.html#puntos">Ver premios</a>`;
     const stockHTML = (v) => v.a_pedido
       ? `<b>Disponible a pedido</b> · ${Befine.plazoAPedido()}`
       : "Despacho en tu zona · entrega en 24 a 48 h hábiles";
     let variante = p.variantes[0]; // seleccionada
+    const foto = Befine.foto(p.imagen_url, "lg"), fotoSm = Befine.foto(p.imagen_url, "sm");
 
     document.title = p.nombre + " · Befine Store";
 
     cont.innerHTML = `
-      <div class="media" style="--v-grad:${grad}"></div>
+      <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `
+        <img class="foto-prod" src="${foto}" srcset="${fotoSm} 400w, ${foto} 1000w" sizes="(max-width: 860px) 100vw, 560px"
+             alt="${p.nombre.replace(/"/g, "&quot;")}" width="1000" height="1000" fetchpriority="high" decoding="async">` : ""}</div>
       <div class="buybox">
         <div class="breadcrumb"><a href="index.html">Inicio</a> / <a href="catalogo.html?cat=${p.categoria_slug}">${p.categoria}</a></div>
         <h1>${p.nombre}</h1>
@@ -46,6 +52,7 @@
           <button class="btn btn-primary" id="fBuy">Comprar ahora</button>
         </div>
         <p class="stock${variante.a_pedido ? " a-pedido" : ""}" id="fStock" aria-live="polite">${stockHTML(variante)}</p>
+        <p class="club-ficha" id="fClub"${variante.suma_puntos ? "" : " hidden"}>${clubHTML}</p>
         ${(() => { const r = Befine.retractoDe(p.categoria_slug); return `
         <aside class="retracto" aria-label="Derecho a retracto">
           <p class="tit">${r.titulo}</p>
@@ -64,6 +71,7 @@
       const st = document.getElementById("fStock");
       st.innerHTML = stockHTML(variante);
       st.classList.toggle("a-pedido", !!variante.a_pedido);
+      document.getElementById("fClub").hidden = !variante.suma_puntos;
       precioEl.innerHTML = (variante.precio_comparacion ? `<span class="oferta">Oferta</span> ` : "") + Befine.clp(variante.precio) + (variante.precio_comparacion ? ` <s>${Befine.clp(variante.precio_comparacion)}</s>` : "");
     });
 
@@ -75,7 +83,7 @@
     // Agregar al carrito / Comprar ahora
     const itemDe = () => ({
       variante_id: variante.id, producto_id: p.id, nombre: p.nombre,
-      variante: variante.nombre, precio: variante.precio, grad, a_pedido: !!variante.a_pedido,
+      variante: variante.nombre, precio: variante.precio, grad, foto: fotoSm, a_pedido: !!variante.a_pedido, suma_puntos: !!variante.suma_puntos,
     });
     document.getElementById("fAdd").onclick = () => {
       Store.add(itemDe(), +cant.value);

@@ -79,7 +79,7 @@ body.fx-off .cur-dot, body.fx-off .cur-ring { display: none; }
 .qorder h3 { font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 0 0 6px; letter-spacing: -.01em; }
 .qorder .price { margin-bottom: 6px; }
 .qorder .price .now { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--accent-soft); }
-.qorder .price s { color: var(--celeste); opacity: .65; font-size: .62em; margin-left: 6px; }
+.qorder .price s { color: var(--muted); font-size: .62em; margin-left: 6px; } /* precio anterior legible (Ley 19.496: informar el precio de referencia de la oferta) */
 /* Aviso destacado: aceptamos envases de otras marcas
    Una sola línea, mayúsculas. Día: celeste. Noche: azul nocturno.
    Bordes luminosos, sin sombra/halo exterior. */
@@ -223,3 +223,9 @@ body.tema-claro .rev-card { color: #fff; }
   .qorder .actions { margin-top: 12px; }
   .qorder .verdet { margin-top: 10px; }
 }
+
+/* Con foto real (migración 07): la foto va a la izquierda del nombre y el precio. Una foto cuadrada
+   en una franja ancha y baja se veía diminuta; así se ve grande y la tarjeta no crece en altura. */
+.qorder .qhead.con-foto-head { display: grid; grid-template-columns: clamp(110px, 32%, 150px) 1fr; gap: 16px; align-items: center; margin-bottom: 4px; }
+.qorder .qhead.con-foto-head .media { height: auto; aspect-ratio: 1; margin: 0; }
+.qorder .qhead.con-foto-head .foto-prod { padding: 2px; }

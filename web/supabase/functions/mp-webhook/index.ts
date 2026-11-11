@@ -4,6 +4,7 @@
 // Recibe las notificaciones de pago de Mercado Pago y, si el pago está
 // aprobado, confirma el pedido con confirmar_pago() (migración 03):
 // pendiente_pago → pagado → en_preparacion, descuenta stock y suma puntos.
+// Después pide a enviar-correo la confirmación de compra por correo (HU-10).
 //
 // Seguridad:
 //  - Nunca se confía en el cuerpo de la notificación: el pago se CONSULTA
@@ -107,5 +108,19 @@ Deno.serve(async (req) => {
     return ok({ error: "No se pudo confirmar el pago" }, 500); // MP reintentará
   }
   if (data && data.ok === false) console.warn("confirmar_pago no aplicado", pedidoId, data);
+
+  // 3. Correo de confirmación de compra (HU-10, exigido por ley). Es idempotente: si Mercado
+  //    Pago repite el aviso, no se duplica. Un fallo del correo NO hace fallar el webhook
+  //    (el pago ya quedó confirmado); la tienda lo vuelve a intentar al mostrar el pedido.
+  if (data && (data.ok === true || data.repetido)) {
+    try {
+      const rc = await fetch(`${SUPABASE_URL}/functions/v1/enviar-correo`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ pedido_id: pedidoId }),
+      });
+      if (!rc.ok) console.warn("enviar-correo", rc.status, await rc.text());
+    } catch (e) { console.warn("enviar-correo", e); }
+  }
   return ok({ ok: true, pedido: pedidoId, resultado: data });
 });

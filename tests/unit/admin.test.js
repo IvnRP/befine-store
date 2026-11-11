@@ -8,7 +8,7 @@ const { AdminLogic: L } = cargar(["admin-logic.js"]);
 const arr = (x) => Array.from(x);   // los arreglos vienen del contexto aislado
 
 test("CP-U14a el admin tiene todos los permisos y el cliente ninguno", () => {
-  assert.equal(L.permisosDe("admin", []).length, 12);
+  assert.equal(L.permisosDe("admin", []).length, 13);   // 12 de la migración 01 + pedidos.repartir (02)
   assert.deepEqual(arr(L.permisosDe("cliente", [{ rol_id: "cliente", permiso: "pedidos.ver" }])), []);
   assert.deepEqual(arr(L.permisosDe(null, [])), []);
 });
@@ -24,7 +24,7 @@ test("CP-U14b un rol del equipo solo tiene los permisos que el admin le asignó"
 
 test("CP-U14c el panel muestra solo las secciones permitidas", () => {
   const ids = (p) => arr(L.seccionesVisibles(p)).map((s) => s.id);
-  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "catalogo", "inventario", "cupones"]);
+  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "reparto", "catalogo", "inventario", "cupones"]);
   assert.deepEqual(ids(["promociones.gestionar"]), ["cupones"]);
   assert.deepEqual(ids(["pedidos.ver"]), ["pedidos"]);
   assert.deepEqual(ids(["precios.gestionar"]), ["catalogo"]);   // solo precios: entra al catálogo
@@ -112,11 +112,16 @@ test("CP-U16b SKU normalizado y único entre todas las variantes", () => {
   assert.ok(L.validarVariante({ sku: "BEF-NUEVO", nombre: "Estándar", precio: "abc" }, [], null).precio);
 });
 
-test("CP-U16c producto: nombre, categoría e imagen https obligatoria si se informa", () => {
+test("CP-U16c producto: nombre, categoría e imagen (https o archivo de Storage) si se informa", () => {
   assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Recarga 20 L", categoria_id: 4 })), []);
   const e = L.validarProducto({ nombre: "ab", categoria_id: "", imagen_url: "http://sitio.cl/a.png" });
   assert.ok(e.nombre && e.categoria_id && e.imagen_url);
   assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Pack", categoria_id: 1, imagen_url: "https://x.supabase.co/a.webp" })), []);
+  // archivo del bucket "productos" (migración 07); sin rutas que salgan del bucket ni formatos que no son imagen
+  assert.deepEqual(Object.keys(L.validarProducto({ nombre: "Pack", categoria_id: 1, imagen_url: "bidon-12l-1000.webp" })), []);
+  for (const malo of ["../secreto.webp", "foto.pdf", "javascript:alert(1)", "a b.webp"]) {
+    assert.ok(L.validarProducto({ nombre: "Pack", categoria_id: 1, imagen_url: malo }).imagen_url, malo);
+  }
 });
 
 test("CP-U16d filtro del catálogo por categoría, visibilidad y SKU", () => {

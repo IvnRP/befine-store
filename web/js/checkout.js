@@ -21,6 +21,7 @@
   // Productos "a pedido" (sin stock): disponibilidad ACTUAL por variante (id -> true/false). No frenan la
   // venta; se informan antes de pagar y aplazan la entrega (Reglamento de Comercio Electrónico, HU v2.4).
   const aPedido = new Map();
+  const sumaPts = new Map();   // Club Befine: id variante → suma puntos (dato actual del servidor)
   let conAPedido = false, revisandoStock = Promise.resolve();
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -69,6 +70,16 @@
     $("coCuponQuitar").addEventListener("click", () => quitarCupon());
 
     form.addEventListener("submit", (e) => { e.preventDefault(); pagar(); });
+
+    // Premio del Club Befine: "Usar en mi pedido" llega con ?cupon=CLUB-XXXXXX
+    const cuponUrl = String(new URLSearchParams(location.search).get("cupon") || "").trim().toUpperCase();
+    if (/^[A-Z0-9-]{3,30}$/.test(cuponUrl) && Store.items().length) {
+      $("coCuponAbrir").hidden = true; $("coCuponForm").hidden = false; $("coCuponInp").value = cuponUrl;
+      aplicarCupon(cuponUrl);
+    }
+    // Trae un amigo: un cliente con cuenta que llegó invitado registra la invitación antes de pagar
+    const ref = Befine.club.refPendiente();
+    if (sesion && ref) Befine.club.registrarReferido(ref).then(() => Befine.club.olvidarRef());
   });
 
   // Al volver con "Atrás" desde Mercado Pago, el navegador restaura la página tal como quedó
@@ -107,7 +118,7 @@
   }
 
   function pintarEntrega() {
-    $("coFechaStd").textContent = `Llega entre el ${fmtDia(dias.estandar)} y el ${fmtDia(dias.estandarHasta)}, de ${Befine.horarioReparto} h`;
+    $("coFechaStd").textContent = `Llega entre el ${fmtDia(dias.estandar)} y el ${fmtDia(dias.estandarHasta)}, de ${Befine.horarioReparto}\u00a0h`;
     $("coAPedido").hidden = !conAPedido;
     $("coAPedido").innerHTML = `<b>Tu pedido incluye productos disponibles a pedido</b>: ${Befine.plazoAPedido()}. Las fechas ya consideran ese plazo.`;
     fechaAgendada = dias.agendables[0];
@@ -126,8 +137,12 @@
   async function revisarStock(items) {
     const nuevos = items.map((i) => i.variante_id).filter((id) => !aPedido.has(id));
     if (nuevos.length) {
-      const set = await Befine.disponibilidad(nuevos);
-      nuevos.forEach((id) => aPedido.set(id, set ? set.has(id) : !!(items.find((i) => i.variante_id === id) || {}).a_pedido));
+      const info = await Befine.infoVariantes(nuevos);
+      nuevos.forEach((id) => {
+        const foto = items.find((i) => i.variante_id === id) || {}, v = info && info.get(id);
+        aPedido.set(id, v ? v.a_pedido : !!foto.a_pedido);
+        sumaPts.set(id, v ? v.suma_puntos : !!foto.suma_puntos);
+      });
     }
     const hay = Store.items().some((i) => aPedido.get(i.variante_id));
     if (hay !== conAPedido) {
@@ -143,6 +158,25 @@
     const envio = Befine.costoDespacho(cobertura, $("coComuna").value, sub);   // envío gratis según el subtotal (igual que el servidor)
     const desc = cupon ? Math.min(cupon.descuento, sub) : 0;
     return { sub, envio, desc, total: Math.max(sub - desc, 0) + (envio || 0) };
+  }
+
+  /* ================= Club Befine ================= */
+  // Vista previa de los puntos del pedido (el servidor los calcula y los suma al confirmarse el pago).
+  function pintarPuntos(items) {
+    const el = $("coPuntos");
+    const lineas = items.map((i) => ({ precio: i.precio, cantidad: i.cantidad,
+      suma_puntos: sumaPts.has(i.variante_id) ? sumaPts.get(i.variante_id) : !!i.suma_puntos }));
+    const p = Befine.club.puntosPedido(lineas);
+    if (!p.recargas) { el.hidden = true; return; }
+    const R = Befine.club.reglas;
+    const bono = p.faltanBono ? ` Agrega ${p.faltanBono} recarga${p.faltanBono > 1 ? "s" : ""} Befine más y gana <b>+${R.bonoPuntos} de bono</b>.`
+                              : p.bono ? ` (incluye +${p.bono} de bono por ${R.bonoMin} recargas o más)` : "";
+    el.innerHTML = cupon
+      ? `<b>★ Club Befine:</b> sumas puntos por lo que pagas en recargas Befine.${bono}`
+      : sesion
+        ? `<b>★ Con este pedido sumas ${p.puntos} punto${p.puntos === 1 ? "" : "s"} Club Befine</b>${bono}`
+        : `<b>★ Crea tu cuenta al terminar y suma ${p.puntos} punto${p.puntos === 1 ? "" : "s"} Club Befine</b>.${bono}`;
+    el.hidden = false;
   }
 
   /* ================= Cupón ================= */
@@ -200,7 +234,7 @@
 
     $("coItems").innerHTML = items.map((i) => `
       <div class="r-item">
-        <div class="th" style="background:${i.grad || window.catGrad()}"></div>
+        <div class="th${i.foto ? " con-foto" : ""}" style="${window.fondoItem(i)}"></div>
         <div><div class="nm">${esc(i.nombre)}</div>${i.variante && i.variante !== "Estándar" ? `<div class="vr">${esc(i.variante)}</div>` : ""}${aPedido.get(i.variante_id) ? `<div class="ap">Disponible a pedido</div>` : ""}
           <div class="qty" role="group" aria-label="Cantidad de ${esc(i.nombre)}"><button type="button" data-dec="${i.variante_id}" aria-label="Quitar uno">−</button><span>${i.cantidad}</span><button type="button" data-inc="${i.variante_id}" aria-label="Agregar uno">+</button></div></div>
         <div class="pr">${clp(i.precio * i.cantidad)}<button type="button" data-del="${i.variante_id}">Quitar</button></div>
@@ -221,6 +255,7 @@
     env.classList.toggle("gratis", t.envio === 0);
     env.textContent = t.envio === null ? "Elige tu comuna" : t.envio === 0 ? "Gratis" : clp(t.envio);
     $("coTotal").textContent = clp(t.total);
+    pintarPuntos(items);
     $("coBarTotal").textContent = clp(t.total);
     const txtPagar = `Pagar ${clp(t.total)}`;
     if (!enviando) { $("coPagar").textContent = txtPagar; $("coBarPagar").textContent = txtPagar; }
@@ -302,6 +337,13 @@
     const firma = Befine.firmaPedido(payload);
     const pedido = (await pedidoPendiente(payload, firma, btns)) || (await crearPedido(payload, btns));
     if (!pedido) return;
+    // Premio que cubre todo el pedido ($0): el servidor ya lo confirmó; no se pasa por Mercado Pago
+    if (pedido.es_canje || pedido.estado === "en_preparacion") {
+      olvidarPendiente(); btns.forEach((b) => cargando(b, false)); enviando = false;
+      confirmar(pedido, true);
+      Befine.enviarCorreo(pedido.id);   // confirmación por correo (HU-10): un canje no pasa por el webhook
+      return;
+    }
     recordarPendiente(pedido, firma);
     btns.forEach((b) => textoCargando(b, "Conectando con Mercado Pago…"));
     const p = await Befine.pagar(pedido);
@@ -432,6 +474,7 @@
       return;
     }
     const pagado = Befine.pedidoPagado(srv.estado);
+    if (pagado) Befine.enviarCorreo(srv.id);   // respaldo: si el webhook ya lo envió, el servidor no lo repite
     const aviso = v.estado === "pendiente"
       ? "Mercado Pago está procesando tu pago. Tu pedido se confirmará apenas se apruebe."
       : "Recibimos tu pago y lo estamos confirmando con Mercado Pago. Puede tardar unos minutos.";
@@ -483,10 +526,11 @@
         <p class="lead">${pagado
           ? `Gracias${nombre ? ", " + nombre : ""}. Tu pago fue aprobado y ya estamos preparando tu pedido.`
           : esc(aviso || "Estamos confirmando tu pago.")}</p>
+        ${pagado && pedido.contacto && pedido.contacto.email ? `<p class="hint">Te enviamos la confirmación de compra a <b>${esc(pedido.contacto.email)}</b>. Si no la ves, revisa Spam o Promociones.</p>` : ""}
         <dl class="det">
           ${fecha ? `<div><dt>Entrega</dt><dd>${pedido.entrega.tipo === "agendada"
             ? `${fmtDia(fecha)} (agendada)`
-            : `Entre el ${fmtDia(fecha)} y el ${fmtDia(Befine.siguienteHabil(fecha))}`}, de ${Befine.horarioReparto} h</dd></div>` : ""}
+            : `Entre el ${fmtDia(fecha)} y el ${fmtDia(Befine.siguienteHabil(fecha))}`}, de ${Befine.horarioReparto}\u00a0h</dd></div>` : ""}
           ${d ? `<div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>` : ""}
           <div><dt>Documento</dt><dd>${doc.tipo === "factura" ? "Factura" + (doc.razon_social ? " · " + esc(doc.razon_social) : "") : "Boleta electrónica"}</dd></div>
           ${pedido.descuento_cupon ? `<div><dt>Descuento</dt><dd>−${clp(pedido.descuento_cupon)}</dd></div>` : ""}

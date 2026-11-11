@@ -23,6 +23,8 @@
     if (e && e.code === "23514" || low.includes("check constraint")) return "Algún valor no es válido (revisa números negativos o vacíos).";
     if (low.includes("failed to fetch") || low.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
     if (low.includes("jwt") && low.includes("expired")) return "Tu sesión expiró. Vuelve a ingresar.";
+    // Validaciones de las funciones del servidor (raise exception): ya vienen en español
+    if (e && e.code === "P0001" && m) return m;
     return "No pudimos guardar el cambio. Inténtalo de nuevo.";
   }
 
@@ -94,6 +96,50 @@
       if (error) return { ok: false, error: msgAdmin(error) };
       if (!data || !data.length) return { ok: false, error: "No se aplicó: el pedido cambió mientras lo revisabas o no tienes permiso. Se recargó con su estado actual.", recargar: true };
       return { ok: true, estado: data[0].estado };
+    },
+
+    /* ================= REPARTO (HU-16, HU-17 · migración 02) =================
+       El chofer no lee la tabla de pedidos: reparto_del_dia() entrega solo los pagados de la
+       fecha y solo los datos para entregar (Ley 21.719, minimización). */
+    async reparto(fechaIso) {
+      const { data, error } = await sb.rpc("reparto_del_dia", { p_fecha: fechaIso || null });
+      if (error) throw error;
+      return data || [];
+    },
+    /* Marca "En camino" (en_ruta) o "Entregado" → { ok, telefono, mensaje, numero } */
+    async marcarReparto(id, estado) {
+      const { data, error } = await sb.rpc("marcar_reparto", { p_pedido: id, p_estado: estado });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+    async avisoReparto(id) {
+      const { data, error } = await sb.rpc("aviso_reparto", { p_pedido: id });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+
+    /* ================= EQUIPO Y ROLES (HU-31 · migración 02, solo admin) ================= */
+    async equipo() {
+      const { data, error } = await sb.rpc("equipo");
+      if (error) throw error;
+      return data || [];
+    },
+    async buscarUsuario(email) {
+      const { data, error } = await sb.rpc("buscar_usuario", { p_email: String(email || "").trim() });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, persona: data || null };
+    },
+    async asignarRol(perfilId, rol) {
+      const { data, error } = await sb.rpc("asignar_rol", { p_perfil: perfilId, p_rol: rol });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+    /* Roles, permisos y su relación (lectura para toda sesión, RLS migración 01) */
+    async listRoles() {
+      const [r, p, rp] = await Promise.all([
+        sb.from("roles").select("id,nombre,descripcion,es_sistema").order("es_sistema", { ascending: false }),
+        sb.from("permisos").select("codigo,modulo,descripcion").order("modulo"),
+        sb.from("rol_permisos").select("rol_id,permiso"),
+      ]);
+      const err = r.error || p.error || rp.error;
+      if (err) throw err;
+      return { roles: r.data || [], permisos: p.data || [], rolPermisos: rp.data || [] };
     },
 
     /* ================= CATÁLOGO Y PRECIOS (RF-17) ================= */

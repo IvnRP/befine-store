@@ -8,6 +8,7 @@
 (function () {
   const { Val, setError, clearError, autoLimpiar, cargando, GOOGLE_SVG } = window.BefineForms;
   const $ = (id) => document.getElementById(id);
+  const clp = (n) => Befine.clp(n);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const url = new URLSearchParams(location.search);
   // Solo se permite volver a páginas propias (evita redirecciones a otros sitios)
@@ -146,10 +147,86 @@
     // verificar los permisos y el RLS de Supabase bloquea cualquier acción no permitida.
     $("pcAdmin").hidden = !s.rol || s.rol === "cliente";
     $("pcPuntos").textContent = (s.puntos || 0).toLocaleString("es-CL");
+    pintarClub();
     const fila = (k, v) => `<div><dt>${k}</dt><dd>${v ? esc(v) : '<span class="muted">—</span>'}</dd></div>`;
     $("pcDatos").innerHTML = fila("Nombre", [s.nombre, s.apellido].filter(Boolean).join(" ")) + fila("Correo", s.email) + fila("Celular", s.telefono) +
       (s.es_empresa ? fila("Empresa", s.razon_social) + fila("RUT", s.rut) : "");
     pintarPedidos(await Befine.misPedidos());
+  }
+
+  /* ================= Club Befine (HU-19) =================
+     El servidor calcula todo (club_estado / canjear_recompensa); aquí solo se muestra. */
+  const fmtCorta = (iso) => new Date(String(iso).slice(0, 10) + "T12:00:00").toLocaleDateString("es-CL", { day: "numeric", month: "long" });
+  async function pintarClub() {
+    // Llegó invitado por un amigo (?ref=): se registra ahora que tiene cuenta
+    const ref = Befine.club.refPendiente();
+    if (ref) {
+      const r = await Befine.club.registrarReferido(ref);
+      Befine.club.olvidarRef();
+      if (r && r.ok) window.toast(r.mensaje);
+    }
+    const c = await Befine.club.estado();
+    if (!c.ok) { $("pcClubTxt").textContent = c.error; return; }
+    $("pcPuntos").textContent = c.saldo.toLocaleString("es-CL");
+    const R = c.reglas, prem = c.recompensas || [];
+    const sig = prem.find((p) => p.puntos > c.saldo);
+    $("pcClubTxt").innerHTML = sig
+      ? `Te faltan <b>${sig.puntos - c.saldo} puntos</b> para <b>${esc(sig.nombre)}</b>.`
+      : prem.length ? "¡Ya puedes canjear cualquier premio!" : "";
+    const pct = sig ? Math.min(100, Math.round(c.saldo / sig.puntos * 100)) : 100;
+
+    const cup = c.cupon_activo;
+    const cupHTML = cup ? `
+      <div class="club-cupon">
+        <span class="lbl2">Tu premio listo para usar</span>
+        <b>${esc(cup.nombre)}</b>
+        <p>${esc(cup.descripcion || "")}</p>
+        <div class="cod"><code id="pcCupCod">${esc(cup.codigo)}</code><button type="button" class="btn btn-ghost" data-copiar="${esc(cup.codigo)}">Copiar</button></div>
+        <p class="vence">Úsalo antes del ${fmtCorta(cup.vence)}. Se aplica en el pago.</p>
+        <a class="btn btn-primary btn-block" href="${Store.count() ? "checkout.html?cupon=" + encodeURIComponent(cup.codigo) : "catalogo.html?cat=recargas"}">${Store.count() ? "Usar en mi pedido" : "Elegir mis recargas"}</a>
+      </div>` : "";
+
+    const premHTML = prem.map((p) => {
+      const alcanza = c.saldo >= p.puntos;
+      return `<li class="${alcanza ? "ok" : ""}">
+        <span class="pts">${p.puntos}<small>pts</small></span>
+        <div><b>${esc(p.nombre)}</b><small>${esc(p.descripcion || "")}</small></div>
+        <button type="button" class="btn ${alcanza && !cup ? "btn-primary" : "btn-ghost"}" data-canjear="${esc(p.codigo)}" data-pts="${p.puntos}"
+          ${alcanza && !cup && !c.invitado ? "" : "disabled"}>Canjear</button></li>`;
+    }).join("");
+
+    const link = c.codigo_referido ? `${location.origin}/index.html?ref=${c.codigo_referido}` : null;
+    const wa = link ? `https://wa.me/?text=${encodeURIComponent(`Te regalo ${R.referido_puntos} puntos en Agua Befine: crea tu cuenta con mi enlace y gana con tu primera compra ${link}`)}` : null;
+    const movHTML = (c.movimientos || []).map((m) =>
+      `<li><span>${esc(m.descripcion || m.tipo)}<small>${fmtCorta(m.fecha)}</small></span><b class="${m.puntos < 0 ? "neg" : ""}">${m.puntos > 0 ? "+" : ""}${m.puntos}</b></li>`).join("");
+
+    $("pcClubCuerpo").innerHTML = `
+      <div class="club-barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
+      ${cupHTML}
+      <ul class="club-premios">${premHTML}</ul>
+      <p class="hint">1 punto por cada ${clp(R.clp_por_punto)} en recargas con envase Befine · ${R.bono_min_recargas} o más recargas en un pedido: +${R.bono_puntos} de bono. Vencen tras ${R.vencimiento_meses} meses sin compras. <a href="terminos.html#puntos">Condiciones</a></p>
+      ${link ? `<div class="club-amigo">
+        <b>Trae un amigo: ganan ${R.referido_puntos} puntos cada uno</b>
+        <small>Cuando tu amigo cree su cuenta con tu enlace y pague su primer pedido.</small>
+        <div class="cod"><input class="inp" readonly value="${esc(link)}" aria-label="Tu enlace para invitar"><button type="button" class="btn btn-ghost" data-copiar="${esc(link)}">Copiar</button></div>
+        <a class="btn btn-ghost btn-block" href="${wa}" target="_blank" rel="noopener">Invitar por WhatsApp</a>
+      </div>` : ""}
+      ${movHTML ? `<details class="club-mov"><summary>Mis movimientos</summary><ul>${movHTML}</ul></details>` : ""}
+      <a class="btn btn-primary btn-block" href="catalogo.html?cat=recargas">Comprar recargas</a>`;
+
+    $("pcClubCuerpo").onclick = async (e) => {
+      const cp = e.target.closest("[data-copiar]");
+      if (cp) { try { await navigator.clipboard.writeText(cp.dataset.copiar); window.toast("Copiado"); } catch (er) { window.toast(cp.dataset.copiar); } return; }
+      const b = e.target.closest("[data-canjear]");
+      if (!b || b.disabled) return;
+      // Doble confirmación en el mismo botón (sin ventanas emergentes)
+      if (!b.dataset.confirmar) { b.dataset.confirmar = "1"; b.textContent = `¿Canjear por ${b.dataset.pts} pts?`; setTimeout(() => { if (b.isConnected) { delete b.dataset.confirmar; b.textContent = "Canjear"; } }, 4000); return; }
+      cargando(b, true, "Canjeando…");
+      const r = await Befine.club.canjear(b.dataset.canjear);
+      if (!r.ok) { cargando(b, false); delete b.dataset.confirmar; b.textContent = "Canjear"; window.toast(r.error); return; }
+      window.toast(`¡Listo! Tu cupón ${r.codigo} vence el ${fmtCorta(r.vence)}.`);
+      pintarClub();
+    };
   }
 
   /* ================= Mis pedidos (HU-18) =================
