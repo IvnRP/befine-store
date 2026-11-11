@@ -641,6 +641,7 @@ Befine.revisarCupon = async function (codigo, items) {
    4. El estado 'pagado' lo pone SOLO el servidor (webhook `mp-webhook` → confirmar_pago());
       la tienda solo lo consulta con Befine.estadoPedido(). */
 const PAGO_FN = "crear-pago";
+const CORREO_FN = "enviar-correo";   // confirmación de compra por correo (HU-10)
 const PAGO_VUELTAS = ["ok", "pendiente", "error"];
 const PAGO_HOSTS = /^https:\/\/([a-z0-9-]+\.)*mercadopago\.(cl|com)\//i;   // solo se redirige a Mercado Pago
 const ESTADOS_PAGADOS = ["pagado", "en_preparacion", "en_ruta", "entregado"];
@@ -682,6 +683,19 @@ Befine.pagar = async function (pedido) {
     console.error("pagar:", e);
     return { ok: false, error: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
   }
+};
+
+/* Pide el correo de confirmación de compra de un pedido pagado (o canje de $0). El servidor lo
+   envía UNA sola vez (idempotente) y solo para pedidos del propio cliente; normalmente ya lo
+   envió mp-webhook, así que esto es un respaldo. Nunca bloquea la interfaz: { ok, enviado }. */
+Befine.enviarCorreo = async function (pedidoId) {
+  const id = String(pedidoId || "");
+  if (!UUID_RE.test(id)) return { ok: false };
+  try {
+    const { data, error } = await sb.functions.invoke(CORREO_FN, { body: { pedido_id: id } });
+    if (error) { console.warn("enviarCorreo:", error.message || error); return { ok: false }; }
+    return { ok: true, enviado: !!(data && data.enviado) };
+  } catch (e) { return { ok: false }; }
 };
 
 /* Lee la vuelta desde Mercado Pago (?pago=ok|pendiente|error&pedido=<uuid>).

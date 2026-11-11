@@ -341,6 +341,7 @@
     if (pedido.es_canje || pedido.estado === "en_preparacion") {
       olvidarPendiente(); btns.forEach((b) => cargando(b, false)); enviando = false;
       confirmar(pedido, true);
+      Befine.enviarCorreo(pedido.id);   // confirmación por correo (HU-10): un canje no pasa por el webhook
       return;
     }
     recordarPendiente(pedido, firma);
@@ -473,6 +474,7 @@
       return;
     }
     const pagado = Befine.pedidoPagado(srv.estado);
+    if (pagado) Befine.enviarCorreo(srv.id);   // respaldo: si el webhook ya lo envió, el servidor no lo repite
     const aviso = v.estado === "pendiente"
       ? "Mercado Pago está procesando tu pago. Tu pedido se confirmará apenas se apruebe."
       : "Recibimos tu pago y lo estamos confirmando con Mercado Pago. Puede tardar unos minutos.";
@@ -524,6 +526,7 @@
         <p class="lead">${pagado
           ? `Gracias${nombre ? ", " + nombre : ""}. Tu pago fue aprobado y ya estamos preparando tu pedido.`
           : esc(aviso || "Estamos confirmando tu pago.")}</p>
+        ${pagado && pedido.contacto && pedido.contacto.email ? `<p class="hint">Te enviamos la confirmación de compra a <b>${esc(pedido.contacto.email)}</b>. Si no la ves, revisa Spam o Promociones.</p>` : ""}
         <dl class="det">
           ${fecha ? `<div><dt>Entrega</dt><dd>${pedido.entrega.tipo === "agendada"
             ? `${fmtDia(fecha)} (agendada)`
