@@ -36,3 +36,8 @@
 .retracto .tit { font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1.15; margin: 0 0 6px; }
 .retracto p { margin: 0; font-size: 14px; color: var(--ink); line-height: 1.5; }
 .retracto a { text-decoration: underline; font-weight: 700; }
+
+/* Club Befine en la ficha (recargas con envase Befine) */
+.ficha .buybox .club-ficha { font-size: 13px; line-height: 1.45; margin: 8px 0 0; color: var(--ink); }
+.ficha .buybox .club-ficha b { color: var(--accent); }
+.ficha .buybox .club-ficha a { text-decoration: underline; }

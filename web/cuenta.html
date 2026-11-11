@@ -127,11 +127,12 @@
         <button class="btn btn-ghost" id="pcSalir">Cerrar sesión</button>
       </div>
       <div class="pc-grid">
-        <div class="sheet pc-puntos">
-          <span class="lbl">Tus puntos</span>
+        <!-- Club Befine (HU-19, migración 08): saldo, premios, cupón activo y Trae un amigo -->
+        <div class="sheet pc-puntos" id="pcClub" aria-live="polite">
+          <span class="lbl">Club Befine</span>
           <b id="pcPuntos">0</b>
-          <p class="hint">Ganas puntos con cada compra y los canjeas por recargas. <span class="pronto">Próximamente</span></p>
-          <a class="btn btn-primary btn-block" href="catalogo.html">Comprar ahora</a>
+          <p class="hint" id="pcClubTxt">Cargando tus puntos…</p>
+          <div id="pcClubCuerpo"></div>
         </div>
         <div class="sheet pc-datos">
           <h2>Mis datos</h2>

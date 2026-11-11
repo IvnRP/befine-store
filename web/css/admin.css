@@ -347,3 +347,46 @@ button.ad-kpi[aria-pressed="true"] { border-color: var(--ad-brand); box-shadow: 
   .ad-cup .ad-fila-acc { display: flex; } .ad-cup .ad-fila-acc .ad-btn { flex: 1; }
   .ad-seg { grid-template-columns: 1fr; }
 }
+
+/* ================= Reparto (HU-16, HU-17): pensado para el celular del chofer ================= */
+.rp-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 560px) { .rp-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rp-grupo { margin-bottom: 20px; }
+.rp-grupo h2 { font-size: 15px; font-weight: 800; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; color: var(--ad-deep); }
+.rp-grupo h2 span { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--ad-brand-soft); color: var(--ad-brand); }
+.rp-ped { padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid var(--ad-brand); }
+.rp-ped.en_ruta { border-left-color: var(--ad-ruta); }
+.rp-ped.entregado { border-left-color: var(--ad-line-2); opacity: .8; }
+.rp-ped.atrasado { border-left-color: var(--ad-bad); }
+.rp-ped header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.rp-ped header b { font-size: 16px; }
+.rp-nom { margin: 0; font-weight: 700; }
+.rp-dir { margin: 2px 0 0; font-size: 15px; }
+.rp-ref { margin: 4px 0 0; font-size: 13px; color: var(--ad-muted); }
+.rp-items { list-style: none; margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: #F7FAFC; font-size: 14px; display: grid; gap: 2px; }
+.rp-items small { color: var(--ad-muted); }
+.rp-bot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+.rp-bot .rp-paso { margin-left: auto; min-height: 44px; padding: 10px 18px; font-size: 15px; }   /* objetivo táctil grande */
+@media (max-width: 480px) { .rp-bot .rp-paso { flex: 1 1 100%; margin-left: 0; } }
+
+/* ================= Equipo y roles (HU-31) ================= */
+.eq-bloque { padding: 16px 18px; margin-bottom: 16px; }
+.eq-bloque h2 { font-size: 16px; font-weight: 800; margin: 0 0 8px; }
+.eq-ayuda { margin: 0 0 10px; font-size: 13px; color: var(--ad-muted); }
+.eq-buscar { display: flex; gap: 8px; max-width: 520px; }
+.eq-msg { margin: 10px 0 0; font-size: 13.5px; font-weight: 600; }
+.eq-msg.mal { color: var(--ad-bad); }
+.eq-encontrada { margin-top: 12px; padding: 4px 10px; border-radius: 12px; background: var(--ad-brand-soft); }
+.eq-persona { display: grid; grid-template-columns: 1fr auto 170px auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--ad-line); }
+.eq-persona:last-child { border-bottom: 0; }
+.eq-persona b { display: block; } .eq-persona small { display: block; color: var(--ad-muted); font-size: 12.5px; font-weight: 500; }
+.eq-persona .eq-nota { grid-column: span 2; text-align: right; }
+@media (max-width: 640px) { .eq-persona { grid-template-columns: 1fr auto; } .eq-persona select { grid-column: 1; } .eq-persona .eq-nota { grid-column: 1 / -1; text-align: left; } }
+.eq-tabla-wrap { overflow-x: auto; }
+.eq-matriz tbody tr { cursor: default; }
+.eq-matriz td.c { text-align: center; }
+.eq-si { color: var(--ad-ok); font-weight: 800; } .eq-no { color: var(--ad-line-2); }
+@media (max-width: 760px) {   /* la matriz se mantiene como tabla (se desplaza horizontalmente) */
+  .eq-matriz thead { display: table-header-group; }
+  .eq-matriz { display: table; } .eq-matriz tbody { display: table-row-group; } .eq-matriz tr { display: table-row; } .eq-matriz td { display: table-cell; }
+}

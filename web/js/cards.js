@@ -24,7 +24,7 @@
             <span class="price">${desde ? "<small>desde </small>" : ""}${Befine.clp(p.desde_precio)}${p.desde_comparacion ? ` <s>${Befine.clp(p.desde_comparacion)}</s>` : ""}</span>
             <button class="btn btn-primary"
               data-add="${v.id}" data-prod="${p.id}" data-nombre="${p.nombre.replace(/"/g, "&quot;")}"
-              data-variante="${v.nombre}" data-precio="${v.precio}" data-grad="${grad}"${foto ? ` data-foto="${foto}"` : ""}${v.a_pedido ? " data-apedido" : ""}>
+              data-variante="${v.nombre}" data-precio="${v.precio}" data-grad="${grad}"${foto ? ` data-foto="${foto}"` : ""}${v.suma_puntos ? " data-puntos" : ""}${v.a_pedido ? " data-apedido" : ""}>
               ${desde ? "Elegir" : "Comprar"}
             </button>
           </div>
@@ -46,6 +46,7 @@
       precio: Number(btn.dataset.precio),
       grad: btn.dataset.grad,
       foto: btn.dataset.foto || null,
+      suma_puntos: "puntos" in btn.dataset,
       a_pedido: "apedido" in btn.dataset,
     }, 1);
     window.toast("Agregado al carrito: " + btn.dataset.nombre);

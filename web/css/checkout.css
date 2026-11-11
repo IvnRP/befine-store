@@ -42,6 +42,9 @@ body.tema-claro .co-sesion .aviso a.link { color: var(--accent); }
 .r-item .nm { font-weight: 700; font-size: 14px; line-height: 1.25; }
 .r-item .vr { font-size: 12px; color: var(--muted); }
 .r-item .ap { font-size: 12px; font-weight: 600; color: var(--ink); }
+.club-co { font-size: 13px; line-height: 1.45; margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: linear-gradient(180deg, rgba(255,217,138,.28), rgba(242,166,60,.18)); border-left: 3px solid #f2a63c; }
+.club-co b { color: var(--ink); }
+.club-co a { text-decoration: underline; }
 .a-pedido-co { font-size: 13px; line-height: 1.45; margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .r-item .qty { display: inline-flex; align-items: center; gap: 2px; margin-top: 4px; border: 1px solid var(--line); border-radius: 9px; }
 .r-item .qty button { width: 28px; height: 28px; border: 0; background: none; color: var(--ink); font-size: 16px; cursor: pointer; border-radius: 8px; }

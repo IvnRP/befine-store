@@ -21,6 +21,7 @@
   // Productos "a pedido" (sin stock): disponibilidad ACTUAL por variante (id -> true/false). No frenan la
   // venta; se informan antes de pagar y aplazan la entrega (Reglamento de Comercio Electrónico, HU v2.4).
   const aPedido = new Map();
+  const sumaPts = new Map();   // Club Befine: id variante → suma puntos (dato actual del servidor)
   let conAPedido = false, revisandoStock = Promise.resolve();
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -69,6 +70,16 @@
     $("coCuponQuitar").addEventListener("click", () => quitarCupon());
 
     form.addEventListener("submit", (e) => { e.preventDefault(); pagar(); });
+
+    // Premio del Club Befine: "Usar en mi pedido" llega con ?cupon=CLUB-XXXXXX
+    const cuponUrl = String(new URLSearchParams(location.search).get("cupon") || "").trim().toUpperCase();
+    if (/^[A-Z0-9-]{3,30}$/.test(cuponUrl) && Store.items().length) {
+      $("coCuponAbrir").hidden = true; $("coCuponForm").hidden = false; $("coCuponInp").value = cuponUrl;
+      aplicarCupon(cuponUrl);
+    }
+    // Trae un amigo: un cliente con cuenta que llegó invitado registra la invitación antes de pagar
+    const ref = Befine.club.refPendiente();
+    if (sesion && ref) Befine.club.registrarReferido(ref).then(() => Befine.club.olvidarRef());
   });
 
   // Al volver con "Atrás" desde Mercado Pago, el navegador restaura la página tal como quedó
@@ -126,8 +137,12 @@
   async function revisarStock(items) {
     const nuevos = items.map((i) => i.variante_id).filter((id) => !aPedido.has(id));
     if (nuevos.length) {
-      const set = await Befine.disponibilidad(nuevos);
-      nuevos.forEach((id) => aPedido.set(id, set ? set.has(id) : !!(items.find((i) => i.variante_id === id) || {}).a_pedido));
+      const info = await Befine.infoVariantes(nuevos);
+      nuevos.forEach((id) => {
+        const foto = items.find((i) => i.variante_id === id) || {}, v = info && info.get(id);
+        aPedido.set(id, v ? v.a_pedido : !!foto.a_pedido);
+        sumaPts.set(id, v ? v.suma_puntos : !!foto.suma_puntos);
+      });
     }
     const hay = Store.items().some((i) => aPedido.get(i.variante_id));
     if (hay !== conAPedido) {
@@ -143,6 +158,25 @@
     const envio = Befine.costoDespacho(cobertura, $("coComuna").value, sub);   // envío gratis según el subtotal (igual que el servidor)
     const desc = cupon ? Math.min(cupon.descuento, sub) : 0;
     return { sub, envio, desc, total: Math.max(sub - desc, 0) + (envio || 0) };
+  }
+
+  /* ================= Club Befine ================= */
+  // Vista previa de los puntos del pedido (el servidor los calcula y los suma al confirmarse el pago).
+  function pintarPuntos(items) {
+    const el = $("coPuntos");
+    const lineas = items.map((i) => ({ precio: i.precio, cantidad: i.cantidad,
+      suma_puntos: sumaPts.has(i.variante_id) ? sumaPts.get(i.variante_id) : !!i.suma_puntos }));
+    const p = Befine.club.puntosPedido(lineas);
+    if (!p.recargas) { el.hidden = true; return; }
+    const R = Befine.club.reglas;
+    const bono = p.faltanBono ? ` Agrega ${p.faltanBono} recarga${p.faltanBono > 1 ? "s" : ""} Befine más y gana <b>+${R.bonoPuntos} de bono</b>.`
+                              : p.bono ? ` (incluye +${p.bono} de bono por ${R.bonoMin} recargas o más)` : "";
+    el.innerHTML = cupon
+      ? `<b>★ Club Befine:</b> sumas puntos por lo que pagas en recargas Befine.${bono}`
+      : sesion
+        ? `<b>★ Con este pedido sumas ${p.puntos} punto${p.puntos === 1 ? "" : "s"} Club Befine</b>${bono}`
+        : `<b>★ Crea tu cuenta al terminar y suma ${p.puntos} punto${p.puntos === 1 ? "" : "s"} Club Befine</b>.${bono}`;
+    el.hidden = false;
   }
 
   /* ================= Cupón ================= */
@@ -221,6 +255,7 @@
     env.classList.toggle("gratis", t.envio === 0);
     env.textContent = t.envio === null ? "Elige tu comuna" : t.envio === 0 ? "Gratis" : clp(t.envio);
     $("coTotal").textContent = clp(t.total);
+    pintarPuntos(items);
     $("coBarTotal").textContent = clp(t.total);
     const txtPagar = `Pagar ${clp(t.total)}`;
     if (!enviando) { $("coPagar").textContent = txtPagar; $("coBarPagar").textContent = txtPagar; }
@@ -302,6 +337,12 @@
     const firma = Befine.firmaPedido(payload);
     const pedido = (await pedidoPendiente(payload, firma, btns)) || (await crearPedido(payload, btns));
     if (!pedido) return;
+    // Premio que cubre todo el pedido ($0): el servidor ya lo confirmó; no se pasa por Mercado Pago
+    if (pedido.es_canje || pedido.estado === "en_preparacion") {
+      olvidarPendiente(); btns.forEach((b) => cargando(b, false)); enviando = false;
+      confirmar(pedido, true);
+      return;
+    }
     recordarPendiente(pedido, firma);
     btns.forEach((b) => textoCargando(b, "Conectando con Mercado Pago…"));
     const p = await Befine.pagar(pedido);

@@ -82,7 +82,7 @@
       });
       qbox.querySelector("#qMas").onclick = () => qCant.value = (+qCant.value + 1);
       qbox.querySelector("#qMenos").onclick = () => qCant.value = Math.max(1, +qCant.value - 1);
-      const itemDe = () => ({ variante_id: vSel.id, producto_id: prod.id, nombre: prod.nombre, variante: vSel.nombre, precio: vSel.precio, grad, foto });
+      const itemDe = () => ({ variante_id: vSel.id, producto_id: prod.id, nombre: prod.nombre, variante: vSel.nombre, precio: vSel.precio, grad, foto, suma_puntos: !!vSel.suma_puntos });
       qbox.querySelector("#qAdd").onclick = () => { Store.add(itemDe(), +qCant.value); window.toast("Agregado al carrito: " + prod.nombre); };
       qbox.querySelector("#qBuy").onclick = () => { Store.add(itemDe(), +qCant.value); window.openCheckout(); };
     }

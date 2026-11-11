@@ -8,7 +8,7 @@ const { AdminLogic: L } = cargar(["admin-logic.js"]);
 const arr = (x) => Array.from(x);   // los arreglos vienen del contexto aislado
 
 test("CP-U14a el admin tiene todos los permisos y el cliente ninguno", () => {
-  assert.equal(L.permisosDe("admin", []).length, 12);
+  assert.equal(L.permisosDe("admin", []).length, 13);   // 12 de la migración 01 + pedidos.repartir (02)
   assert.deepEqual(arr(L.permisosDe("cliente", [{ rol_id: "cliente", permiso: "pedidos.ver" }])), []);
   assert.deepEqual(arr(L.permisosDe(null, [])), []);
 });
@@ -24,7 +24,7 @@ test("CP-U14b un rol del equipo solo tiene los permisos que el admin le asignó"
 
 test("CP-U14c el panel muestra solo las secciones permitidas", () => {
   const ids = (p) => arr(L.seccionesVisibles(p)).map((s) => s.id);
-  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "catalogo", "inventario", "cupones"]);
+  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "reparto", "catalogo", "inventario", "cupones"]);
   assert.deepEqual(ids(["promociones.gestionar"]), ["cupones"]);
   assert.deepEqual(ids(["pedidos.ver"]), ["pedidos"]);
   assert.deepEqual(ids(["precios.gestionar"]), ["catalogo"]);   // solo precios: entra al catálogo

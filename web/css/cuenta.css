@@ -106,3 +106,33 @@ body.tema-claro .pd-items { background: #f7fbfe; }
 .reqs li { display: inline-flex; align-items: center; gap: 4px; transition: color .2s; }
 .reqs li span { width: 1em; text-align: center; }
 .reqs li.ok { color: #1f9d6b; }
+
+/* ---------- Club Befine (HU-19) ---------- */
+.club-barra { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); overflow: hidden; margin: 10px 0 14px; }
+.club-barra span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ffd98a, #f2a63c); transition: width .6s ease; }
+.club-premios { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.club-premios li { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 14px; }
+.club-premios li.ok { border-color: #f2a63c; background: rgba(255, 217, 138, .16); }
+.club-premios .pts { font-family: var(--font-display); font-weight: 800; font-size: 20px; text-align: center; color: var(--accent); line-height: 1; }
+.club-premios .pts small { display: block; font-size: 10px; font-weight: 700; color: var(--muted); }
+.club-premios b { display: block; font-size: 14px; }
+.club-premios small { display: block; font-size: 12px; color: var(--muted); line-height: 1.35; }
+.club-premios .btn { padding: 8px 12px; font-size: 13px; white-space: nowrap; }
+.club-premios .btn[disabled] { opacity: .5; cursor: not-allowed; }
+.club-cupon { padding: 14px; border-radius: 14px; margin-bottom: 12px; background: linear-gradient(180deg, rgba(255,217,138,.35), rgba(242,166,60,.18)); border: 1px dashed #f2a63c; }
+.club-cupon .lbl2 { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.club-cupon b { display: block; font-size: 16px; margin: 2px 0; }
+.club-cupon p { margin: 0 0 8px; font-size: 13px; }
+.club-cupon .vence { font-size: 12px; color: var(--muted); }
+.club-cupon .cod, .club-amigo .cod { display: flex; gap: 8px; align-items: center; margin: 6px 0 8px; }
+.club-cupon code { flex: 1; font-size: 18px; font-weight: 800; letter-spacing: .06em; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.7); color: #06224A; text-align: center; }
+.club-amigo { margin: 12px 0; padding: 12px; border-radius: 14px; border: 1px solid var(--line); }
+.club-amigo b { display: block; font-size: 14px; }
+.club-amigo small { display: block; font-size: 12px; color: var(--muted); }
+.club-amigo .inp { flex: 1; min-width: 0; font-size: 12px; }
+.club-mov { margin: 8px 0 12px; font-size: 13px; }
+.club-mov summary { cursor: pointer; font-weight: 700; }
+.club-mov ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.club-mov li { display: flex; justify-content: space-between; gap: 10px; }
+.club-mov li small { display: block; color: var(--muted); font-size: 11px; }
+.club-mov li b { color: #1a8a4a; } .club-mov li b.neg { color: #c0392b; }
