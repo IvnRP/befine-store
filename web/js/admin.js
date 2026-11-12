@@ -43,44 +43,44 @@
   /* ---------- Utilidades de interfaz ---------- */
   let toastT;
   function toast(texto, tipo) {
-    const t = $("adToast");
-    t.textContent = texto; t.className = "ad-toast show" + (tipo === "mal" ? " mal" : "");
+    const t = $("pnToast");
+    t.textContent = texto; t.className = "pn-toast show" + (tipo === "mal" ? " mal" : "");
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 3200);
   }
 
   let focoPrevio = null;
   function abrirDetalle(html) {
     focoPrevio = document.activeElement;
-    $("adDrawerIn").innerHTML = `<button class="ad-x" type="button" data-cerrar aria-label="Cerrar">×</button>` + html;
-    $("adDrawer").classList.add("abierto"); $("adDrawer").setAttribute("aria-hidden", "false");
-    $("adVelo").hidden = false; $("adDrawer").focus();
+    $("pnDrawerIn").innerHTML = `<button class="pn-x" type="button" data-cerrar aria-label="Cerrar">×</button>` + html;
+    $("pnDrawer").classList.add("abierto"); $("pnDrawer").setAttribute("aria-hidden", "false");
+    $("pnVelo").hidden = false; $("pnDrawer").focus();
   }
   function cerrarDetalle() {
-    $("adDrawer").classList.remove("abierto"); $("adDrawer").setAttribute("aria-hidden", "true");
-    $("adVelo").hidden = true; if (focoPrevio && focoPrevio.focus) focoPrevio.focus();
+    $("pnDrawer").classList.remove("abierto"); $("pnDrawer").setAttribute("aria-hidden", "true");
+    $("pnVelo").hidden = true; if (focoPrevio && focoPrevio.focus) focoPrevio.focus();
   }
   function abrirModal(html) {
-    $("adModalIn").innerHTML = html; $("adModal").hidden = false;
-    const f = $("adModalIn").querySelector("input, select, textarea, button"); if (f) f.focus();
+    $("pnModalIn").innerHTML = html; $("pnModal").hidden = false;
+    const f = $("pnModalIn").querySelector("input, select, textarea, button"); if (f) f.focus();
   }
-  const cerrarModal = () => { $("adModal").hidden = true; $("adModalIn").innerHTML = ""; };
+  const cerrarModal = () => { $("pnModal").hidden = true; $("pnModalIn").innerHTML = ""; };
 
   /* Confirmación propia (no se usan alert/confirm del navegador) → Promise<boolean> */
   function confirmar(titulo, texto, boton = "Confirmar", peligro = false) {
     return new Promise((ok) => {
-      abrirModal(`<h2>${esc(titulo)}</h2><p style="margin:0 0 16px;color:var(--ad-muted)">${esc(texto)}</p>
-        <div class="ad-form-acc"><button class="ad-btn ghost" type="button" data-r="0">Volver</button>
-        <button class="ad-btn${peligro ? " peligro" : ""}" type="button" data-r="1">${esc(boton)}</button></div>`);
-      $("adModalIn").addEventListener("click", function h(e) {
+      abrirModal(`<h2>${esc(titulo)}</h2><p style="margin:0 0 16px;color:var(--pn-muted)">${esc(texto)}</p>
+        <div class="pn-form-acc"><button class="pn-btn ghost" type="button" data-r="0">Volver</button>
+        <button class="pn-btn${peligro ? " peligro" : ""}" type="button" data-r="1">${esc(boton)}</button></div>`);
+      $("pnModalIn").addEventListener("click", function h(e) {
         const b = e.target.closest("[data-r]"); if (!b) return;
-        $("adModalIn").removeEventListener("click", h); cerrarModal(); ok(b.dataset.r === "1");
+        $("pnModalIn").removeEventListener("click", h); cerrarModal(); ok(b.dataset.r === "1");
       });
     });
   }
 
   /* Bloquea un botón mientras se guarda */
   async function conCarga(btn, fn) {
-    const txt = btn ? btn.innerHTML : ""; if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ad-spin"></span>'; }
+    const txt = btn ? btn.innerHTML : ""; if (btn) { btn.disabled = true; btn.innerHTML = '<span class="pn-spin"></span>'; }
     try { return await fn(); } finally { if (btn) { btn.disabled = false; btn.innerHTML = txt; } }
   }
 
@@ -101,7 +101,7 @@
     if (!visibles.some((s) => s.id === id)) id = visibles[0].id;
     visibles.forEach((s) => {
       const el = $("sec-" + s.id); if (el) el.hidden = s.id !== id;
-      const b = document.querySelector(`.ad-nav [data-sec="${s.id}"]`);
+      const b = document.querySelector(`.pn-nav [data-sec="${s.id}"]`);
       if (b) { if (s.id === id) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); }
     });
     const sec = AdminApp.SECCIONES[id];
@@ -116,14 +116,14 @@
   document.addEventListener("DOMContentLoaded", async () => {
     // Cierre del panel lateral y del modal
     document.addEventListener("click", (e) => {
-      if (e.target.closest("[data-cerrar]") || e.target === $("adVelo")) cerrarDetalle();
-      if (e.target === $("adModal")) cerrarModal();
+      if (e.target.closest("[data-cerrar]") || e.target === $("pnVelo")) cerrarDetalle();
+      if (e.target === $("pnModal")) cerrarModal();
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
-      if (!$("adModal").hidden) cerrarModal(); else if ($("adDrawer").classList.contains("abierto")) cerrarDetalle();
+      if (!$("pnModal").hidden) cerrarModal(); else if ($("pnDrawer").classList.contains("abierto")) cerrarDetalle();
     });
-    $("adSalir").addEventListener("click", async () => { await Befine.auth.salir(); location.href = "index.html"; });
+    $("pnSalir").addEventListener("click", async () => { await Befine.auth.salir(); location.href = "index.html"; });
 
     let ctx;
     try { ctx = await Befine.admin.contexto(); }
@@ -131,22 +131,22 @@
     App.ctx = ctx; App.permisos = ctx.permisos;
 
     if (!ctx.usuario) return mostrarEstado("vSinSesion");
-    $("adSalir").hidden = false;
+    $("pnSalir").hidden = false;
     visibles = L.seccionesVisibles(App.permisos, ctx.perfil && ctx.perfil.rol);
     if (!visibles.length) return mostrarEstado("vSinPermiso");
 
     // Usuario y rol en la barra
     const nombre = (ctx.perfil && ctx.perfil.nombre) || ctx.usuario.email || "";
-    $("adNombre").textContent = nombre.split(" ")[0];
-    $("adAvatar").textContent = (nombre[0] || "B").toUpperCase();
-    $("adRol").textContent = await Befine.admin.nombreRol(ctx.perfil.rol);
-    $("adUser").hidden = false;
+    $("pnNombre").textContent = nombre.split(" ")[0];
+    $("pnAvatar").textContent = (nombre[0] || "B").toUpperCase();
+    $("pnRol").textContent = await Befine.admin.nombreRol(ctx.perfil.rol);
+    $("pnUser").hidden = false;
 
     // Menú y secciones permitidas
-    $("adNav").innerHTML = visibles.map((s) =>
+    $("pnNav").innerHTML = visibles.map((s) =>
       `<button type="button" data-sec="${s.id}">${ICONOS[s.id] || ""}<span>${esc(s.txt)}</span><span class="cnt" id="cnt-${s.id}" hidden></span></button>`).join("");
-    $("adNav").hidden = false;
-    $("adNav").addEventListener("click", (e) => { const b = e.target.closest("[data-sec]"); if (b) ir(b.dataset.sec); });
+    $("pnNav").hidden = false;
+    $("pnNav").addEventListener("click", (e) => { const b = e.target.closest("[data-sec]"); if (b) ir(b.dataset.sec); });
     mostrarEstado(null);
     visibles.forEach((s) => { const sec = AdminApp.SECCIONES[s.id]; if (sec && sec.montar) sec.montar($("sec-" + s.id), App); });
     ir(location.hash.slice(1));

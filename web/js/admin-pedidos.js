@@ -16,31 +16,31 @@
 
   let el, app, lista = [], filtro = { estado: "activos", q: "", entrega: "todas", desde: "", hasta: "" }, cargado = false, timer = null;
 
-  const badge = (e) => `<span class="ad-est ${(L.ESTADOS[e] || {}).tono || ""}">${esc(L.etiquetaEstado(e))}</span>`;
+  const badge = (e) => `<span class="pn-est ${(L.ESTADOS[e] || {}).tono || ""}">${esc(L.etiquetaEstado(e))}</span>`;
   const dir = (d) => d ? `${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", depto " + esc(d.depto) : ""}` : "—";
 
   function montar(seccion, appCtx) {
     el = seccion; app = appCtx;
     el.innerHTML = `
-      <div class="ad-head">
+      <div class="pn-head">
         <div><h1>Pedidos</h1><p>Últimos 90 días · se actualiza cada 2 minutos</p></div>
         <div class="acciones">
-          <label class="ad-buscar">${ICONOS.buscar}<input class="ad-inp" id="pqBuscar" type="search" placeholder="N°, cliente, teléfono o comuna" aria-label="Buscar pedidos"></label>
-          <button class="ad-btn ghost" type="button" id="pqRecargar" title="Actualizar">${ICONOS.recargar}<span>Actualizar</span></button>
+          <label class="pn-buscar">${ICONOS.buscar}<input class="pn-inp" id="pqBuscar" type="search" placeholder="N°, cliente, teléfono o comuna" aria-label="Buscar pedidos"></label>
+          <button class="pn-btn ghost" type="button" id="pqRecargar" title="Actualizar">${ICONOS.recargar}<span>Actualizar</span></button>
         </div>
       </div>
-      <div class="ad-kpis" id="pqKpis"></div>
-      <div class="ad-chips" id="pqChips" role="tablist" aria-label="Filtrar por estado"></div>
-      <div class="ad-entrega">
-        <span class="ad-entrega-tit">Entrega</span>
-        <div class="ad-chips sm" id="pqEntrega" role="tablist" aria-label="Filtrar por fecha de entrega"></div>
-        <div class="ad-rango" id="pqRango" hidden>
-          <label>Desde <input class="ad-inp" type="date" id="pqDesde"></label>
-          <label>Hasta <input class="ad-inp" type="date" id="pqHasta"></label>
+      <div class="pn-kpis" id="pqKpis"></div>
+      <div class="pn-chips" id="pqChips" role="tablist" aria-label="Filtrar por estado"></div>
+      <div class="pn-entrega">
+        <span class="pn-entrega-tit">Entrega</span>
+        <div class="pn-chips sm" id="pqEntrega" role="tablist" aria-label="Filtrar por fecha de entrega"></div>
+        <div class="pn-rango" id="pqRango" hidden>
+          <label>Desde <input class="pn-inp" type="date" id="pqDesde"></label>
+          <label>Hasta <input class="pn-inp" type="date" id="pqHasta"></label>
         </div>
-        <small class="ad-rango-txt" id="pqRangoTxt" aria-live="polite"></small>
+        <small class="pn-rango-txt" id="pqRangoTxt" aria-live="polite"></small>
       </div>
-      <div class="ad-card ad-lista" id="pqLista"><div class="ad-vacio"><span class="ad-spin"></span></div></div>`;
+      <div class="pn-card pn-lista" id="pqLista"><div class="pn-vacio"><span class="pn-spin"></span></div></div>`;
 
     let t;
     el.querySelector("#pqBuscar").addEventListener("input", (e) => {
@@ -66,7 +66,7 @@
       const fila = e.target.closest("[data-id]"); if (fila) abrir(fila.dataset.id);
     });
     // Acciones dentro del panel lateral (cambiar estado)
-    document.getElementById("adDrawerIn").addEventListener("click", async (e) => {
+    document.getElementById("pnDrawerIn").addEventListener("click", async (e) => {
       const b = e.target.closest("[data-estado]"); if (!b) return;
       await cambiar(b, b.dataset.id, b.dataset.de, b.dataset.estado);
     });
@@ -85,7 +85,7 @@
       pintarKpis(); pintarChips(); pintarLista();
     } catch (e) {
       if (!silencioso) {
-        el.querySelector("#pqLista").innerHTML = `<div class="ad-vacio">No pudimos cargar los pedidos. ${esc(A().msg(e))}</div>`;
+        el.querySelector("#pqLista").innerHTML = `<div class="pn-vacio">No pudimos cargar los pedidos. ${esc(A().msg(e))}</div>`;
         UI.toast(A().msg(e), "mal");
       }
     }
@@ -93,7 +93,7 @@
 
   function pintarKpis() {
     const r = L.resumenPedidos(lista);
-    const kpi = (txt, val, sub, tono) => `<div class="ad-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+    const kpi = (txt, val, sub, tono) => `<div class="pn-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
     el.querySelector("#pqKpis").innerHTML =
       kpi("Pedidos de hoy", r.hoy) +
       kpi("Por preparar", r.porPreparar, r.entregaHoy ? `${r.entregaHoy} se entregan hoy` : "pagados sin despachar", r.porPreparar ? "alerta" : "") +
@@ -125,15 +125,15 @@
     if (r) items.sort((a, b) => String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)) || a.numero - b.numero);
     const box = el.querySelector("#pqLista");
     if (!items.length) {
-      box.innerHTML = `<div class="ad-vacio">${lista.length ? "No hay pedidos con este filtro." : "Aún no hay pedidos en los últimos 90 días."}</div>`;
+      box.innerHTML = `<div class="pn-vacio">${lista.length ? "No hay pedidos con este filtro." : "Aún no hay pedidos en los últimos 90 días."}</div>`;
       return;
     }
     box.innerHTML = `
-      <table class="ad-tabla ad-ped">
+      <table class="pn-tabla pn-ped">
         <thead><tr><th>N°</th><th>Fecha</th><th>Cliente</th><th>Comuna</th><th>Entrega</th><th class="num">Total</th><th>Estado</th></tr></thead>
         <tbody>${items.map((p) => `
           <tr data-id="${esc(p.id)}" tabindex="0">
-            <td data-l="N°"><button type="button" class="ad-link">#${esc(p.numero)}</button></td>
+            <td data-l="N°"><button type="button" class="pn-link">#${esc(p.numero)}</button></td>
             <td data-l="Fecha">${fecha(p.created_at, true)}</td>
             <td data-l="Cliente"><b>${esc(p.contacto_nombre || "—")}</b><small>${p.unidades} producto${p.unidades === 1 ? "" : "s"}${p.tipo_documento === "factura" ? " · factura" : ""}</small></td>
             <td data-l="Comuna">${esc((p.direccion && p.direccion.comuna) || "—")}</td>
@@ -147,10 +147,10 @@
 
   /* ---------- Detalle ---------- */
   async function abrir(id) {
-    UI.abrirDetalle(`<div class="ad-vacio"><span class="ad-spin"></span></div>`);
+    UI.abrirDetalle(`<div class="pn-vacio"><span class="pn-spin"></span></div>`);
     let p;
-    try { p = await A().getPedido(id); } catch (e) { return UI.abrirDetalle(`<div class="ad-vacio">${esc(A().msg(e))}</div>`); }
-    if (!p) return UI.abrirDetalle(`<div class="ad-vacio">No encontramos el pedido.</div>`);
+    try { p = await A().getPedido(id); } catch (e) { return UI.abrirDetalle(`<div class="pn-vacio">${esc(A().msg(e))}</div>`); }
+    if (!p) return UI.abrirDetalle(`<div class="pn-vacio">No encontramos el pedido.</div>`);
 
     const nom = (p.contacto_nombre || "").split(" ")[0] || "";
     const wa = L.linkWhatsApp(p.contacto_telefono, `Hola ${nom}, te escribimos de Befine por tu pedido #${p.numero}.`);
@@ -163,33 +163,33 @@
 
     const gestiona = app.puede("pedidos.gestionar");
     const sig = gestiona ? L.siguientesEstados(p.estado) : [];
-    const acciones = sig.map((e) => `<button type="button" class="ad-btn ${e === "cancelado" ? "peligro" : e === "entregado" ? "ok" : ""}"
+    const acciones = sig.map((e) => `<button type="button" class="pn-btn ${e === "cancelado" ? "peligro" : e === "entregado" ? "ok" : ""}"
         data-id="${esc(p.id)}" data-de="${esc(p.estado)}" data-estado="${e}">${esc(L.ACCION_ESTADO[e] || L.etiquetaEstado(e))}</button>`).join("");
     const nota = p.estado === "pendiente_pago"
-      ? `<p class="ad-nota">El pedido pasa a <b>Pagado</b> automáticamente cuando Mercado Pago confirma el pago. Un pedido sin pagar no sale a reparto.</p>` : "";
+      ? `<p class="pn-nota">El pedido pasa a <b>Pagado</b> automáticamente cuando Mercado Pago confirma el pago. Un pedido sin pagar no sale a reparto.</p>` : "";
 
     UI.abrirDetalle(`
-      <div class="ad-det-head"><h2>Pedido #${esc(p.numero)}</h2>${badge(p.estado)}<small>Creado el ${fecha(p.created_at, true)}</small></div>
-      ${acciones || nota ? `<div class="ad-det-acc">${acciones}${nota}</div>` : ""}
+      <div class="pn-det-head"><h2>Pedido #${esc(p.numero)}</h2>${badge(p.estado)}<small>Creado el ${fecha(p.created_at, true)}</small></div>
+      ${acciones || nota ? `<div class="pn-det-acc">${acciones}${nota}</div>` : ""}
 
-      <section class="ad-det"><h3>Cliente</h3>
+      <section class="pn-det"><h3>Cliente</h3>
         <p><b>${esc(p.contacto_nombre || "—")}</b><br>${esc(L.telefonoVisible(p.contacto_telefono))} · ${esc(p.contacto_email || "—")}</p>
-        <div class="ad-det-bot">
-          ${wa ? `<a class="ad-btn sm ok" href="${esc(wa)}" target="_blank" rel="noopener">${ICONOS.whatsapp}WhatsApp</a>` : ""}
-          ${p.contacto_telefono ? `<a class="ad-btn sm ghost" href="tel:+${esc(String(p.contacto_telefono).replace(/\D/g, ""))}">Llamar</a>` : ""}
+        <div class="pn-det-bot">
+          ${wa ? `<a class="pn-btn sm ok" href="${esc(wa)}" target="_blank" rel="noopener">${ICONOS.whatsapp}WhatsApp</a>` : ""}
+          ${p.contacto_telefono ? `<a class="pn-btn sm ghost" href="tel:+${esc(String(p.contacto_telefono).replace(/\D/g, ""))}">Llamar</a>` : ""}
         </div>
       </section>
 
-      <section class="ad-det"><h3>Entrega</h3>
+      <section class="pn-det"><h3>Entrega</h3>
         <p>${dir(p.direccion)}<br>${esc((p.direccion && p.direccion.comuna) || "")}${p.zona && p.zona.nombre !== (p.direccion && p.direccion.comuna) ? ` · zona ${esc(p.zona.nombre)}` : ""}</p>
-        ${p.direccion && p.direccion.referencia ? `<p class="ad-ref">Referencia: ${esc(p.direccion.referencia)}</p>` : ""}
+        ${p.direccion && p.direccion.referencia ? `<p class="pn-ref">Referencia: ${esc(p.direccion.referencia)}</p>` : ""}
         <p>Fecha de entrega: <b>${fecha(p.fecha_entrega)}</b></p>
-        ${p.notas ? `<p class="ad-ref">Nota del cliente: ${esc(p.notas)}</p>` : ""}
+        ${p.notas ? `<p class="pn-ref">Nota del cliente: ${esc(p.notas)}</p>` : ""}
       </section>
 
-      <section class="ad-det"><h3>Productos</h3>
-        <ul class="ad-items">${items || "<li>Sin productos</li>"}</ul>
-        <dl class="ad-tot">
+      <section class="pn-det"><h3>Productos</h3>
+        <ul class="pn-items">${items || "<li>Sin productos</li>"}</ul>
+        <dl class="pn-tot">
           <div><dt>Subtotal</dt><dd>${clp(p.subtotal)}</dd></div>
           <div><dt>Despacho</dt><dd>${p.costo_despacho ? clp(p.costo_despacho) : "Gratis"}</dd></div>
           ${p.descuento_cupon ? `<div><dt>Cupón ${p.cupon ? esc(p.cupon.codigo) : ""}</dt><dd>−${clp(p.descuento_cupon)}</dd></div>` : ""}
@@ -197,13 +197,13 @@
         </dl>
       </section>
 
-      <section class="ad-det"><h3>Documento</h3>
+      <section class="pn-det"><h3>Documento</h3>
         <p>${p.tipo_documento === "factura"
           ? `Factura · RUT ${esc(p.doc_rut)}<br>${esc(p.doc_razon_social)} · ${esc(p.doc_giro)}`
           : "Boleta electrónica"}</p>
       </section>
 
-      <section class="ad-det"><h3>Historial</h3><ol class="ad-hist">${hist || "<li>Sin movimientos</li>"}</ol></section>`);
+      <section class="pn-det"><h3>Historial</h3><ol class="pn-hist">${hist || "<li>Sin movimientos</li>"}</ol></section>`);
   }
 
   async function cambiar(btn, id, de, a) {

@@ -17,52 +17,52 @@
 <body class="page-admin">
 
 <!-- ============ Barra superior ============ -->
-<header class="ad-top">
-  <a class="ad-brand" href="admin.html"><img src="assets/logo-befine.png" alt="Befine"><span>Panel</span></a>
-  <span class="ad-spacer"></span>
-  <div class="ad-user" id="adUser" hidden>
-    <span class="ad-avatar" id="adAvatar">B</span>
-    <span class="ad-who"><b id="adNombre"></b><small id="adRol"></small></span>
+<header class="pn-top">
+  <a class="pn-brand" href="admin.html"><img src="assets/logo-befine.png" alt="Befine"><span>Panel</span></a>
+  <span class="pn-spacer"></span>
+  <div class="pn-user" id="pnUser" hidden>
+    <span class="pn-avatar" id="pnAvatar">B</span>
+    <span class="pn-who"><b id="pnNombre"></b><small id="pnRol"></small></span>
   </div>
-  <a class="ad-btn ghost" href="index.html">Ver tienda</a>
-  <button class="ad-btn ghost" id="adSalir" type="button" hidden>Salir</button>
+  <a class="pn-btn ghost" href="index.html">Ver tienda</a>
+  <button class="pn-btn ghost" id="pnSalir" type="button" hidden>Salir</button>
 </header>
 
-<div class="ad-shell">
+<div class="pn-shell">
   <!-- Navegación por secciones (solo las que el rol puede ver) -->
-  <nav class="ad-nav" id="adNav" aria-label="Secciones del panel" hidden></nav>
+  <nav class="pn-nav" id="pnNav" aria-label="Secciones del panel" hidden></nav>
 
-  <main class="ad-main" id="adMain">
+  <main class="pn-main" id="pnMain">
     <!-- Estados de acceso -->
-    <div class="ad-estado" id="vCarga"><span class="ad-spin"></span> Cargando panel…</div>
+    <div class="pn-estado" id="vCarga"><span class="pn-spin"></span> Cargando panel…</div>
 
-    <section class="ad-estado ad-card" id="vSinSesion" hidden>
+    <section class="pn-estado pn-card" id="vSinSesion" hidden>
       <h1>Panel de administración</h1>
       <p>Ingresa con tu cuenta de Befine para continuar.</p>
-      <a class="ad-btn" href="cuenta.html?volver=admin.html">Ingresar</a>
+      <a class="pn-btn" href="cuenta.html?volver=admin.html">Ingresar</a>
     </section>
 
-    <section class="ad-estado ad-card" id="vSinPermiso" hidden>
+    <section class="pn-estado pn-card" id="vSinPermiso" hidden>
       <h1>Sin acceso al panel</h1>
       <p>Tu cuenta no tiene permisos de administración. Si trabajas en Befine, pide al administrador que te asigne un rol.</p>
-      <a class="ad-btn ghost" href="index.html">Volver a la tienda</a>
+      <a class="pn-btn ghost" href="index.html">Volver a la tienda</a>
     </section>
 
     <!-- Secciones: admin.js las llena según los permisos -->
-    <section class="ad-sec" id="sec-pedidos" hidden></section>
-    <section class="ad-sec" id="sec-catalogo" hidden></section>
-    <section class="ad-sec" id="sec-inventario" hidden></section>
-    <section class="ad-sec" id="sec-cupones" hidden></section>
-    <section class="ad-sec" id="sec-reparto" hidden></section>
-    <section class="ad-sec" id="sec-equipo" hidden></section>
+    <section class="pn-sec" id="sec-pedidos" hidden></section>
+    <section class="pn-sec" id="sec-catalogo" hidden></section>
+    <section class="pn-sec" id="sec-inventario" hidden></section>
+    <section class="pn-sec" id="sec-cupones" hidden></section>
+    <section class="pn-sec" id="sec-reparto" hidden></section>
+    <section class="pn-sec" id="sec-equipo" hidden></section>
   </main>
 </div>
 
 <!-- Panel lateral (detalle) y modal (formularios) reutilizables -->
-<aside class="ad-drawer" id="adDrawer" aria-hidden="true" tabindex="-1"><div class="ad-drawer-in" id="adDrawerIn"></div></aside>
-<div class="ad-velo" id="adVelo" hidden></div>
-<div class="ad-modal" id="adModal" role="dialog" aria-modal="true" hidden><div class="ad-modal-in" id="adModalIn"></div></div>
-<div class="ad-toast" id="adToast" role="status" aria-live="polite"></div>
+<aside class="pn-drawer" id="pnDrawer" aria-hidden="true" tabindex="-1"><div class="pn-drawer-in" id="pnDrawerIn"></div></aside>
+<div class="pn-velo" id="pnVelo" hidden></div>
+<div class="pn-modal" id="pnModal" role="dialog" aria-modal="true" hidden><div class="pn-modal-in" id="pnModalIn"></div></div>
+<div class="pn-toast" id="pnToast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/data.js"></script>

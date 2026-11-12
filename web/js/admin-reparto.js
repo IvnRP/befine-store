@@ -18,25 +18,25 @@
 
   let el, lista = [], dia = "hoy", cargado = false, timer = null;
 
-  const badge = (e) => `<span class="ad-est ${(L.ESTADOS[e] || {}).tono || ""}">${esc(L.etiquetaEstado(e))}</span>`;
+  const badge = (e) => `<span class="pn-est ${(L.ESTADOS[e] || {}).tono || ""}">${esc(L.etiquetaEstado(e))}</span>`;
   const fechaDe = (d) => { const x = new Date(); if (d === "manana") x.setDate(x.getDate() + 1); return L.diaLocal(x); };
   const fmtDia = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
 
   function montar(seccion) {
     el = seccion;
     el.innerHTML = `
-      <div class="ad-head">
+      <div class="pn-head">
         <div><h1>Reparto</h1><p id="rpSub">Pedidos pagados para entregar</p></div>
         <div class="acciones">
-          <div class="ad-chips sm" role="tablist" aria-label="Día de reparto" id="rpDias">
+          <div class="pn-chips sm" role="tablist" aria-label="Día de reparto" id="rpDias">
             <button type="button" role="tab" data-dia="hoy" aria-selected="true">Hoy</button>
             <button type="button" role="tab" data-dia="manana" aria-selected="false">Mañana</button>
           </div>
-          <button class="ad-btn ghost" type="button" id="rpRecargar" title="Actualizar">${ICONOS.recargar}<span>Actualizar</span></button>
+          <button class="pn-btn ghost" type="button" id="rpRecargar" title="Actualizar">${ICONOS.recargar}<span>Actualizar</span></button>
         </div>
       </div>
-      <div class="ad-kpis rp-kpis" id="rpKpis"></div>
-      <div id="rpLista"><div class="ad-vacio"><span class="ad-spin"></span></div></div>`;
+      <div class="pn-kpis rp-kpis" id="rpKpis"></div>
+      <div id="rpLista"><div class="pn-vacio"><span class="pn-spin"></span></div></div>`;
 
     el.querySelector("#rpDias").addEventListener("click", (e) => {
       const b = e.target.closest("[data-dia]"); if (!b || b.dataset.dia === dia) return;
@@ -66,7 +66,7 @@
       pintar();
     } catch (e) {
       if (!silencioso) {
-        el.querySelector("#rpLista").innerHTML = `<div class="ad-vacio ad-card">No pudimos cargar el reparto. ${esc(A().msg(e))}</div>`;
+        el.querySelector("#rpLista").innerHTML = `<div class="pn-vacio pn-card">No pudimos cargar el reparto. ${esc(A().msg(e))}</div>`;
         UI.toast(A().msg(e), "mal");
       }
     }
@@ -74,7 +74,7 @@
 
   function pintar() {
     const r = L.resumenReparto(lista);
-    const kpi = (txt, val, tono) => `<div class="ad-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b></div>`;
+    const kpi = (txt, val, tono) => `<div class="pn-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b></div>`;
     el.querySelector("#rpKpis").innerHTML =
       kpi("Por salir", r.porSalir, r.porSalir ? "alerta" : "") + kpi("En camino", r.enRuta) +
       kpi("Entregados", r.entregados) + (r.atrasados ? kpi("Atrasados", r.atrasados, "alerta") : "");
@@ -82,7 +82,7 @@
     if (cnt) { cnt.textContent = r.porSalir + r.enRuta; cnt.hidden = !(r.porSalir + r.enRuta); }
 
     const box = el.querySelector("#rpLista");
-    if (!lista.length) { box.innerHTML = `<div class="ad-vacio ad-card">No hay pedidos pagados para entregar ${dia === "hoy" ? "hoy" : "mañana"}.</div>`; return; }
+    if (!lista.length) { box.innerHTML = `<div class="pn-vacio pn-card">No hay pedidos pagados para entregar ${dia === "hoy" ? "hoy" : "mañana"}.</div>`; return; }
     box.innerHTML = L.agruparPorComuna(lista).map((g) => `
       <section class="rp-grupo">
         <h2>${esc(g.comuna)} <span>${g.pedidos.length}</span></h2>
@@ -95,11 +95,11 @@
     const maps = L.linkMaps(p), tel = L.telLink(p.telefono);
     const items = (p.items || []).map((i) => `<li><b>${esc(i.cantidad)} ×</b> ${esc(i.producto)}${i.variante ? ` <small>(${esc(i.variante)})</small>` : ""}</li>`).join("");
     return `
-      <article class="ad-card rp-ped ${p.estado}${p.atrasado ? " atrasado" : ""}">
+      <article class="pn-card rp-ped ${p.estado}${p.atrasado ? " atrasado" : ""}">
         <header>
           <b>#${esc(p.numero_pedido)}</b> ${badge(p.estado)}
-          ${p.atrasado && p.estado !== "entregado" ? `<span class="ad-est mal">Atrasado · ${esc(p.fecha_entrega)}</span>` : ""}
-          ${p.es_canje ? `<span class="ad-est info">Premio Club</span>` : ""}
+          ${p.atrasado && p.estado !== "entregado" ? `<span class="pn-est mal">Atrasado · ${esc(p.fecha_entrega)}</span>` : ""}
+          ${p.es_canje ? `<span class="pn-est info">Premio Club</span>` : ""}
         </header>
         <p class="rp-nom">${esc(p.nombre || "Cliente")}</p>
         <p class="rp-dir">${esc(p.calle || "")} ${esc(p.numero || "")}${p.depto ? ", depto " + esc(p.depto) : ""}, ${esc(p.comuna || "")}</p>
@@ -107,10 +107,10 @@
         ${p.notas ? `<p class="rp-ref">Nota: ${esc(p.notas)}</p>` : ""}
         <ul class="rp-items">${items}</ul>
         <div class="rp-bot">
-          ${maps ? `<a class="ad-btn sm ghost" href="${esc(maps)}" target="_blank" rel="noopener">${ICONOS.mapa}Mapa</a>` : ""}
-          ${tel ? `<a class="ad-btn sm ghost" href="${esc(tel)}">${ICONOS.telefono}Llamar</a>` : ""}
-          ${p.estado !== "en_preparacion" ? `<button type="button" class="ad-btn sm ghost" data-rp="avisar" data-id="${esc(p.id)}">${ICONOS.whatsapp}Reenviar aviso</button>` : ""}
-          ${paso ? `<button type="button" class="ad-btn ${paso.estado === "entregado" ? "ok" : ""} rp-paso" data-rp="marcar"
+          ${maps ? `<a class="pn-btn sm ghost" href="${esc(maps)}" target="_blank" rel="noopener">${ICONOS.mapa}Mapa</a>` : ""}
+          ${tel ? `<a class="pn-btn sm ghost" href="${esc(tel)}">${ICONOS.telefono}Llamar</a>` : ""}
+          ${p.estado !== "en_preparacion" ? `<button type="button" class="pn-btn sm ghost" data-rp="avisar" data-id="${esc(p.id)}">${ICONOS.whatsapp}Reenviar aviso</button>` : ""}
+          ${paso ? `<button type="button" class="pn-btn ${paso.estado === "entregado" ? "ok" : ""} rp-paso" data-rp="marcar"
                data-id="${esc(p.id)}" data-num="${esc(p.numero_pedido)}" data-estado="${paso.estado}">${esc(paso.txt)}</button>` : ""}
         </div>
       </article>`;
