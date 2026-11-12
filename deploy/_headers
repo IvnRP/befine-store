@@ -1,0 +1,16 @@
+# Cabeceras del sitio publicado (Cloudflare Pages / Netlify). Mismas reglas que docker/nginx.conf.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Imágenes: caché larga (cambian de nombre cuando cambian)
+/assets/*
+  Cache-Control: public, max-age=2592000
+
+# JS y CSS: el navegador revalida siempre (evita usar una versión antigua tras publicar)
+/js/*
+  Cache-Control: no-cache
+/css/*
+  Cache-Control: no-cache
