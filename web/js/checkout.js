@@ -532,7 +532,7 @@
             ? `${fmtDia(fecha)} (agendada)`
             : `Entre el ${fmtDia(fecha)} y el ${fmtDia(Befine.siguienteHabil(fecha))}`}, de ${Befine.horarioReparto}\u00a0h</dd></div>` : ""}
           ${d ? `<div><dt>Dirección</dt><dd>${esc(d.calle)} ${esc(d.numero)}${d.depto ? ", " + esc(d.depto) : ""}, ${esc(d.comuna)}</dd></div>` : ""}
-          <div><dt>Documento</dt><dd>${doc.tipo === "factura" ? "Factura" + (doc.razon_social ? " · " + esc(doc.razon_social) : "") : "Boleta electrónica"}</dd></div>
+          ${doc.tipo === "factura" ? `<div><dt>Documento</dt><dd>Factura${doc.razon_social ? " · " + esc(doc.razon_social) : ""} (te la enviamos por correo)</dd></div>` : ""}
           ${pedido.descuento_cupon ? `<div><dt>Descuento</dt><dd>−${clp(pedido.descuento_cupon)}</dd></div>` : ""}
           <div><dt>${pagado ? "Total pagado" : "Total"}</dt><dd>${clp(pedido.total)}</dd></div>
         </dl>
@@ -545,7 +545,7 @@
       <div class="sheet crear" id="coCrear">
         <h3>Guarda tus datos en 1 paso</h3>
         <p class="hint">Crea tu cuenta con los datos de esta compra: solo elige una contraseña.</p>
-        <ul class="beneficios"><li>Tu próxima compra en segundos</li><li>Acumula puntos y canjéalos por recargas</li><li>Sigue tus pedidos y descarga tus boletas</li></ul>
+        <ul class="beneficios"><li>Tu próxima compra en segundos</li><li>Acumula puntos y canjéalos por recargas</li><li>Sigue el estado de tus pedidos</li></ul>
         <form class="fila" id="coCrearForm" novalidate>
           <div class="fld"><label for="coClave">Contraseña</label>
             <div class="inp-wrap"><input class="inp" id="coClave" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" minlength="8">
