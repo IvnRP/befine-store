@@ -1,0 +1,52 @@
+# =====================================================================
+# Ping programado a Supabase (SC-04 · optimización de costos)
+# El plan gratuito de Supabase pausa el proyecto tras ~7 días sin uso; si
+# eso pasa, la tienda deja de vender hasta reactivarlo a mano. Este flujo
+# hace una lectura liviana a la base dos veces por semana para mantenerlo
+# activo. Costo: $0 (GitHub Actions gratis en repositorios públicos).
+#
+# - Lee 1 fila de la tabla pública "parametros" con la clave publicable
+#   (la misma de web/js/data.js; es pública y la protege el RLS). No usa
+#   la service_role ni ningún secreto.
+# - Si Supabase no responde (por ejemplo, ya estaba pausado), el flujo
+#   falla y GitHub avisa por correo al dueño del repositorio.
+# - Se puede ejecutar a mano: Actions → "Ping a Supabase" → Run workflow
+#   (y corre una vez en el PR que modifique este archivo, como prueba).
+# - Nota: GitHub desactiva los flujos programados de un repo público tras
+#   60 días sin actividad; si eso ocurre, se reactiva en la misma pestaña.
+# =====================================================================
+name: Ping a Supabase
+
+on:
+  schedule:
+    - cron: "17 12 * * 1,4"   # lunes y jueves 12:17 UTC (≈ 09:17 en Chile)
+  workflow_dispatch:
+  pull_request:                # al proponer un cambio a este archivo, se prueba una vez en el PR
+    paths: [".github/workflows/ping-supabase.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Mantener activa la base
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://tbnevbvvwwzpnowxqyps.supabase.co
+      SUPABASE_KEY: sb_publishable_km2cItCJ9UtuZkh1xNb-Uw_FqqUeUYG
+    steps:
+      - name: Consultar la base (1 fila de parametros)
+        run: |
+          set -euo pipefail
+          codigo=$(curl -sS -o respuesta.json -w "%{http_code}" \
+            --retry 3 --retry-delay 20 --retry-all-errors --max-time 30 \
+            -H "apikey: ${SUPABASE_KEY}" \
+            "${SUPABASE_URL}/rest/v1/parametros?select=clave&limit=1")
+          echo "HTTP ${codigo}"
+          if [ "${codigo}" != "200" ]; then
+            echo "::error::Supabase respondió ${codigo}. Revisa si el proyecto está pausado (supabase.com → proyecto → Restore)."
+            cat respuesta.json || true
+            exit 1
+          fi
+          echo "Supabase activo: $(date -u +'%Y-%m-%d %H:%M UTC')"
