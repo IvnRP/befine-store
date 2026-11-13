@@ -390,3 +390,45 @@ button.pn-kpi[aria-pressed="true"] { border-color: var(--pn-brand); box-shadow: 
   .eq-matriz thead { display: table-header-group; }
   .eq-matriz { display: table; } .eq-matriz tbody { display: table-row-group; } .eq-matriz tr { display: table-row; } .eq-matriz td { display: table-cell; }
 }
+
+/* =====================================================================
+   Clientes (HU-23 · admin-clientes.js)
+   ===================================================================== */
+.cl-ayuda { margin: -4px 0 12px; font-size: 13px; color: var(--pn-muted); }
+.cl-ayuda:empty { display: none; }
+.cl-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: 2px; background: #E9EEF2; color: #3D5363; white-space: nowrap; }
+.cl-tag.inv { background: var(--pn-warn-soft); color: var(--pn-warn); }
+.cl-tag.emp { background: var(--pn-brand-soft); color: var(--pn-brand); }
+.cl-tag.eq  { background: var(--pn-ruta-soft); color: var(--pn-ruta); }
+.cl-tag.blq { background: var(--pn-bad-soft); color: var(--pn-bad); }
+.pn-det-head .cl-tag { margin-left: 0; }
+.cl-movil { display: none; }
+.cl-mas { margin: 0; padding: 12px 14px; font-size: 13px; color: var(--pn-muted); text-align: center; border-top: 1px solid var(--pn-line); }
+.cl-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cl-stats div { padding: 10px 12px; border-radius: 12px; background: #F5F9FC; border: 1px solid var(--pn-line); }
+.cl-stats span { display: block; font-size: 12px; color: var(--pn-muted); font-weight: 600; }
+.cl-stats b { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cl-stats small { display: block; font-size: 12px; color: var(--pn-muted); }
+.cl-lista { list-style: none; margin: 0; padding: 0; }
+.cl-lista li { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 8px 0; border-bottom: 1px dashed var(--pn-line); font-size: 14px; }
+.cl-lista li:last-child { border-bottom: 0; }
+.cl-lista small { color: var(--pn-muted); }
+.cl-lista .cl-der { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cl-pts.mas { color: var(--pn-ok); } .cl-pts.menos { color: var(--pn-bad); }
+.cl-codigo { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; background: var(--pn-brand-soft); color: var(--pn-brand); padding: 1px 7px; border-radius: 8px; }
+.cl-aviso { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.45; }
+.cl-aviso.blq { background: var(--pn-bad-soft); color: var(--pn-bad); }
+.cl-aviso.inv { background: var(--pn-warn-soft); color: var(--pn-warn); }
+.cl-cambios li span { font-size: 13px; }
+@media (max-width: 760px) {
+  .cl-tabla tr { grid-template-columns: 1fr auto; grid-template-areas: "c g" "co p" "u u"; gap: 2px 12px; }
+  .cl-tabla td:nth-child(1) { grid-area: c; min-width: 0; }
+  .cl-tabla td:nth-child(2) { grid-area: co; color: var(--pn-muted); font-size: 13px; }
+  .cl-tabla td:nth-child(3) { grid-area: p; justify-self: end; color: var(--pn-muted); font-size: 13px; }
+  .cl-tabla td:nth-child(4) { grid-area: g; justify-self: end; font-weight: 800; }
+  .cl-tabla td:nth-child(5) { grid-area: u; color: var(--pn-muted); font-size: 12.5px; margin-top: 4px; }
+  .cl-tabla td:nth-child(5)::before { content: "Último pedido: "; }
+  .cl-tabla td:nth-child(5) small { display: inline; margin-left: 4px; }
+  .cl-tabla td:nth-child(6) { display: none; }
+  .cl-movil { display: inline; }
+}

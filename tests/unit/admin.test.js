@@ -24,7 +24,7 @@ test("CP-U14b un rol del equipo solo tiene los permisos que el admin le asignó"
 
 test("CP-U14c el panel muestra solo las secciones permitidas", () => {
   const ids = (p) => arr(L.seccionesVisibles(p)).map((s) => s.id);
-  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "reparto", "catalogo", "inventario", "cupones"]);
+  assert.deepEqual(ids(L.permisosDe("admin", [])), ["pedidos", "reparto", "clientes", "catalogo", "inventario", "cupones"]);
   assert.deepEqual(ids(["promociones.gestionar"]), ["cupones"]);
   assert.deepEqual(ids(["pedidos.ver"]), ["pedidos"]);
   assert.deepEqual(ids(["precios.gestionar"]), ["catalogo"]);   // solo precios: entra al catálogo
