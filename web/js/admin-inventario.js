@@ -18,16 +18,16 @@
   function montar(seccion, appCtx) {
     el = seccion; app = appCtx;
     el.innerHTML = `
-      <div class="ad-head">
+      <div class="pn-head">
         <div><h1>Inventario</h1><p>Stock por variante. Con stock 0 se sigue vendiendo como «Disponible a pedido» (entrega 2 días hábiles más tarde). Para dejar de vender, oculta el producto.</p></div>
         <div class="acciones">
-          <label class="ad-buscar">${ICONOS.buscar}<input class="ad-inp" id="inBuscar" type="search" placeholder="Producto, variante o SKU" aria-label="Buscar en inventario"></label>
-          <button class="ad-btn ghost" type="button" id="inRecargar">${ICONOS.recargar}<span>Actualizar</span></button>
+          <label class="pn-buscar">${ICONOS.buscar}<input class="pn-inp" id="inBuscar" type="search" placeholder="Producto, variante o SKU" aria-label="Buscar en inventario"></label>
+          <button class="pn-btn ghost" type="button" id="inRecargar">${ICONOS.recargar}<span>Actualizar</span></button>
         </div>
       </div>
-      <div class="ad-kpis ad-kpis-4" id="inResumen"></div>
-      <p class="ad-umbral" id="inUmbral"></p>
-      <div class="ad-card ad-lista" id="inLista"><div class="ad-vacio"><span class="ad-spin"></span></div></div>`;
+      <div class="pn-kpis pn-kpis-4" id="inResumen"></div>
+      <p class="pn-umbral" id="inUmbral"></p>
+      <div class="pn-card pn-lista" id="inLista"><div class="pn-vacio"><span class="pn-spin"></span></div></div>`;
 
     let t;
     el.querySelector("#inBuscar").addEventListener("input", (e) => { clearTimeout(t); t = setTimeout(() => { filtro.q = e.target.value; pintarLista(); }, 150); });
@@ -56,13 +56,13 @@
       [items, umbral] = await Promise.all([A().listInventario(), A().umbralStock()]);
       pintarResumen(); pintarUmbral(); pintarLista();
     } catch (e) {
-      el.querySelector("#inLista").innerHTML = `<div class="ad-vacio">No pudimos cargar el inventario. ${esc(A().msg(e))}</div>`;
+      el.querySelector("#inLista").innerHTML = `<div class="pn-vacio">No pudimos cargar el inventario. ${esc(A().msg(e))}</div>`;
     }
   }
 
   function pintarResumen() {
     const r = L.resumenStock(items, umbral);
-    const kpi = (n, txt, val, sub, tono) => `<button type="button" class="ad-kpi ${tono}" data-n="${n}" aria-pressed="${filtro.nivel === n}">
+    const kpi = (n, txt, val, sub, tono) => `<button type="button" class="pn-kpi ${tono}" data-n="${n}" aria-pressed="${filtro.nivel === n}">
       <span>${txt}</span><b>${val}</b><small>${sub}</small></button>`;
     el.querySelector("#inResumen").innerHTML =
       kpi("alerta", "Requieren reposición", r.agotado + r.bajo, `${r.agotado} agotada${r.agotado === 1 ? "" : "s"} · ${r.bajo} con stock bajo`, r.agotado + r.bajo ? "alerta" : "") +
@@ -75,31 +75,31 @@
 
   function pintarUmbral() {
     el.querySelector("#inUmbral").innerHTML = `Se considera <b>stock bajo</b> con ${umbral} unidades o menos.` +
-      (app.puede("config.gestionar") ? ` <button type="button" class="ad-link sm" id="inUmbralEd">Cambiar</button>` : "");
+      (app.puede("config.gestionar") ? ` <button type="button" class="pn-link sm" id="inUmbralEd">Cambiar</button>` : "");
   }
 
   function pintarLista() {
     const vs = L.filtrarInventario(items, filtro, umbral);
     const box = el.querySelector("#inLista");
     if (!vs.length) {
-      box.innerHTML = `<div class="ad-vacio">${filtro.nivel === "alerta" && !filtro.q ? "Todo en orden: no hay variantes agotadas ni con stock bajo." : "Nada coincide con el filtro."}</div>`;
+      box.innerHTML = `<div class="pn-vacio">${filtro.nivel === "alerta" && !filtro.q ? "Todo en orden: no hay variantes agotadas ni con stock bajo." : "Nada coincide con el filtro."}</div>`;
       return;
     }
     box.innerHTML = `
-      <table class="ad-tabla ad-inv">
+      <table class="pn-tabla pn-inv">
         <thead><tr><th>Producto</th><th>SKU</th><th>Estado</th><th class="num">Stock</th></tr></thead>
         <tbody>${vs.map((v) => {
           const n = L.nivelStock(v, umbral), nv = L.NIVELES_STOCK[n];
           return `<tr data-id="${esc(v.id)}">
             <td data-l="Producto"><b>${esc(v.producto)}</b><small>${esc(v.nombre)}${v.visible ? "" : " · oculto en tienda"}</small></td>
             <td data-l="SKU"><code>${esc(v.sku)}</code></td>
-            <td data-l="Estado"><span class="ad-est ${nv.tono}">${nv.txt}</span></td>
+            <td data-l="Estado"><span class="pn-est ${nv.tono}">${nv.txt}</span></td>
             <td data-l="Stock" class="num">${v.controla_stock
-              ? `<div class="ad-stock">
-                  <button type="button" class="ad-btn sm ghost" data-d="-1" aria-label="Restar 1">−</button>
-                  <input class="ad-inp" data-stock inputmode="numeric" value="${v.stock}" data-orig="${v.stock}" aria-label="Stock de ${esc(v.producto)} ${esc(v.nombre)}">
-                  <button type="button" class="ad-btn sm ghost" data-d="1" aria-label="Sumar 1">+</button>
-                  <button type="button" class="ad-btn sm" data-guardar hidden>Guardar</button>
+              ? `<div class="pn-stock">
+                  <button type="button" class="pn-btn sm ghost" data-d="-1" aria-label="Restar 1">−</button>
+                  <input class="pn-inp" data-stock inputmode="numeric" value="${v.stock}" data-orig="${v.stock}" aria-label="Stock de ${esc(v.producto)} ${esc(v.nombre)}">
+                  <button type="button" class="pn-btn sm ghost" data-d="1" aria-label="Sumar 1">+</button>
+                  <button type="button" class="pn-btn sm" data-guardar hidden>Guardar</button>
                 </div>`
               : `<span class="muted">—</span>`}</td>
           </tr>`; }).join("")}</tbody>
@@ -129,11 +129,11 @@
   function editarUmbral() {
     UI.abrirModal(`
       <h2>Aviso de stock bajo</h2>
-      <form class="ad-form" id="fUmbral" novalidate>
-        <label class="full">Avisar cuando queden estas unidades o menos<input class="ad-inp" id="fuValor" inputmode="numeric" value="${umbral}"></label>
-        <div class="ad-form-acc"><button class="ad-btn ghost" type="button" data-x>Cancelar</button><button class="ad-btn" type="submit" id="fuOk">Guardar</button></div>
+      <form class="pn-form" id="fUmbral" novalidate>
+        <label class="full">Avisar cuando queden estas unidades o menos<input class="pn-inp" id="fuValor" inputmode="numeric" value="${umbral}"></label>
+        <div class="pn-form-acc"><button class="pn-btn ghost" type="button" data-x>Cancelar</button><button class="pn-btn" type="submit" id="fuOk">Guardar</button></div>
       </form>`);
-    document.querySelector("#adModalIn [data-x]").addEventListener("click", UI.cerrarModal);
+    document.querySelector("#pnModalIn [data-x]").addEventListener("click", UI.cerrarModal);
     document.getElementById("fUmbral").addEventListener("submit", async (e) => {
       e.preventDefault();
       const r = await UI.conCarga(document.getElementById("fuOk"), () => A().guardarUmbral(document.getElementById("fuValor").value));

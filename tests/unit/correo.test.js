@@ -42,7 +42,7 @@ test("CP-U30b los datos del cliente se escapan en el HTML (no se puede inyectar 
   assert.match(c.html, /&lt;b&gt;Calle&lt;\/b&gt;/);
 });
 
-test("CP-U30c canje de $0, descuento y despacho pagado se informan bien; montos en pesos chilenos", () => {
+test("CP-U30c canje de $0, descuento, despacho y documento se informan bien; montos en pesos chilenos", () => {
   const canje = T.armarCorreo(pedido({ es_canje: true, descuento_cupon: 5490, total: 0, puntos_ganados: 0 }), SITIO);
   assert.match(canje.texto, /Canjeaste un premio del Club Befine/);
   assert.match(canje.texto, /Descuento: -\$5\.490/);
@@ -50,6 +50,10 @@ test("CP-U30c canje de $0, descuento y despacho pagado se informan bien; montos 
   const despacho = T.armarCorreo(pedido({ costo_despacho: 2500, total: 22500 }), SITIO);
   assert.match(despacho.texto, /Despacho: \$2\.500/);
   assert.equal(T.clp(1234567), "$1.234.567");
+  // Sin boleta automática (decisión del 12-nov): el correo no promete descargas; la factura se envía por correo
+  assert.match(T.armarCorreo(pedido(), SITIO).texto, /¿Necesitas boleta o factura\? Responde este correo/);
+  assert.ok(!/Mis pedidos\) apenas se emita|Podrás descargarla/.test(T.armarCorreo(pedido(), SITIO).html));
+  assert.match(T.armarCorreo(pedido({ tipo_documento: "factura" }), SITIO).texto, /Pediste factura: te la enviaremos a este correo/);
   assert.equal(T.fechaLarga(null), "por confirmar");
 });
 

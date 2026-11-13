@@ -63,7 +63,11 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
   const base = String(sitio || "").replace(/\/+$/, "");
   const nombre = primerNombre(p.contacto_nombre);
   const dir = textoDireccion(p.direccion);
-  const doc = p.tipo_documento === "factura" ? "Factura electrónica" : "Boleta electrónica";
+  // Sin boleta automática por ahora (decisión del dueño, 12-nov-2026): el cliente la pide si la necesita.
+  const docHtml = p.tipo_documento === "factura"
+    ? "Pediste <b>factura</b>: te la enviaremos a este correo."
+    : "¿Necesitas boleta o factura? Responde este correo y te la enviamos.";
+  const docTexto = docHtml.replace(/<[^>]+>/g, "");
   const asunto = `Befine: confirmación de tu pedido #${p.numero}`;
   const filas = (p.lineas || []).map((l) =>
     `<tr><td style="padding:6px 0">${esc(l.cantidad)} x ${esc(l.producto)}${esc(textoVariante(l))}</td>` +
@@ -99,7 +103,7 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
   ${p.direccion && p.direccion.referencia ? `<p style="margin:4px 0 0;font-size:13px;color:#5F7484">Referencia: ${esc(p.direccion.referencia)}</p>` : ""}
 
   <h2 style="font-size:15px;margin:18px 0 6px">Documento</h2>
-  <p style="margin:0;font-size:14px">${doc}. Podrás descargarla en <a href="${esc(base)}/cuenta.html" style="color:#0B7FC2">Mi cuenta → Mis pedidos</a> apenas se emita.</p>
+  <p style="margin:0;font-size:14px">${docHtml}</p>
 
   <h2 style="font-size:15px;margin:18px 0 6px">Tus derechos</h2>
   <p style="margin:0;font-size:13px;line-height:1.5">${retracto} <a href="${esc(base)}/cambios.html#retracto" style="color:#0B7FC2">Ver condiciones</a>.
@@ -125,7 +129,7 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
     "", "ENTREGA",
     ...(dir ? [dir] : []),
     `Fecha: ${fechaLarga(p.fecha_entrega)}, de ${HORARIO_REPARTO} h (sin hora exacta). En la entrega estándar puede llegar hasta el día hábil siguiente.`,
-    "", "DOCUMENTO", `${doc}: disponible en Mi cuenta → Mis pedidos (${base}/cuenta.html) apenas se emita.`,
+    "", "DOCUMENTO", docTexto,
     "", "TUS DERECHOS", retracto, `Condiciones: ${base}/cambios.html#retracto`,
     `Garantía legal: 6 meses. ${aceptacion.replace(/<[^>]+>/g, "")} Términos: ${base}/terminos.html`,
     "", `¿Dudas? Responde este correo o escríbenos por WhatsApp: https://wa.me/${PROVEEDOR.whatsapp}`,

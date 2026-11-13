@@ -276,11 +276,12 @@
   function htmlDetalle(d) {
     const fila = (k, v, cls) => `<div${cls ? ` class="${cls}"` : ""}><dt>${k}</dt><dd>${v}</dd></div>`;
     const dir = d.direccion;
-    const doc = d.documento === "factura" ? "Factura electrónica" : "Boleta electrónica";
-    const estadoDoc = Befine.estadoDocumento(d);
-    const enlace = estadoDoc === "descargar"
-      ? ` · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
-      : estadoDoc === "en_proceso" ? ` · <span class="pd-proceso">${d.documento === "factura" ? "Factura" : "Boleta"} en proceso</span>` : "";
+    // Documento tributario (decisión del dueño, 12-nov-2026): por ahora sin boleta automática, como en la
+    // tienda anterior. Solo se muestra si el cliente pidió factura o si ya hay un documento emitido (descarga).
+    const descargable = Befine.estadoDocumento(d) === "descargar";
+    const docTxt = descargable
+      ? `${d.documento === "factura" ? "Factura" : "Boleta"} · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
+      : d.documento === "factura" ? "Factura solicitada · te la enviamos por correo" : "";
     return `
       <ul class="pd-items">${d.items.map((i) => `
         <li><span class="nm">${i.cantidad} × ${esc(i.nombre)}${i.variante && i.variante !== "Estándar" ? ` <small>${esc(i.variante)}</small>` : ""}</span>
@@ -295,7 +296,7 @@
       <dl class="pd-info">
         ${d.fecha_entrega ? fila("Entrega", fmtFecha(d.fecha_entrega + "T12:00:00", { weekday: "long", day: "numeric", month: "long" })) : ""}
         ${dir ? fila("Dirección", `${esc(dir.calle)} ${esc(dir.numero || "")}${dir.depto ? ", " + esc(dir.depto) : ""}, ${esc(dir.comuna)}`) : ""}
-        ${fila("Documento", doc + enlace)}
+        ${docTxt ? fila("Documento", docTxt) : ""}
       </dl>
       <div class="pd-acc">
         <button type="button" class="btn btn-primary" data-repetir="${esc(d.id)}">Volver a pedir</button>

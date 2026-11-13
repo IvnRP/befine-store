@@ -11,7 +11,7 @@
   const L = window.AdminLogic;
   const { esc, ICONOS, UI } = window.AdminApp;
   const A = () => Befine.admin;
-  const $m = (sel) => document.querySelector("#adModalIn " + sel);
+  const $m = (sel) => document.querySelector("#pnModalIn " + sel);
 
   let el, app, productos = [], categorias = [], filtro = { categoria: "", q: "", estado: "todos" };
   const puedeCat = () => app.puede("catalogo.gestionar");
@@ -21,18 +21,18 @@
   function montar(seccion, appCtx) {
     el = seccion; app = appCtx;
     el.innerHTML = `
-      <div class="ad-head">
+      <div class="pn-head">
         <div><h1>Catálogo y precios</h1><p>Lo que ves aquí es lo que se publica en la tienda. Los precios rigen desde el próximo pedido.</p></div>
-        <div class="acciones">${puedeCat() ? `<button class="ad-btn" type="button" id="ctNuevo">${ICONOS.mas}Nuevo producto</button>` : ""}</div>
+        <div class="acciones">${puedeCat() ? `<button class="pn-btn" type="button" id="ctNuevo">${ICONOS.mas}Nuevo producto</button>` : ""}</div>
       </div>
-      <div class="ad-filtros">
-        <label class="ad-buscar">${ICONOS.buscar}<input class="ad-inp" id="ctBuscar" type="search" placeholder="Nombre, variante o SKU" aria-label="Buscar en el catálogo"></label>
-        <select class="ad-inp ad-sel" id="ctCat" aria-label="Categoría"><option value="">Todas las categorías</option></select>
-        <select class="ad-inp ad-sel" id="ctEst" aria-label="Visibilidad">
+      <div class="pn-filtros">
+        <label class="pn-buscar">${ICONOS.buscar}<input class="pn-inp" id="ctBuscar" type="search" placeholder="Nombre, variante o SKU" aria-label="Buscar en el catálogo"></label>
+        <select class="pn-inp pn-sel" id="ctCat" aria-label="Categoría"><option value="">Todas las categorías</option></select>
+        <select class="pn-inp pn-sel" id="ctEst" aria-label="Visibilidad">
           <option value="todos">Visibles y ocultos</option><option value="visibles">Solo visibles</option><option value="ocultos">Solo ocultos</option>
         </select>
       </div>
-      <div id="ctLista"><div class="ad-vacio"><span class="ad-spin"></span></div></div>`;
+      <div id="ctLista"><div class="pn-vacio"><span class="pn-spin"></span></div></div>`;
 
     let t;
     el.querySelector("#ctBuscar").addEventListener("input", (e) => { clearTimeout(t); t = setTimeout(() => { filtro.q = e.target.value; pintar(); }, 150); });
@@ -64,40 +64,40 @@
         categorias.map((c) => `<option value="${c.id}"${String(c.id) === filtro.categoria ? " selected" : ""}>${esc(c.nombre)}</option>`).join("");
       pintar();
     } catch (e) {
-      el.querySelector("#ctLista").innerHTML = `<div class="ad-vacio">No pudimos cargar el catálogo. ${esc(A().msg(e))}</div>`;
+      el.querySelector("#ctLista").innerHTML = `<div class="pn-vacio">No pudimos cargar el catálogo. ${esc(A().msg(e))}</div>`;
     }
   }
 
   function pintar() {
     const items = L.filtrarCatalogo(productos, filtro);
     const box = el.querySelector("#ctLista");
-    if (!items.length) { box.innerHTML = `<div class="ad-card ad-vacio">${productos.length ? "Ningún producto coincide con el filtro." : "Aún no hay productos."}</div>`; return; }
+    if (!items.length) { box.innerHTML = `<div class="pn-card pn-vacio">${productos.length ? "Ningún producto coincide con el filtro." : "Aún no hay productos."}</div>`; return; }
     box.innerHTML = items.map((p) => `
-      <article class="ad-card ad-prod${p.activo ? "" : " oculto"}">
+      <article class="pn-card pn-prod${p.activo ? "" : " oculto"}">
         <header>
-          <div class="ad-prod-img">${p.imagen_url ? `<img src="${esc(Befine.foto(p.imagen_url, "sm"))}" alt="" loading="lazy">` : ICONOS.inventario}</div>
-          <div class="ad-prod-t"><h2>${esc(p.nombre)}</h2><small>${esc(p.categoria)} · ${p.variantes.length} variante${p.variantes.length === 1 ? "" : "s"}</small></div>
-          <span class="ad-est ${p.activo ? "ok" : "fin"}">${p.activo ? "Visible en tienda" : "Oculto"}</span>
-          ${puedeCat() ? `<div class="ad-prod-acc">
-            <button class="ad-btn sm ghost" type="button" data-acc="visible" data-p="${esc(p.id)}">${p.activo ? "Ocultar" : "Publicar"}</button>
-            <button class="ad-btn sm ghost" type="button" data-acc="editar" data-p="${esc(p.id)}">Editar</button></div>` : ""}
+          <div class="pn-prod-img">${p.imagen_url ? `<img src="${esc(Befine.foto(p.imagen_url, "sm"))}" alt="" loading="lazy">` : ICONOS.inventario}</div>
+          <div class="pn-prod-t"><h2>${esc(p.nombre)}</h2><small>${esc(p.categoria)} · ${p.variantes.length} variante${p.variantes.length === 1 ? "" : "s"}</small></div>
+          <span class="pn-est ${p.activo ? "ok" : "fin"}">${p.activo ? "Visible en tienda" : "Oculto"}</span>
+          ${puedeCat() ? `<div class="pn-prod-acc">
+            <button class="pn-btn sm ghost" type="button" data-acc="visible" data-p="${esc(p.id)}">${p.activo ? "Ocultar" : "Publicar"}</button>
+            <button class="pn-btn sm ghost" type="button" data-acc="editar" data-p="${esc(p.id)}">Editar</button></div>` : ""}
         </header>
-        <table class="ad-var">
+        <table class="pn-var">
           <thead><tr><th>Variante</th><th>SKU</th><th class="num">Precio venta</th><th class="num">Stock</th><th></th></tr></thead>
           <tbody>${p.variantes.map((v) => `
             <tr class="${v.activo ? "" : "oculto"}">
-              <td data-l="Variante"><b>${esc(v.nombre)}</b>${v.activo ? "" : ' <span class="ad-est fin">Oculta</span>'}</td>
+              <td data-l="Variante"><b>${esc(v.nombre)}</b>${v.activo ? "" : ' <span class="pn-est fin">Oculta</span>'}</td>
               <td data-l="SKU"><code>${esc(v.sku)}</code></td>
               <td data-l="Precio" class="num">${puedePre()
-                ? `<label class="ad-precio"><span>$</span><input class="ad-inp" inputmode="numeric" data-precio data-v="${esc(v.id)}" data-orig="${v.precio == null ? "" : v.precio}"
+                ? `<label class="pn-precio"><span>$</span><input class="pn-inp" inputmode="numeric" data-precio data-v="${esc(v.id)}" data-orig="${v.precio == null ? "" : v.precio}"
                     value="${v.precio == null ? "" : v.precio.toLocaleString("es-CL")}" placeholder="Sin precio" aria-label="Precio de ${esc(p.nombre)} ${esc(v.nombre)}"></label>`
-                : (v.precio == null ? '<span class="ad-falta">Sin precio</span>' : Befine.clp(v.precio))}</td>
+                : (v.precio == null ? '<span class="pn-falta">Sin precio</span>' : Befine.clp(v.precio))}</td>
               <td data-l="Stock" class="num">${v.controla_stock ? v.stock : '<span class="muted">No controla</span>'}</td>
-              <td class="num">${puedeCat() ? `<button class="ad-btn sm ghost" type="button" data-acc="variante" data-p="${esc(p.id)}" data-v="${esc(v.id)}">Editar</button>` : ""}</td>
-            </tr>`).join("") || `<tr><td colspan="5" class="ad-falta">Sin variantes: el producto no se puede comprar.</td></tr>`}
+              <td class="num">${puedeCat() ? `<button class="pn-btn sm ghost" type="button" data-acc="variante" data-p="${esc(p.id)}" data-v="${esc(v.id)}">Editar</button>` : ""}</td>
+            </tr>`).join("") || `<tr><td colspan="5" class="pn-falta">Sin variantes: el producto no se puede comprar.</td></tr>`}
           </tbody>
         </table>
-        ${puedeCat() ? `<button class="ad-btn sm ghost ad-addvar" type="button" data-acc="variante" data-p="${esc(p.id)}">${ICONOS.mas}Agregar variante</button>` : ""}
+        ${puedeCat() ? `<button class="pn-btn sm ghost pn-addvar" type="button" data-acc="variante" data-p="${esc(p.id)}">${ICONOS.mas}Agregar variante</button>` : ""}
       </article>`).join("");
   }
 
@@ -142,19 +142,19 @@
     const nuevo = !p;
     UI.abrirModal(`
       <h2>${nuevo ? "Nuevo producto" : "Editar producto"}</h2>
-      <form class="ad-form" id="fProd" novalidate>
-        <label class="full">Nombre<input class="ad-inp" id="fpNombre" maxlength="120" value="${esc(p ? p.nombre : "")}" placeholder="Ej: Recarga Bidón 20 Litros"><span class="err" data-err="fpNombre"></span></label>
-        <label>Categoría<select class="ad-inp" id="fpCat"><option value="">Elegir…</option>${opcionesCat(p && p.categoria_id)}</select><span class="err" data-err="fpCat"></span></label>
+      <form class="pn-form" id="fProd" novalidate>
+        <label class="full">Nombre<input class="pn-inp" id="fpNombre" maxlength="120" value="${esc(p ? p.nombre : "")}" placeholder="Ej: Recarga Bidón 20 Litros"><span class="err" data-err="fpNombre"></span></label>
+        <label>Categoría<select class="pn-inp" id="fpCat"><option value="">Elegir…</option>${opcionesCat(p && p.categoria_id)}</select><span class="err" data-err="fpCat"></span></label>
         <label class="chk" style="align-self:end"><input type="checkbox" id="fpActivo" ${!p || p.activo ? "checked" : ""}>Visible en la tienda</label>
-        <label class="full">Descripción <small>(opcional)</small><textarea class="ad-inp" id="fpDesc" rows="3" maxlength="1000">${esc(p ? p.descripcion : "")}</textarea><span class="err" data-err="fpDesc"></span></label>
-        <label class="full">Imagen <small>(archivo en Storage → productos, ej. bidon-12l-1000.webp, o enlace https; opcional)</small><input class="ad-inp" id="fpImg" value="${esc(p ? p.imagen_url : "")}" placeholder="bidon-12l-1000.webp"><span class="err" data-err="fpImg"></span></label>
+        <label class="full">Descripción <small>(opcional)</small><textarea class="pn-inp" id="fpDesc" rows="3" maxlength="1000">${esc(p ? p.descripcion : "")}</textarea><span class="err" data-err="fpDesc"></span></label>
+        <label class="full">Imagen <small>(archivo en Storage → productos, ej. bidon-12l-1000.webp, o enlace https; opcional)</small><input class="pn-inp" id="fpImg" value="${esc(p ? p.imagen_url : "")}" placeholder="bidon-12l-1000.webp"><span class="err" data-err="fpImg"></span></label>
         ${nuevo ? `
-        <p class="full ad-sub">Primera variante <small>(puedes agregar más después)</small></p>
-        <label>Variante<input class="ad-inp" id="fvNombre" value="Estándar" maxlength="60"><span class="err" data-err="fvNombre"></span></label>
-        <label>SKU<input class="ad-inp" id="fvSku" placeholder="BEF-…" maxlength="40" autocapitalize="characters"><span class="err" data-err="fvSku"></span></label>
-        <label>Precio de venta<input class="ad-inp" id="fvPrecio" inputmode="numeric" placeholder="Ej: 3.000"><span class="err" data-err="fvPrecio"></span></label>
-        <label>Stock inicial<input class="ad-inp" id="fvStock" type="number" min="0" step="1" value="0"></label>` : ""}
-        <div class="ad-form-acc"><button class="ad-btn ghost" type="button" data-x>Cancelar</button><button class="ad-btn" type="submit" id="fpOk">${nuevo ? "Crear producto" : "Guardar"}</button></div>
+        <p class="full pn-sub">Primera variante <small>(puedes agregar más después)</small></p>
+        <label>Variante<input class="pn-inp" id="fvNombre" value="Estándar" maxlength="60"><span class="err" data-err="fvNombre"></span></label>
+        <label>SKU<input class="pn-inp" id="fvSku" placeholder="BEF-…" maxlength="40" autocapitalize="characters"><span class="err" data-err="fvSku"></span></label>
+        <label>Precio de venta<input class="pn-inp" id="fvPrecio" inputmode="numeric" placeholder="Ej: 3.000"><span class="err" data-err="fvPrecio"></span></label>
+        <label>Stock inicial<input class="pn-inp" id="fvStock" type="number" min="0" step="1" value="0"></label>` : ""}
+        <div class="pn-form-acc"><button class="pn-btn ghost" type="button" data-x>Cancelar</button><button class="pn-btn" type="submit" id="fpOk">${nuevo ? "Crear producto" : "Guardar"}</button></div>
       </form>`);
     $m("[data-x]").addEventListener("click", UI.cerrarModal);
     $m("#fProd").addEventListener("submit", async (e) => {
@@ -181,17 +181,17 @@
     const nueva = !v;
     UI.abrirModal(`
       <h2>${nueva ? "Agregar variante" : "Editar variante"}</h2>
-      <p class="ad-sub" style="margin:-8px 0 14px">${esc(p.nombre)}</p>
-      <form class="ad-form" id="fVar" novalidate>
-        <label>Nombre<input class="ad-inp" id="fvNombre" maxlength="60" value="${esc(v ? v.nombre : "")}" placeholder="Ej: Con bidón Befine"><span class="err" data-err="fvNombre"></span></label>
-        <label>SKU<input class="ad-inp" id="fvSku" maxlength="40" value="${esc(v ? v.sku : "")}" placeholder="BEF-…" autocapitalize="characters"><span class="err" data-err="fvSku"></span></label>
+      <p class="pn-sub" style="margin:-8px 0 14px">${esc(p.nombre)}</p>
+      <form class="pn-form" id="fVar" novalidate>
+        <label>Nombre<input class="pn-inp" id="fvNombre" maxlength="60" value="${esc(v ? v.nombre : "")}" placeholder="Ej: Con bidón Befine"><span class="err" data-err="fvNombre"></span></label>
+        <label>SKU<input class="pn-inp" id="fvSku" maxlength="40" value="${esc(v ? v.sku : "")}" placeholder="BEF-…" autocapitalize="characters"><span class="err" data-err="fvSku"></span></label>
         ${nueva ? `
-        <label>Precio de venta<input class="ad-inp" id="fvPrecio" inputmode="numeric" placeholder="Ej: 3.000"><span class="err" data-err="fvPrecio"></span></label>
-        <label>Stock inicial<input class="ad-inp" id="fvStock" type="number" min="0" step="1" value="0"></label>` : ""}
+        <label>Precio de venta<input class="pn-inp" id="fvPrecio" inputmode="numeric" placeholder="Ej: 3.000"><span class="err" data-err="fvPrecio"></span></label>
+        <label>Stock inicial<input class="pn-inp" id="fvStock" type="number" min="0" step="1" value="0"></label>` : ""}
         <label class="chk"><input type="checkbox" id="fvActivo" ${!v || v.activo ? "checked" : ""}>Disponible para comprar</label>
         <label class="chk"><input type="checkbox" id="fvCtrl" ${!v || v.controla_stock ? "checked" : ""}>Controlar stock</label>
-        ${nueva ? "" : `<p class="full ad-sub">El precio se edita en la lista y el stock en Inventario.</p>`}
-        <div class="ad-form-acc"><button class="ad-btn ghost" type="button" data-x>Cancelar</button><button class="ad-btn" type="submit" id="fvOk">${nueva ? "Agregar" : "Guardar"}</button></div>
+        ${nueva ? "" : `<p class="full pn-sub">El precio se edita en la lista y el stock en Inventario.</p>`}
+        <div class="pn-form-acc"><button class="pn-btn ghost" type="button" data-x>Cancelar</button><button class="pn-btn" type="submit" id="fvOk">${nueva ? "Agregar" : "Guardar"}</button></div>
       </form>`);
     $m("[data-x]").addEventListener("click", UI.cerrarModal);
     $m("#fVar").addEventListener("submit", async (e) => {

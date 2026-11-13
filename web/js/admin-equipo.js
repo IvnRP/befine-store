@@ -26,21 +26,21 @@
   function montar(seccion, appCtx) {
     el = seccion; app = appCtx;
     el.innerHTML = `
-      <div class="ad-head">
+      <div class="pn-head">
         <div><h1>Equipo y roles</h1><p>Quién entra al panel y qué puede hacer. Solo el administrador asigna roles.</p></div>
-        <div class="acciones"><button class="ad-btn ghost" type="button" id="eqRecargar">${ICONOS.recargar}<span>Actualizar</span></button></div>
+        <div class="acciones"><button class="pn-btn ghost" type="button" id="eqRecargar">${ICONOS.recargar}<span>Actualizar</span></button></div>
       </div>
-      <div class="ad-card eq-bloque">
+      <div class="pn-card eq-bloque">
         <h2>Agregar a alguien</h2>
         <p class="eq-ayuda">La persona primero crea su cuenta en la tienda (Mi cuenta → Crear cuenta o con Google). Luego búscala por su correo.</p>
         <form class="eq-buscar" id="eqForm" novalidate>
-          <input class="ad-inp" id="eqEmail" type="email" placeholder="correo@ejemplo.cl" aria-label="Correo de la persona" autocomplete="off">
-          <button class="ad-btn" type="submit" id="eqBuscarBtn">${ICONOS.buscar}<span>Buscar</span></button>
+          <input class="pn-inp" id="eqEmail" type="email" placeholder="correo@ejemplo.cl" aria-label="Correo de la persona" autocomplete="off">
+          <button class="pn-btn" type="submit" id="eqBuscarBtn">${ICONOS.buscar}<span>Buscar</span></button>
         </form>
         <div id="eqResultado" aria-live="polite"></div>
       </div>
-      <div class="ad-card eq-bloque"><h2>Equipo</h2><div id="eqLista"><div class="ad-vacio"><span class="ad-spin"></span></div></div></div>
-      <div class="ad-card eq-bloque"><h2>Permisos de cada rol</h2><div id="eqMatriz"></div></div>`;
+      <div class="pn-card eq-bloque"><h2>Equipo</h2><div id="eqLista"><div class="pn-vacio"><span class="pn-spin"></span></div></div></div>
+      <div class="pn-card eq-bloque"><h2>Permisos de cada rol</h2><div id="eqMatriz"></div></div>`;
 
     el.querySelector("#eqRecargar").addEventListener("click", (e) => UI.conCarga(e.currentTarget, cargar));
     el.querySelector("#eqForm").addEventListener("submit", (e) => { e.preventDefault(); buscar(); });
@@ -58,7 +58,7 @@
       [equipo, catalogo] = await Promise.all([A().equipo(), catalogo || A().listRoles()]);
       cargado = true; pintarEquipo(); pintarMatriz();
     } catch (e) {
-      el.querySelector("#eqLista").innerHTML = `<div class="ad-vacio">No pudimos cargar el equipo. ${esc(A().msg(e))}</div>`;
+      el.querySelector("#eqLista").innerHTML = `<div class="pn-vacio">No pudimos cargar el equipo. ${esc(A().msg(e))}</div>`;
       UI.toast(A().msg(e), "mal");
     }
   }
@@ -67,24 +67,24 @@
     const soyYo = p.id === yo();
     return `<div class="eq-persona">
       <div><b>${esc(p.nombre || "Sin nombre")}${soyYo ? " <small>(tú)</small>" : ""}</b><small>${conEmail ? esc(p.email || "") : ""}</small></div>
-      <span class="ad-est ${p.rol === "admin" ? "info" : p.rol === "chofer" ? "ruta" : "fin"}">${esc(nombreRol(p.rol))}</span>
+      <span class="pn-est ${p.rol === "admin" ? "info" : p.rol === "chofer" ? "ruta" : "fin"}">${esc(nombreRol(p.rol))}</span>
       ${soyYo ? `<small class="eq-nota">No puedes cambiar tu propio rol</small>` : `
-        <select class="ad-inp" data-para="${esc(p.id)}" aria-label="Nuevo rol para ${esc(p.nombre || p.email)}">${opciones(p.rol)}</select>
-        <button type="button" class="ad-btn sm" data-asignar="${esc(p.id)}">Guardar</button>`}
+        <select class="pn-inp" data-para="${esc(p.id)}" aria-label="Nuevo rol para ${esc(p.nombre || p.email)}">${opciones(p.rol)}</select>
+        <button type="button" class="pn-btn sm" data-asignar="${esc(p.id)}">Guardar</button>`}
     </div>`;
   }
 
   function pintarEquipo() {
     el.querySelector("#eqLista").innerHTML = equipo.length
       ? equipo.map((p) => filaPersona(p, true)).join("")
-      : `<div class="ad-vacio">Aún no hay nadie en el equipo.</div>`;
+      : `<div class="pn-vacio">Aún no hay nadie en el equipo.</div>`;
   }
 
   function pintarMatriz() {
     const roles = catalogo.roles.filter((r) => r.id !== "cliente");
     const filas = L.matrizPermisos(roles, catalogo.rolPermisos, catalogo.permisos);
     el.querySelector("#eqMatriz").innerHTML = `
-      <div class="eq-tabla-wrap"><table class="ad-tabla eq-matriz">
+      <div class="eq-tabla-wrap"><table class="pn-tabla eq-matriz">
         <thead><tr><th>Permiso</th>${roles.map((r) => `<th>${esc(r.nombre)}</th>`).join("")}</tr></thead>
         <tbody>${filas.map((f) => `<tr><td><b>${esc(f.modulo)}</b><small>${esc(f.descripcion)}</small></td>
           ${roles.map((r) => `<td class="c">${f.roles[r.id] ? '<span class="eq-si" aria-label="Sí">✓</span>' : '<span class="eq-no" aria-label="No">—</span>'}</td>`).join("")}</tr>`).join("")}

@@ -13,23 +13,23 @@
   const L = window.AdminLogic;
   const { esc, ICONOS, UI, fecha } = window.AdminApp;
   const A = () => Befine.admin;
-  const $m = (sel) => document.querySelector("#adModalIn " + sel);
+  const $m = (sel) => document.querySelector("#pnModalIn " + sel);
 
   let el, cupones = [], productos = [], conReglas = true, filtro = { estado: "todos", q: "" };
 
   function montar(seccion) {
     el = seccion;
     el.innerHTML = `
-      <div class="ad-head">
+      <div class="pn-head">
         <div><h1>Cupones</h1><p>Campañas y cupón de bienvenida. Las reglas se validan al comprar: no se pueden saltar desde el navegador.</p></div>
-        <div class="acciones"><button class="ad-btn" type="button" id="cuNuevo">${ICONOS.mas}Nuevo cupón</button></div>
+        <div class="acciones"><button class="pn-btn" type="button" id="cuNuevo">${ICONOS.mas}Nuevo cupón</button></div>
       </div>
-      <div class="ad-aviso" id="cuAviso" hidden></div>
-      <div class="ad-filtros">
-        <label class="ad-buscar">${ICONOS.buscar}<input class="ad-inp" id="cuBuscar" type="search" placeholder="Código o descripción" aria-label="Buscar cupones"></label>
+      <div class="pn-aviso" id="cuAviso" hidden></div>
+      <div class="pn-filtros">
+        <label class="pn-buscar">${ICONOS.buscar}<input class="pn-inp" id="cuBuscar" type="search" placeholder="Código o descripción" aria-label="Buscar cupones"></label>
       </div>
-      <div class="ad-chips" id="cuChips" role="tablist" aria-label="Filtrar por estado"></div>
-      <div class="ad-card ad-lista" id="cuLista"><div class="ad-vacio"><span class="ad-spin"></span></div></div>`;
+      <div class="pn-chips" id="cuChips" role="tablist" aria-label="Filtrar por estado"></div>
+      <div class="pn-card pn-lista" id="cuLista"><div class="pn-vacio"><span class="pn-spin"></span></div></div>`;
 
     let t;
     el.querySelector("#cuBuscar").addEventListener("input", (e) => { clearTimeout(t); t = setTimeout(() => { filtro.q = e.target.value; pintar(); }, 150); });
@@ -56,7 +56,7 @@
       aviso.innerHTML = conReglas ? "" : `<b>Reglas de bienvenida no disponibles todavía.</b> Falta aplicar en Supabase la migración 04 (RF-20). Mientras tanto puedes crear cupones de campaña con fechas, usos totales, compra mínima y productos.`;
       pintar();
     } catch (e) {
-      el.querySelector("#cuLista").innerHTML = `<div class="ad-vacio">No pudimos cargar los cupones. ${esc(A().msg(e))}</div>`;
+      el.querySelector("#cuLista").innerHTML = `<div class="pn-vacio">No pudimos cargar los cupones. ${esc(A().msg(e))}</div>`;
     }
   }
 
@@ -70,27 +70,27 @@
     const items = L.filtrarCupones(cupones, filtro, hoy);
     const box = el.querySelector("#cuLista");
     if (!items.length) {
-      box.innerHTML = `<div class="ad-vacio">${cupones.length ? "Ningún cupón coincide con el filtro." : "Aún no hay cupones. Crea el primero con «Nuevo cupón»."}</div>`;
+      box.innerHTML = `<div class="pn-vacio">${cupones.length ? "Ningún cupón coincide con el filtro." : "Aún no hay cupones. Crea el primero con «Nuevo cupón»."}</div>`;
       return;
     }
     const vig = (c) => !c.vigente_desde && !c.vigente_hasta ? "Siempre"
       : c.vigente_desde && c.vigente_hasta ? `${fecha(c.vigente_desde)} al ${fecha(c.vigente_hasta)}`
       : c.vigente_desde ? `Desde ${fecha(c.vigente_desde)}` : `Hasta ${fecha(c.vigente_hasta)}`;
     box.innerHTML = `
-      <table class="ad-tabla ad-cup">
+      <table class="pn-tabla pn-cup">
         <thead><tr><th>Código</th><th>Descuento</th><th>Vigencia</th><th>Usos</th><th>Estado</th><th></th></tr></thead>
         <tbody>${items.map((c) => {
           const est = L.ESTADOS_CUPON[L.estadoCupon(c, hoy)];
           const pct = c.usos_maximos ? Math.min(100, Math.round((c.usos_actuales / c.usos_maximos) * 100)) : 0;
           return `<tr>
-            <td data-l="Código"><button type="button" class="ad-codigo" data-acc="copiar" data-id="${esc(c.id)}" title="Copiar código">${esc(c.codigo)}</button>${c.descripcion ? `<small>${esc(c.descripcion)}</small>` : ""}</td>
+            <td data-l="Código"><button type="button" class="pn-codigo" data-acc="copiar" data-id="${esc(c.id)}" title="Copiar código">${esc(c.codigo)}</button>${c.descripcion ? `<small>${esc(c.descripcion)}</small>` : ""}</td>
             <td data-l="Descuento"><b>${esc(L.textoDescuento(c))}</b><small>${esc(L.condicionesCupon(c).join(" · ") || "sin condiciones")}</small></td>
             <td data-l="Vigencia">${vig(c)}</td>
-            <td data-l="Usos">${c.usos_actuales}${c.usos_maximos ? ` de ${c.usos_maximos}<span class="ad-barra"><span style="width:${pct}%"></span></span>` : ""}</td>
-            <td data-l="Estado"><span class="ad-est ${est.tono}">${est.txt}</span></td>
-            <td class="num"><div class="ad-fila-acc">
-              <button class="ad-btn sm ghost" type="button" data-acc="activar" data-id="${esc(c.id)}">${c.activo ? "Pausar" : "Activar"}</button>
-              <button class="ad-btn sm ghost" type="button" data-acc="editar" data-id="${esc(c.id)}">Editar</button></div></td>
+            <td data-l="Usos">${c.usos_actuales}${c.usos_maximos ? ` de ${c.usos_maximos}<span class="pn-barra"><span style="width:${pct}%"></span></span>` : ""}</td>
+            <td data-l="Estado"><span class="pn-est ${est.tono}">${est.txt}</span></td>
+            <td class="num"><div class="pn-fila-acc">
+              <button class="pn-btn sm ghost" type="button" data-acc="activar" data-id="${esc(c.id)}">${c.activo ? "Pausar" : "Activar"}</button>
+              <button class="pn-btn sm ghost" type="button" data-acc="editar" data-id="${esc(c.id)}">Editar</button></div></td>
           </tr>`; }).join("")}</tbody>
       </table>`;
   }
@@ -123,31 +123,31 @@
 
     UI.abrirModal(`
       <h2>${nuevo ? "Nuevo cupón" : "Editar cupón " + esc(v.codigo)}</h2>
-      <form class="ad-form" id="fCup" novalidate>
-        ${conReglas ? `<div class="full ad-seg" role="radiogroup" aria-label="Tipo de cupón">
+      <form class="pn-form" id="fCup" novalidate>
+        ${conReglas ? `<div class="full pn-seg" role="radiogroup" aria-label="Tipo de cupón">
           <label><input type="radio" name="clase" value="campana" ${bienvenida ? "" : "checked"}><span><b>Campaña</b><small>Para todos, con fechas y límites</small></span></label>
           <label><input type="radio" name="clase" value="bienvenida" ${bienvenida ? "checked" : ""}><span><b>Bienvenida</b><small>Solo 1ª compra, con cuenta</small></span></label>
         </div>` : ""}
-        <label>Código<input class="ad-inp" id="cCodigo" maxlength="30" value="${esc(v.codigo || "")}" placeholder="Ej: CYBER10" autocapitalize="characters"><span class="err" data-err="cCodigo"></span></label>
-        <label>Tipo<select class="ad-inp" id="cTipo">
+        <label>Código<input class="pn-inp" id="cCodigo" maxlength="30" value="${esc(v.codigo || "")}" placeholder="Ej: CYBER10" autocapitalize="characters"><span class="err" data-err="cCodigo"></span></label>
+        <label>Tipo<select class="pn-inp" id="cTipo">
           <option value="porcentaje" ${v.tipo === "porcentaje" ? "selected" : ""}>Porcentaje (%)</option>
           <option value="monto_fijo" ${v.tipo === "monto_fijo" ? "selected" : ""}>Monto fijo ($)</option></select></label>
-        <label>Descuento<input class="ad-inp" id="cValor" inputmode="numeric" value="${v.valor != null ? esc(v.valor) : ""}" placeholder="Ej: 10"><span class="err" data-err="cValor"></span></label>
-        <label>Compra mínima <small>($; vacío = sin mínimo)</small><input class="ad-inp" id="cMin" inputmode="numeric" value="${v.compra_minima ? esc(v.compra_minima) : ""}" placeholder="Ej: 10.000"><span class="err" data-err="cMin"></span></label>
-        <label>Desde <small>(opcional)</small><input class="ad-inp" id="cDesde" type="date" value="${esc(v.vigente_desde || "")}"></label>
-        <label>Hasta <small>(opcional)</small><input class="ad-inp" id="cHasta" type="date" value="${esc(v.vigente_hasta || "")}"><span class="err" data-err="cHasta"></span></label>
-        <label>Usos totales <small>(vacío = sin límite)</small><input class="ad-inp" id="cUsos" inputmode="numeric" value="${v.usos_maximos != null ? esc(v.usos_maximos) : ""}" placeholder="Ej: 100"><span class="err" data-err="cUsos"></span></label>
-        ${conReglas ? `<label class="solo-campana">Usos por cliente <small>(vacío = sin límite)</small><input class="ad-inp" id="cPorCliente" inputmode="numeric" value="${v.usos_por_cliente != null && !bienvenida ? esc(v.usos_por_cliente) : ""}" placeholder="Ej: 1"><span class="err" data-err="cPorCliente"></span></label>
+        <label>Descuento<input class="pn-inp" id="cValor" inputmode="numeric" value="${v.valor != null ? esc(v.valor) : ""}" placeholder="Ej: 10"><span class="err" data-err="cValor"></span></label>
+        <label>Compra mínima <small>($; vacío = sin mínimo)</small><input class="pn-inp" id="cMin" inputmode="numeric" value="${v.compra_minima ? esc(v.compra_minima) : ""}" placeholder="Ej: 10.000"><span class="err" data-err="cMin"></span></label>
+        <label>Desde <small>(opcional)</small><input class="pn-inp" id="cDesde" type="date" value="${esc(v.vigente_desde || "")}"></label>
+        <label>Hasta <small>(opcional)</small><input class="pn-inp" id="cHasta" type="date" value="${esc(v.vigente_hasta || "")}"><span class="err" data-err="cHasta"></span></label>
+        <label>Usos totales <small>(vacío = sin límite)</small><input class="pn-inp" id="cUsos" inputmode="numeric" value="${v.usos_maximos != null ? esc(v.usos_maximos) : ""}" placeholder="Ej: 100"><span class="err" data-err="cUsos"></span></label>
+        ${conReglas ? `<label class="solo-campana">Usos por cliente <small>(vacío = sin límite)</small><input class="pn-inp" id="cPorCliente" inputmode="numeric" value="${v.usos_por_cliente != null && !bienvenida ? esc(v.usos_por_cliente) : ""}" placeholder="Ej: 1"><span class="err" data-err="cPorCliente"></span></label>
         <label class="chk solo-campana"><input type="checkbox" id="cCuenta" ${v.requiere_cuenta && !bienvenida ? "checked" : ""}>Solo clientes con cuenta</label>
-        <p class="full ad-nota solo-bienvenida">Se aplica una sola vez por cliente y solo si la cuenta, el correo y el teléfono no tienen compras anteriores. Un invitado debe crear su cuenta para usarlo.</p>
-        <label class="full">Nota interna <small>(opcional; el cliente no la ve)</small><input class="ad-inp" id="cDesc" maxlength="200" value="${esc(v.descripcion || "")}" placeholder="Ej: Campaña Cyber noviembre"></label>` : ""}
-        <details class="full ad-prods" ${sel.size ? "open" : ""}>
+        <p class="full pn-nota solo-bienvenida">Se aplica una sola vez por cliente y solo si la cuenta, el correo y el teléfono no tienen compras anteriores. Un invitado debe crear su cuenta para usarlo.</p>
+        <label class="full">Nota interna <small>(opcional; el cliente no la ve)</small><input class="pn-inp" id="cDesc" maxlength="200" value="${esc(v.descripcion || "")}" placeholder="Ej: Campaña Cyber noviembre"></label>` : ""}
+        <details class="full pn-prods" ${sel.size ? "open" : ""}>
           <summary>Aplica a: <b id="cAplica">${sel.size ? `${sel.size} producto${sel.size === 1 ? "" : "s"}` : "todo el carrito"}</b></summary>
-          <p class="ad-nota">Marca productos solo si el descuento es para ellos. Sin marcar, aplica a todo el carrito.</p>
-          <div class="ad-prods-lista" id="cProds">${listaProd || '<p class="ad-nota">No se pudo cargar el catálogo.</p>'}</div>
+          <p class="pn-nota">Marca productos solo si el descuento es para ellos. Sin marcar, aplica a todo el carrito.</p>
+          <div class="pn-prods-lista" id="cProds">${listaProd || '<p class="pn-nota">No se pudo cargar el catálogo.</p>'}</div>
         </details>
         <label class="chk full"><input type="checkbox" id="cActivo" ${v.activo ? "checked" : ""}>Activo</label>
-        <div class="ad-form-acc"><button class="ad-btn ghost" type="button" data-x>Cancelar</button><button class="ad-btn" type="submit" id="cOk">${nuevo ? "Crear cupón" : "Guardar"}</button></div>
+        <div class="pn-form-acc"><button class="pn-btn ghost" type="button" data-x>Cancelar</button><button class="pn-btn" type="submit" id="cOk">${nuevo ? "Crear cupón" : "Guardar"}</button></div>
       </form>`);
 
     const form = $m("#fCup");

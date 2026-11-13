@@ -17,3 +17,6 @@ build/
 
 # Dependencias de Node (si se instalan)
 node_modules/
+
+# Sitio armado para publicar (deploy/construir.sh)
+dist/
