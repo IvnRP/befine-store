@@ -11,7 +11,7 @@ const ped = (o) => ({ id: "p" + o.numero_pedido, comuna: "Quilicura", calle: "A"
 test("CP-U29a el chofer ve solo Reparto; Equipo y roles es solo del administrador", () => {
   const ids = (p, rol) => arr(L.seccionesVisibles(p, rol)).map((s) => s.id);
   assert.deepEqual(ids(["pedidos.repartir"], "chofer"), ["reparto"]);
-  assert.deepEqual(ids(L.permisosDe("admin", []), "admin"), ["pedidos", "reparto", "catalogo", "inventario", "cupones", "equipo"]);
+  assert.deepEqual(ids(L.permisosDe("admin", []), "admin"), ["pedidos", "reparto", "clientes", "catalogo", "inventario", "cupones", "equipo"]);
   assert.ok(!ids(L.PERMISOS.slice(), "operador").includes("equipo"));   // tener todos los permisos no basta: es solo del rol admin
   assert.deepEqual(ids([], "cliente"), []);
 });

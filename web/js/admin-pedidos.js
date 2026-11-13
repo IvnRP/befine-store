@@ -220,5 +220,5 @@
     if (r.ok || r.recargar) abrir(id);
   }
 
-  window.AdminApp.SECCIONES.pedidos = { montar, mostrar };
+  window.AdminApp.SECCIONES.pedidos = { montar, mostrar, abrir };   // abrir(id): también desde la ficha del cliente
 })();
