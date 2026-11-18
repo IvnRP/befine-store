@@ -12,6 +12,8 @@
     if (!p) { cont.innerHTML = `<p class="empty-state">Producto no encontrado. <a href="catalogo.html">Volver al catálogo</a>.</p>`; return; }
 
     const grad = window.catGrad(p.categoria_slug);
+    // La descripción se muestra como TEXTO (escapada): los saltos de línea del panel se respetan (CSS pre-line)
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     // Sin stock no se deja de vender: se informa antes de comprar y se aplaza la entrega (HU v2.4)
     // Club Befine: solo las recargas con envase Befine suman puntos
     const R = Befine.club.reglas;
@@ -31,7 +33,7 @@
       <div class="buybox">
         <div class="breadcrumb"><a href="index.html">Inicio</a> / <a href="catalogo.html?cat=${p.categoria_slug}">${p.categoria}</a></div>
         <h1>${p.nombre}</h1>
-        <p class="desc">${p.descripcion || ""}</p>
+        <p class="desc">${esc(p.descripcion)}</p>
         <p class="price" id="fPrecio">${variante.precio_comparacion ? `<span class="oferta">Oferta</span> ` : ""}${Befine.clp(variante.precio)}${variante.precio_comparacion ? ` <s>${Befine.clp(variante.precio_comparacion)}</s>` : ""}</p>
 
         ${p.variantes.length > 1 ? `

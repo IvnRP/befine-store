@@ -146,7 +146,7 @@
         <label class="full">Nombre<input class="pn-inp" id="fpNombre" maxlength="120" value="${esc(p ? p.nombre : "")}" placeholder="Ej: Recarga Bidón 20 Litros"><span class="err" data-err="fpNombre"></span></label>
         <label>Categoría<select class="pn-inp" id="fpCat"><option value="">Elegir…</option>${opcionesCat(p && p.categoria_id)}</select><span class="err" data-err="fpCat"></span></label>
         <label class="chk" style="align-self:end"><input type="checkbox" id="fpActivo" ${!p || p.activo ? "checked" : ""}>Visible en la tienda</label>
-        <label class="full">Descripción <small>(opcional)</small><textarea class="pn-inp" id="fpDesc" rows="3" maxlength="1000">${esc(p ? p.descripcion : "")}</textarea><span class="err" data-err="fpDesc"></span></label>
+        <label class="full">Descripción <small>(opcional · usa Enter para separar líneas)</small><textarea class="pn-inp" id="fpDesc" rows="8" maxlength="1000">${esc(p ? p.descripcion : "")}</textarea><span class="err" data-err="fpDesc"></span></label>
         <label class="full">Imagen <small>(archivo en Storage → productos, ej. bidon-12l-1000.webp, o enlace https; opcional)</small><input class="pn-inp" id="fpImg" value="${esc(p ? p.imagen_url : "")}" placeholder="bidon-12l-1000.webp"><span class="err" data-err="fpImg"></span></label>
         ${nuevo ? `
         <p class="full pn-sub">Primera variante <small>(puedes agregar más después)</small></p>
