@@ -209,6 +209,11 @@
   /* SKU: mayúsculas, sin espacios ni acentos (BEF-REC-20) */
   const normalizarSku = (v) => norm(v).toUpperCase().replace(/\s+/g, "-").replace(/[^A-Z0-9-]/g, "");
 
+  /* Dirección amigable del producto (migración 16): "Bidón + Recarga 12 Litros" → "bidon-recarga-12-litros".
+     Misma regla que public.slug_de() en la base. */
+  const slugDe = (v) => norm(v).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80).replace(/-+$/, "");
+  const SLUG_OK = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
   /* Validaciones → objeto { campo: "mensaje" } (vacío = válido) */
   function validarProducto(p) {
     const e = {};
@@ -217,6 +222,10 @@
     else if (nombre.length > 120) e.nombre = "El nombre es muy largo (máximo 120 caracteres).";
     if (!p || !p.categoria_id) e.categoria_id = "Elige una categoría.";
     if (p && p.descripcion && String(p.descripcion).length > 1000) e.descripcion = "La descripción es muy larga (máximo 1.000 caracteres).";
+    // Dirección: opcional (vacía = la base la genera desde el nombre); si viene, solo minúsculas, números y guiones
+    const slug = String((p && p.slug) || "").trim();
+    if (slug && (!SLUG_OK.test(slug) || slug.length > 80))
+      e.slug = "Usa solo minúsculas sin tildes, números y guiones (ej. recarga-agua-purificada-bidon-20-litros).";
     // Imagen: enlace https:// o nombre de archivo del bucket "productos" (migración 07), ej. bidon-12l-1000.webp
     const img = p && p.imagen_url ? String(p.imagen_url).trim() : "";
     if (img && !/^https:\/\/\S+$/i.test(img) && !/^[a-z0-9][a-z0-9_-]*(\/[a-z0-9][a-z0-9_-]*)*\.(webp|jpe?g|png)$/i.test(img))
@@ -564,7 +573,7 @@
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
     TRANSICIONES, siguientesEstados, puedeCambiar, ACCION_ESTADO,
     filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, OPCIONES_ENTREGA, rangoEntrega, enRangoEntrega, siguienteHabil, textoRango, linkWhatsApp, telefonoVisible,
-    parsePrecio, normalizarSku, validarProducto, validarVariante, filtrarCatalogo,
+    parsePrecio, normalizarSku, slugDe, validarProducto, validarVariante, filtrarCatalogo,
     UMBRAL_DEFECTO, umbralStock, nivelStock, NIVELES_STOCK, parseStock, sumarStock, resumenStock, filtrarInventario,
     normalizarCodigo, enteroOpcional, estadoCupon, ESTADOS_CUPON, textoDescuento, condicionesCupon, validarCupon, filaCupon, filtrarCupones,
     accionReparto, ordenarReparto, resumenReparto, agruparPorComuna, linkMaps, telLink,

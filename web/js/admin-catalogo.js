@@ -144,9 +144,10 @@
       <h2>${nuevo ? "Nuevo producto" : "Editar producto"}</h2>
       <form class="pn-form" id="fProd" novalidate>
         <label class="full">Nombre<input class="pn-inp" id="fpNombre" maxlength="120" value="${esc(p ? p.nombre : "")}" placeholder="Ej: Recarga Bidón 20 Litros"><span class="err" data-err="fpNombre"></span></label>
+        <label class="full">Dirección en la tienda <small>(aguabefine.cl/productos/… · palabras que busca la gente, en minúsculas y con guiones${nuevo ? "" : " · si la cambias, los enlaces ya compartidos dejan de funcionar"})</small><input class="pn-inp" id="fpSlug" maxlength="80" value="${esc(p && p.slug ? p.slug : "")}" placeholder="recarga-agua-purificada-bidon-20-litros" autocapitalize="off" spellcheck="false"><span class="err" data-err="fpSlug"></span></label>
         <label>Categoría<select class="pn-inp" id="fpCat"><option value="">Elegir…</option>${opcionesCat(p && p.categoria_id)}</select><span class="err" data-err="fpCat"></span></label>
         <label class="chk" style="align-self:end"><input type="checkbox" id="fpActivo" ${!p || p.activo ? "checked" : ""}>Visible en la tienda</label>
-        <label class="full">Descripción <small>(opcional)</small><textarea class="pn-inp" id="fpDesc" rows="3" maxlength="1000">${esc(p ? p.descripcion : "")}</textarea><span class="err" data-err="fpDesc"></span></label>
+        <label class="full">Descripción <small>(opcional · usa Enter para separar líneas · enlace: [texto](dirección de la tienda))</small><textarea class="pn-inp" id="fpDesc" rows="8" maxlength="1000">${esc(p ? p.descripcion : "")}</textarea><span class="err" data-err="fpDesc"></span></label>
         <label class="full">Imagen <small>(archivo en Storage → productos, ej. bidon-12l-1000.webp, o enlace https; opcional)</small><input class="pn-inp" id="fpImg" value="${esc(p ? p.imagen_url : "")}" placeholder="bidon-12l-1000.webp"><span class="err" data-err="fpImg"></span></label>
         ${nuevo ? `
         <p class="full pn-sub">Primera variante <small>(puedes agregar más después)</small></p>
@@ -157,12 +158,19 @@
         <div class="pn-form-acc"><button class="pn-btn ghost" type="button" data-x>Cancelar</button><button class="pn-btn" type="submit" id="fpOk">${nuevo ? "Crear producto" : "Guardar"}</button></div>
       </form>`);
     $m("[data-x]").addEventListener("click", UI.cerrarModal);
+    // Producto nuevo: la dirección se arma sola desde el nombre hasta que la edites a mano
+    if (nuevo) {
+      let slugManual = false;
+      $m("#fpSlug").addEventListener("input", () => { slugManual = true; });
+      $m("#fpNombre").addEventListener("input", () => { if (!slugManual) $m("#fpSlug").value = L.slugDe($m("#fpNombre").value); });
+    }
+    $m("#fpSlug").addEventListener("blur", () => { const s = $m("#fpSlug"); if (s.value.trim()) s.value = L.slugDe(s.value); });
     $m("#fProd").addEventListener("submit", async (e) => {
       e.preventDefault();
       const datos = { id: p && p.id, nombre: $m("#fpNombre").value, categoria_id: $m("#fpCat").value, activo: $m("#fpActivo").checked,
-        descripcion: $m("#fpDesc").value, imagen_url: $m("#fpImg").value };
+        descripcion: $m("#fpDesc").value, imagen_url: $m("#fpImg").value, slug: $m("#fpSlug").value.trim() };
       const ep = L.validarProducto(datos);
-      campoErr("fpNombre", ep.nombre); campoErr("fpCat", ep.categoria_id); campoErr("fpDesc", ep.descripcion); campoErr("fpImg", ep.imagen_url);
+      campoErr("fpNombre", ep.nombre); campoErr("fpCat", ep.categoria_id); campoErr("fpDesc", ep.descripcion); campoErr("fpImg", ep.imagen_url); campoErr("fpSlug", ep.slug);
       let ev = {}, varDatos = null;
       if (nuevo) {
         varDatos = { nombre: $m("#fvNombre").value, sku: $m("#fvSku").value, precio: $m("#fvPrecio").value, stock: $m("#fvStock").value, controla_stock: true };

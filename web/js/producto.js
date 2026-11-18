@@ -4,14 +4,50 @@
    cantidad, y agrega al carrito.
    ===================================================================== */
 (function () {
+  /* SEO de la ficha: descripción para buscadores, dirección canónica, vista previa (og:) y
+     datos estructurados schema.org/Product. Google ejecuta el JS y los lee. */
+  function seoFicha(p) {
+    const url = Befine.urlProductoAbs(p);
+    const desc = Befine.textoPlano(p.descripcion, 155) ||
+      p.nombre + ": agua purificada a domicilio en Quilicura y el sector norte de Santiago. Envío gratis desde $7.000.";
+    const meta = (attr, clave, valor) => {
+      let el = document.head.querySelector(`meta[${attr}="${clave}"]`);
+      if (!el) { el = document.createElement("meta"); el.setAttribute(attr, clave); document.head.appendChild(el); }
+      el.setAttribute("content", valor);
+    };
+    meta("name", "description", desc);
+    meta("property", "og:title", document.title);
+    meta("property", "og:description", desc);
+    meta("property", "og:url", url);
+    meta("property", "og:type", "product");
+    const foto = Befine.foto(p.imagen_url, "lg");
+    if (foto) meta("property", "og:image", foto);
+    let can = document.head.querySelector('link[rel="canonical"]');
+    if (!can) { can = document.createElement("link"); can.rel = "canonical"; document.head.appendChild(can); }
+    can.href = url;
+    const ld = document.createElement("script");
+    ld.type = "application/ld+json";
+    ld.textContent = JSON.stringify(Befine.productoLD(p)).replace(/</g, "\\u003c");
+    document.head.appendChild(ld);
+  }
+
   document.addEventListener("DOMContentLoaded", async () => {
+    // Ficha por dirección amigable /productos/<slug> (Cloudflare la sirve con producto.html) o por ?id= (antigua)
+    const mSlug = location.pathname.match(/^\/productos\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
     const id = new URLSearchParams(location.search).get("id");
     const cont = document.getElementById("ficha");
-    const p = id ? await Befine.getProducto(id) : null;
+    const p = mSlug ? await Befine.getProductoPorSlug(mSlug[1]) : id ? await Befine.getProducto(id) : null;
+    // Entró por ?id= y el producto tiene dirección amigable: la barra muestra la nueva (sin recargar)
+    if (p && p.slug && !mSlug && history.replaceState) history.replaceState(null, "", Befine.urlProducto(p));
 
     if (!p) { cont.innerHTML = `<p class="empty-state">Producto no encontrado. <a href="catalogo.html">Volver al catálogo</a>.</p>`; return; }
 
     const grad = window.catGrad(p.categoria_slug);
+    // La descripción se muestra como TEXTO (escapada): los saltos de línea del panel se respetan (CSS pre-line).
+    // Enlaces: [texto](dirección) solo hacia la propia tienda (página relativa o https://aguabefine.cl/...).
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const descHTML = (s) => esc(s).replace(/\[([^\]\n]{1,80})\]\(([^)\s]{1,300})\)/g, (todo, txt, url) =>
+      Befine.enlaceTienda(url.replace(/&amp;/g, "&")) ? `<a href="${url}">${txt}</a>` : todo);
     // Sin stock no se deja de vender: se informa antes de comprar y se aplaza la entrega (HU v2.4)
     // Club Befine: solo las recargas con envase Befine suman puntos
     const R = Befine.club.reglas;
@@ -22,7 +58,8 @@
     let variante = p.variantes[0]; // seleccionada
     const foto = Befine.foto(p.imagen_url, "lg"), fotoSm = Befine.foto(p.imagen_url, "sm");
 
-    document.title = p.nombre + " · Befine Store";
+    document.title = p.nombre + " a domicilio · Befine";   // el nombre ya lleva las palabras clave (ej. Recarga de Agua Purificada Bidón 20 Litros)
+    seoFicha(p);
 
     cont.innerHTML = `
       <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `
@@ -31,7 +68,7 @@
       <div class="buybox">
         <div class="breadcrumb"><a href="index.html">Inicio</a> / <a href="catalogo.html?cat=${p.categoria_slug}">${p.categoria}</a></div>
         <h1>${p.nombre}</h1>
-        <p class="desc">${p.descripcion || ""}</p>
+        <p class="desc">${descHTML(p.descripcion)}</p>
         <p class="price" id="fPrecio">${variante.precio_comparacion ? `<span class="oferta">Oferta</span> ` : ""}${Befine.clp(variante.precio)}${variante.precio_comparacion ? ` <s>${Befine.clp(variante.precio_comparacion)}</s>` : ""}</p>
 
         ${p.variantes.length > 1 ? `
@@ -44,9 +81,9 @@
 
         <div class="add-row">
           <div class="stepper">
-            <button id="fMenos">−</button>
-            <input id="fCant" value="1" readonly>
-            <button id="fMas">+</button>
+            <button id="fMenos" aria-label="Menos">−</button>
+            <input id="fCant" value="1" readonly aria-label="Cantidad">
+            <button id="fMas" aria-label="Más">+</button>
           </div>
           <button class="btn btn-ghost" id="fAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="fBuy">Comprar ahora</button>

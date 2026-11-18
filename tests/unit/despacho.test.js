@@ -1,4 +1,4 @@
-/* Pruebas de despacho, fechas de entrega y formato CLP (web/js/data.js) — 8 pruebas
+/* Pruebas de despacho, fechas de entrega y formato CLP (web/js/data.js) — 10 pruebas
    Casos CP-U08 a CP-U11 del Plan de Pruebas. */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -92,4 +92,19 @@ test("CP-U10b 20 fechas agendables, en orden, sin sábados ni domingos y sin rep
   assert.ok(Array.from(agendables).every((d) => d.getDay() !== 0 && d.getDay() !== 6));
   assert.equal(new Set(isos).size, 20);
   assert.deepEqual([...isos].sort(), isos);
+});
+
+test("CP-U10e texto del inicio 'Pide hoy y recibe …' con días y meses en español", () => {
+  const f = (a, m, d) => new Date(a, m - 1, d);
+  assert.equal(Befine.textoRangoEntrega(f(2026, 11, 19), f(2026, 11, 20)), "el jueves 19 o el viernes 20 de noviembre");
+  assert.equal(Befine.textoRangoEntrega(f(2026, 11, 27), f(2026, 11, 30)), "el viernes 27 o el lunes 30 de noviembre");
+  assert.equal(Befine.textoRangoEntrega(f(2026, 11, 30), f(2026, 12, 1)), "el lunes 30 de noviembre o el martes 1 de diciembre");
+  assert.equal(Befine.textoRangoEntrega(f(2026, 11, 19)), "el jueves 19 de noviembre");
+  // Con las fechas reales de la regla de entrega (jueves 15-10 → viernes 16 o lunes 19)
+  const d = Befine.diasEntrega(new Date(2026, 9, 15, 15));
+  assert.equal(Befine.textoRangoEntrega(d.estandar, d.estandarHasta), "el viernes 16 o el lunes 19 de octubre");
+});
+
+test("CP-U08e la cobertura se consulta una sola vez por página (carrito, inicio y checkout la comparten)", () => {
+  assert.equal(Befine.getCobertura(), Befine.getCobertura());
 });

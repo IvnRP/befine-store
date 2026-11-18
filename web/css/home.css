@@ -40,8 +40,8 @@
 .loader.hide { opacity: 0; visibility: hidden; pointer-events: none; }
 .loader-inner { max-width: 640px; }
 .loader .l-logo { width: clamp(150px,26vw,210px); height: auto; margin: 0 auto 22px; display: block; filter: drop-shadow(0 12px 34px rgba(0,0,0,.5)); opacity: 0; transform: translateY(12px); animation: up .35s 0s forwards; }
-.loader h1 { font-family: var(--font-display); font-weight: 800; letter-spacing: -.03em; font-size: clamp(40px,9vw,84px); line-height: .98; margin: 0; text-wrap: balance; text-shadow: 0 12px 44px rgba(0,0,0,.45); opacity: 0; transform: translateY(16px); animation: up .35s .05s forwards; }
-.loader h1 .accent { color: var(--accent-soft); }
+.loader .l-greet { font-family: var(--font-display); font-weight: 800; letter-spacing: -.03em; font-size: clamp(40px,9vw,84px); line-height: .98; margin: 0; text-wrap: balance; text-shadow: 0 12px 44px rgba(0,0,0,.45); opacity: 0; transform: translateY(16px); animation: up .35s .05s forwards; }
+.loader .l-greet .accent { color: var(--accent-soft); }
 .loader p.msg { margin: 16px auto 0; font-size: clamp(16px,2.6vw,21px); color: var(--ink); opacity: 0; transform: translateY(12px); max-width: 32ch; text-shadow: 0 4px 18px rgba(0,0,0,.45); animation: up .35s .1s forwards; }
 .loader .bar { margin: 34px auto 0; width: 180px; height: 4px; border-radius: 999px; background: rgba(255,255,255,.16); overflow: hidden; }
 .loader .bar span { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg,var(--accent-soft),var(--accent)); animation: load .7s ease forwards; }
@@ -57,8 +57,25 @@
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 6s linear infinite; }
 @keyframes shimmer { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
 .hero p.sub { margin: 18px 0 0; font-size: clamp(16px,2.3vw,20px); color: var(--ink); opacity: .92; max-width: 46ch; }
-/* Frase secundaria pequeña (el "mueve el mouse"): discreta, no protagonista */
-.hero .hint { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); opacity: .7; }
+/* Comuna que rota en el título: cambia con un deslizado suave; el ancho lo reserva home.js (sin saltos) */
+.hero h1 .rota { display: inline-block; white-space: nowrap; transition: opacity .35s ease, transform .35s ease; }
+.hero h1 .rota.sale { opacity: 0; transform: translateY(-.25em); }
+.hero h1 .rota.entra { opacity: 0; transform: translateY(.25em); transition: none; }
+/* Beneficios con ícono (se leen de un vistazo) */
+.hero .beneficios { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 10px 22px; }
+.hero .beneficios li { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.hero .beneficios svg { flex: 0 0 20px; width: 20px; height: 20px; fill: none; stroke: var(--accent-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 480px) { .hero .beneficios { grid-template-columns: 1fr; } }
+/* Nota de Google (lleva a la sección de reseñas) */
+.hero .hero-rating { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--glass-2); color: var(--ink); font-size: 13.5px; text-decoration: none; }
+.hero .hero-rating .est { color: #F2A63C; letter-spacing: 1px; }
+.hero .hero-rating:hover { border-color: var(--accent); }
+/* Fecha de entrega en la tarjeta de compra */
+.qorder .q-entrega { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; font-size: 13.5px; color: var(--ink); }
+.qorder .q-entrega svg { flex: 0 0 18px; width: 18px; height: 18px; fill: none; stroke: #1F9D55; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.qorder .q-entrega b { color: #1F9D55; }
+body:not(.tema-claro) .qorder .q-entrega b, body:not(.tema-claro) .qorder .q-entrega svg { color: #6EE7A0; stroke: #6EE7A0; }
 .hero .trust { margin-top: 22px; display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
 .hero .trust b { color: var(--accent-soft); }
 
@@ -76,7 +93,7 @@ body.fx-off .cur-dot, body.fx-off .cur-ring { display: none; }
 .qorder .badge { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #3a1f00; background: linear-gradient(180deg,#FFCE5C,#F2A63C); padding: 6px 12px; border-radius: 999px; margin-bottom: 14px; }
 .qorder .media { height: 150px; border-radius: var(--radius); position: relative; overflow: hidden; margin-bottom: 14px; }
 .qorder .media::before { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 80% at 30% 12%,rgba(255,255,255,.28),transparent 55%),var(--v-grad); }
-.qorder h3 { font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 0 0 6px; letter-spacing: -.01em; }
+.qorder h3, .qorder h2.q-nombre { font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 0 0 6px; letter-spacing: -.01em; }
 .qorder .price { margin-bottom: 6px; }
 .qorder .price .now { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--accent-soft); }
 .qorder .price s { color: var(--muted); font-size: .62em; margin-left: 6px; } /* precio anterior legible (Ley 19.496: informar el precio de referencia de la oferta) */
@@ -172,11 +189,13 @@ body:not(.tema-claro) .qorder .aviso-recarga .ico { background: #8EC5FF; color: 
 @media (max-width: 1180px) { .rev-nav.prev { left: 6px; } .rev-nav.next { right: 6px; } }
 @media (max-width: 640px) { .rev-nav { display: none; } } /* en celular: deslizar + puntos + rotación automática */
 /* Puntos */
-.rev-dots { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
-.rev-dots button { width: 8px; height: 8px; padding: 0; border: none; border-radius: 999px; cursor: pointer;
-  background: var(--line); transition: width .25s ease, background .25s ease; }
-.rev-dots button.on { width: 22px; background: var(--accent); }
-body.tema-claro .rev-dots button:not(.on) { background: rgba(11,78,122,.25); }
+.rev-dots { display: flex; justify-content: center; gap: 0; margin-top: 10px; }
+/* El botón mide 24 px (área táctil mínima); el punto visible sigue siendo de 8 px */
+.rev-dots button { width: 24px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; display: grid; place-items: center; }
+.rev-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--line); transition: width .25s ease, background .25s ease; }
+.rev-dots button.on { width: 30px; }
+.rev-dots button.on::before { width: 22px; background: var(--accent); }
+body.tema-claro .rev-dots button:not(.on)::before { background: rgba(11,78,122,.25); }
 
 /* Grilla de tarjetas de reseña */
 .rev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; }
@@ -216,7 +235,7 @@ body.tema-claro .rev-card { color: #fff; }
   .qorder { padding: 18px 20px; }
   .qorder .badge { margin-bottom: 10px; padding: 5px 11px; font-size: 11px; }
   .qorder .media { height: clamp(70px, 11vh, 110px); margin-bottom: 12px; }
-  .qorder h3 { font-size: 19px; margin-bottom: 4px; }
+  .qorder h3, .qorder h2.q-nombre { font-size: 19px; margin-bottom: 4px; }
   .qorder .price .now { font-size: 24px; }
   .qorder .lbl { margin: 10px 0 6px; }
   .qorder .opt { padding: 8px 12px; }

@@ -8,6 +8,21 @@
 /policies/refund-policy      /cambios      301
 /policies/shipping-policy    /despacho     301
 /policies/*                  /terminos     301
+# Ficha con dirección amigable (SEO, migración 16): /productos/<slug> se sirve con producto.html (200 = reescritura,
+# la dirección no cambia en el navegador). producto.html usa <base href="/"> para sus css/js.
+/productos/*                 /producto     200
+# Cada producto de Shopify → su ficha nueva (conserva el posicionamiento en Google de cada producto)
+/products/recarga-bidon-20-litros                                          /productos/recarga-agua-purificada-bidon-20-litros  301
+/products/recarga-bidon-12-litros                                          /productos/recarga-agua-purificada-bidon-12-litros  301
+/products/bidon-recarga-20-litros                                          /productos/bidon-20-litros-con-agua-purificada  301
+/products/bidon-recarga-12                                                 /productos/bidon-12-litros-con-agua-purificada  301
+/products/pack-inicial-3-bidones-de-20-litros-dispensador-soporte-blanco   /productos/pack-3-bidones-20-litros-con-dispensador  301
+/products/pack-inicial-4-recargas-de-12-litros-dispensador-soporte-blanco  /productos/pack-4-bidones-12-litros-con-dispensador  301
+/products/dispensador-compresor-sobre-mesa                                 /productos/dispensador-agua-fria-caliente-sobre-mesa  301
+/products/dispensador-compresor-con-bidon-oculto                           /productos/dispensador-agua-fria-caliente-bidon-oculto  301
+/products/dispensador-con-carga-usb                                        /productos/dispensador-electrico-usb-para-bidon  301
+/products/dispensadores-compresor-agua-purificada-befine                   /productos/dispensador-agua-fria-caliente-pedestal  301
+/products/dispensador-soporte-plastico-blanco                              /productos/dispensador-soporte-para-bidon  301
 /products/*                  /catalogo     301
 /collections/*               /catalogo     301
 /collections                 /catalogo     301

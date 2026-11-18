@@ -5,9 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Mi cuenta · Befine Store</title>
   <meta name="description" content="Ingresa o crea tu cuenta Befine para comprar más rápido, acumular puntos y seguir tus pedidos.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="icon" href="assets/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#0E6AA0">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://tbnevbvvwwzpnowxqyps.supabase.co" crossorigin>   <!-- datos y fotos: conexión lista antes de pedirlos -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
 
   <link rel="stylesheet" href="css/tokens.css">
@@ -30,7 +36,7 @@
 <div id="app-header"></div>
 
 <div class="app">
-  <div class="wrap">
+  <main class="wrap">   <!-- contenido principal (punto de referencia para lectores de pantalla) -->
 
     <!-- ============ INGRESAR / CREAR CUENTA ============ -->
     <section class="acc" id="vAuth" hidden>
@@ -147,14 +153,14 @@
 
     <!-- Cargando sesión -->
     <div class="acc-cargando" id="vCarga" aria-live="polite"><span class="spin"></span> Cargando…</div>
-  </div>
+  </main>
 
   <div id="app-footer"></div>
 </div>
 
 <button class="sound-btn" id="soundBtn" aria-label="Silenciar"></button>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vendor/supabase-js-2.119.0.min.js"></script>   <!-- copia local fija (sin depender de otro sitio) -->
 <script src="js/data.js"></script>
 <script src="js/store.js"></script>
 <script src="js/shell.js"></script>

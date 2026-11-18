@@ -33,7 +33,7 @@
       hi: "Buenas tardes", accent: "#F2A63C", soft: "#FFD98A",
       foam: [255, 238, 214], deep: [40, 26, 30], mid: [120, 70, 80],
       veil: "linear-gradient(180deg,rgba(70,40,26,.66),rgba(24,16,22,.9))",
-      nuevo: ["Buenas tardes. Reciba su agua a domicilio.", "Le damos la bienvenida a Befine.", "Reponga su bidón de forma simple y segura."],
+      nuevo: ["Buenas tardes. Reciba su agua purificada a domicilio.", "Le damos la bienvenida a Befine.", "Reponga su bidón de forma simple y segura."],
       vuelta: ["Nos alegra tenerlo de vuelta.", "Gracias por preferirnos nuevamente."],
     },
     noche: {

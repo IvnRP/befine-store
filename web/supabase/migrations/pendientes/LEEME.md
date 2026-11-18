@@ -4,6 +4,12 @@ Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla
 
 Orden: **01, 01b, 04, 03, 05, 06, 07 y 08 (aplicadas) → 02** (escrita y movida a `../`; se aplica con las secciones Reparto y Equipo y roles). Esta carpeta queda vacía de migraciones.
 
+## 16 · Dirección amigable de productos (SEO) — `../20261118_16_productos_slug.sql` (escrita el 18-nov-2026; prueba en seco T01..T08 OK en Postgres local)
+
+Auditoría SEO: `productos.slug` (único, minúsculas y guiones) con las 11 direcciones decididas por el dueño, `slug_de()` y trigger que la genera desde el nombre si el panel la deja vacía (con -2, -3 si se repite). La ficha queda en `https://aguabefine.cl/productos/<slug>` (`deploy/_redirects`: reescritura 200 a `producto.html`). **Aplicar ANTES de publicar** el sitio que lee `slug` (la versión actual no lo usa). Reversa `../20261118_16_productos_slug_reversa.sql`.
+
+---
+
 ## 15 · Despacho gratis desde $7.000 en todas las comunas — `../20261117_15_despacho_desde_7000.sql` (escrita el 17-nov-2026; prueba en seco T01..T06 OK en Postgres local)
 
 Decisión del dueño: Quilicura deja de tener despacho gratis con cualquier monto y paga $2.500 bajo $7.000, igual que el Sector Norte; desde $7.000 de subtotal el envío es gratis en todas las comunas. Solo datos (`zonas_despacho`) y nueva versión de textos legales `2026-11-17`. El despacho gratis para clientes elegidos se da con un cupón personal. Prueba en seco `../20261117_15_prueba_en_seco.sql` (T01..T06). Reversa `../20261117_15_despacho_desde_7000_reversa.sql`. Se aplica junto con la versión del sitio que trae la franja "Envío gratis en pedidos desde $7.000" y la página Cómo funciona.

@@ -45,7 +45,7 @@
   const HEADER = `
   <header class="topbar" id="topbar">
     <div class="wrap row">
-      <a class="brand" href="index.html"><img src="assets/logo-befine.png" alt="Befine"></a>
+      <a class="brand" href="index.html"><img src="assets/logo-befine.webp" alt="Befine"></a>
       <nav class="nav">
         ${NAV.map(navLink).join("")}
         <a class="nav-cuenta" href="cuenta.html"${isActive("cuenta.html")}>Mi cuenta · Ingresar</a>
@@ -76,10 +76,10 @@
   const FOOTER = `
   <footer class="site">
     <div class="wrap cols">
-      <div><h5>Befine</h5><p class="muted" style="max-width:26ch">Agua purificada a domicilio en el sector norte de Santiago. 5 años de operación.</p></div>
-      <div><h5>Tienda</h5><a href="como-funciona.html">Cómo funciona</a><a href="catalogo.html?cat=recargas">Recargas</a><a href="catalogo.html?cat=bidones">Envase y recarga</a><a href="catalogo.html?cat=dispensadores">Dispensadores</a><a href="catalogo.html?cat=packs">Packs</a></div>
-      <div><h5>Contacto</h5><a href="${WA}" target="_blank" rel="noopener">WhatsApp</a><a href="despacho.html#cobertura">Cobertura de zonas</a><a href="cambios.html">Cambios y garantía</a></div>
-      <div><h5>Legal</h5><a href="terminos.html">Términos y condiciones</a><a href="privacidad.html">Política de privacidad</a><a href="despacho.html">Despacho y entregas</a><a href="cambios.html#retracto">Derecho a retracto</a></div>
+      <div><h2 class="f-tit">Befine</h2><p class="muted" style="max-width:30ch">Agua purificada a domicilio en Quilicura, Huechuraba, Recoleta, Valle Grande y Valle Lo Campino. 5 años de trayectoria.</p></div>
+      <div><h2 class="f-tit">Tienda</h2><a href="como-funciona.html">Cómo funciona</a><a href="catalogo.html?cat=recargas">Recargas</a><a href="catalogo.html?cat=bidones">Envase y recarga</a><a href="catalogo.html?cat=dispensadores">Dispensadores</a><a href="catalogo.html?cat=packs">Packs</a></div>
+      <div><h2 class="f-tit">Contacto</h2><a href="${WA}" target="_blank" rel="noopener">WhatsApp</a><a href="despacho.html#cobertura">Cobertura de zonas</a><a href="cambios.html">Cambios y garantía</a></div>
+      <div><h2 class="f-tit">Legal</h2><a href="terminos.html">Términos y condiciones</a><a href="privacidad.html">Política de privacidad</a><a href="despacho.html">Despacho y entregas</a><a href="cambios.html#retracto">Derecho a retracto</a></div>
     </div>
     <div class="wrap legal">${IDENTIFICACION}</div>
   </footer>`;

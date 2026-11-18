@@ -14,3 +14,7 @@
   Cache-Control: no-cache
 /css/*
   Cache-Control: no-cache
+
+# Librería de Supabase (copia local con la versión en el nombre): no cambia nunca, caché de 1 año
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable

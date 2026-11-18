@@ -80,9 +80,16 @@
     tipEl.className = "lite-tip";
     tipEl.innerHTML = "¿Se ve lento en tu celular? Toca aquí para quitar animaciones y sonido.";
     document.body.appendChild(tipEl);
-    setTimeout(function(){ if (tipEl) tipEl.classList.add("show"); }, 1400);
-    setTimeout(hideTip, 9000);
     tipEl.addEventListener("click", function(){ btn.click(); });
+    function mostrar(){ setTimeout(function(){ if (tipEl) tipEl.classList.add("show"); }, 1400); setTimeout(hideTip, 9000); }
+    // En el celular el mensajito tapaba "Agregar al carrito" de la tarjeta principal:
+    // se muestra recién cuando el cliente baja más allá de la primera pantalla.
+    if (window.innerWidth > 720) return mostrar();
+    var onScroll = function(){
+      if (window.scrollY < window.innerHeight) return;
+      window.removeEventListener("scroll", onScroll); mostrar();
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
   }
   function hideTip(){
     if (!tipEl) return;

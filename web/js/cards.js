@@ -13,17 +13,17 @@
     const foto = Befine.foto(p.imagen_url, "sm");
     return `
       <article class="card reveal">
-        <a class="vessel${foto ? " con-foto" : ""}" style="--v-grad:${grad}" href="producto.html?id=${p.id}" aria-label="${p.nombre}">
-          ${foto ? `<img class="foto-prod" src="${foto}" alt="" width="400" height="400" loading="lazy" decoding="async">` : ""}
+        <a class="vessel${foto ? " con-foto" : ""}" style="--v-grad:${grad}" href="${Befine.urlProducto(p)}" aria-label="${p.nombre}">
+          ${foto ? `<img class="foto-prod" src="${foto}" alt="${p.nombre.replace(/"/g, "&quot;")}" width="400" height="400" loading="lazy" decoding="async">` : ""}
           <span class="tag">${p.categoria}</span>${p.desde_comparacion ? `<span class="oferta">Oferta</span>` : ""}
         </a>
         <div class="body">
-          <a href="producto.html?id=${p.id}"><h3>${p.nombre}</h3></a>
+          <a href="${Befine.urlProducto(p)}"><h3>${p.nombre}</h3></a>
           <span class="cat">${p.categoria}</span>${p.a_pedido ? `<span class="a-pedido">Disponible a pedido · ${Befine.plazoAPedido()}</span>` : ""}
           <div class="price-row">
             <span class="price">${desde ? "<small>desde </small>" : ""}${Befine.clp(p.desde_precio)}${p.desde_comparacion ? ` <s>${Befine.clp(p.desde_comparacion)}</s>` : ""}</span>
             <button class="btn btn-primary"
-              data-add="${v.id}" data-prod="${p.id}" data-nombre="${p.nombre.replace(/"/g, "&quot;")}"
+              data-add="${v.id}" data-prod="${p.id}" data-url="${Befine.urlProducto(p)}" data-nombre="${p.nombre.replace(/"/g, "&quot;")}"
               data-variante="${v.nombre}" data-precio="${v.precio}" data-grad="${grad}"${foto ? ` data-foto="${foto}"` : ""}${v.suma_puntos ? " data-puntos" : ""}${v.a_pedido ? " data-apedido" : ""}>
               ${desde ? "Elegir" : "Comprar"}
             </button>
@@ -37,7 +37,7 @@
   document.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-add]");
     if (!btn) return;
-    if (btn.textContent.trim() === "Elegir") { window.location.href = "producto.html?id=" + btn.dataset.prod; return; }
+    if (btn.textContent.trim() === "Elegir") { window.location.href = btn.dataset.url || "producto.html?id=" + btn.dataset.prod; return; }
     Store.add({
       variante_id: btn.dataset.add,
       producto_id: btn.dataset.prod,

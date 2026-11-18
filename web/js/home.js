@@ -11,6 +11,59 @@
   const fine = window.matchMedia("(hover:hover) and (pointer:fine)").matches;
 
   document.addEventListener("DOMContentLoaded", async () => {
+    // Una sola consulta por página: reseñas (nota del hero + carrusel del final) y cobertura (comunas + feriados)
+    const resenasP = Befine.getResenas ? Befine.getResenas() : Promise.resolve(null);
+    const coberturaP = Befine.getCobertura ? Befine.getCobertura().catch(() => null) : Promise.resolve(null);
+    // Sin movimiento si el sistema pide "reducir movimiento" o el cliente apagó las animaciones (perf.js → body.lite)
+    const quieto = () => reduce || document.body.classList.contains("lite");
+
+    /* ---------- Hero: la comuna del título va rotando ----------
+       El HTML trae "Quilicura" (lo que lee Google). Se reserva el ancho de la comuna más larga para que el
+       título no salte, y si no cabe en la columna se achica solo esa palabra. */
+    const rota = document.getElementById("rotaComuna");
+    if (rota) {
+      coberturaP.then((c) => {
+        const lista = ["Quilicura", ...((c && c.comunas) || []).map((x) => x.comuna).filter((n) => n && n !== "Quilicura")];
+        if (lista.length < 2) return;
+        const h1 = rota.closest("h1");
+        const medir = () => {
+          rota.style.fontSize = ""; rota.style.minWidth = "";
+          const m = rota.cloneNode(); m.removeAttribute("id");
+          m.style.cssText = "position:absolute;visibility:hidden;left:-9999px;top:0";
+          h1.appendChild(m);
+          let max = 0; for (const n of lista) { m.textContent = n; max = Math.max(max, m.getBoundingClientRect().width); }
+          m.remove();
+          const disp = h1.clientWidth;
+          const esc = max > disp ? disp / max : 1;
+          if (esc < 1) rota.style.fontSize = (esc * 100).toFixed(1) + "%";
+          rota.style.minWidth = Math.ceil(max * esc) + "px";
+        };
+        (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(medir);
+        let t; window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(medir, 150); });
+        let i = 0;
+        setInterval(() => {
+          if (quieto() || document.hidden) return;
+          i = (i + 1) % lista.length;
+          rota.classList.add("sale");
+          setTimeout(() => {
+            rota.textContent = lista[i];
+            rota.classList.remove("sale"); rota.classList.add("entra");
+            void rota.offsetWidth;                // aplica la posición de entrada antes de animar
+            rota.classList.remove("entra");
+          }, 350);
+        }, 2600);
+      });
+    }
+
+    /* ---------- Hero: nota de Google (lleva a las reseñas del final; no las repite) ---------- */
+    const heroRating = document.getElementById("heroRating");
+    if (heroRating) resenasP.then((r) => {
+      if (!r || !r.total) return;
+      const prom = Number(r.promedio).toFixed(1).replace(".", ",");
+      heroRating.innerHTML = `<span class="est" aria-hidden="true">★★★★★</span><span><b>${prom}</b> en Google · ${Number(r.total).toLocaleString("es-CL")} reseñas</span>`;
+      heroRating.setAttribute("aria-label", `Nota ${prom} de 5 en Google, ${r.total} reseñas. Ver reseñas`);
+      heroRating.hidden = false;
+    }).catch(() => {});
 
     /* ---------- Saludo (loader + barra), según la hora ---------- */
     const loader = document.getElementById("loader");
@@ -54,24 +107,35 @@
       qbox.innerHTML = `
         <span class="badge">★ Lo más pedido</span>
         <div class="qhead${foto ? " con-foto-head" : ""}">
-          <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `<img class="foto-prod" src="${foto}" alt="" width="400" height="400" fetchpriority="high" decoding="async">` : ""}</div>
-          <div><h3>${prod.nombre}</h3>
+          <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `<img class="foto-prod" src="${foto}" alt="${prod.nombre.replace(/"/g, "&quot;")}" width="400" height="400" fetchpriority="high" decoding="async">` : ""}</div>
+          <div><h2 class="q-nombre">${prod.nombre}</h2>
           <div class="price" id="qPrice">${precioHTML(vSel)}</div></div>
         </div>
+        <p class="q-entrega" id="qEntrega" hidden></p>
         ${prod.aviso ? `<div class="aviso-recarga"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16-3 3 3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 10.598"/><path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"/><path d="m13.378 9.633 4.096 1.098 1.097-4.096"/></svg></span>${prod.aviso}</div>` : ""}
         <div class="lbl">1 · Elige tu envase</div>
         <div class="opts" id="qOpts">
           ${prod.variantes.map((v, i) => `<button class="opt ${i === 0 ? "active" : ""}" data-v="${v.id}">${v.nombre}</button>`).join("")}
         </div>
         <div class="lbl">2 · Cantidad</div>
-        <div class="stepper"><button id="qMenos" aria-label="Menos">−</button><input id="qCant" value="1" readonly><button id="qMas" aria-label="Más">+</button></div>
+        <div class="stepper"><button id="qMenos" aria-label="Menos">−</button><input id="qCant" value="1" readonly aria-label="Cantidad"><button id="qMas" aria-label="Más">+</button></div>
         <div class="actions">
           <button class="btn btn-ghost" id="qAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="qBuy">Comprar ahora</button>
         </div>
-        <a class="verdet" href="producto.html?id=${prod.id}">Ver más detalles →</a>`;
+        <a class="verdet" href="${Befine.urlProducto(prod)}">Ver más detalles →</a>`;
 
       const qPrice = qbox.querySelector("#qPrice");
+      // "Pide hoy y recibe el jueves 19 o el viernes 20 de noviembre": misma regla que el checkout
+      // (días hábiles, feriados de la base y plazo extra si la opción está "a pedido")
+      const qEntrega = qbox.querySelector("#qEntrega");
+      const pintarEntrega = () => {
+        const d = Befine.diasEntrega(new Date(), { aPedido: !!vSel.a_pedido });
+        qEntrega.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.7a1 1 0 0 0-.2-.6l-3.5-4.3A1 1 0 0 0 17.5 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+          <span>Pide hoy y recibe <b>${Befine.textoRangoEntrega(d.estandar, d.estandarHasta)}</b></span>`;
+        qEntrega.hidden = false;
+      };
+      coberturaP.then(pintarEntrega, pintarEntrega);   // espera los feriados de la base (si falla, usa los del respaldo)
       const qCant = qbox.querySelector("#qCant");
       qbox.querySelector("#qOpts").addEventListener("click", (e) => {
         const b = e.target.closest(".opt"); if (!b) return;
@@ -79,6 +143,7 @@
         b.classList.add("active");
         vSel = prod.variantes.find((v) => v.id === b.dataset.v);
         qPrice.innerHTML = precioHTML(vSel);
+        pintarEntrega();
       });
       qbox.querySelector("#qMas").onclick = () => qCant.value = (+qCant.value + 1);
       qbox.querySelector("#qMenos").onclick = () => qCant.value = Math.max(1, +qCant.value - 1);
@@ -116,7 +181,7 @@
     const revGrid = document.getElementById("revGrid");
     const revSummary = document.getElementById("revSummary");
     if (revSec && revGrid && revSummary) {
-      const r = await Befine.getResenas();
+      const r = await resenasP;
       const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const stars = (n) => `<span class="stars" style="--fill:${Math.max(0, Math.min(5, n)) / 5 * 100}%" role="img" aria-label="${n} de 5 estrellas"></span>`;
       const safeUrl = (u) => (/^https:\/\//i.test(u || "") ? esc(u) : "");

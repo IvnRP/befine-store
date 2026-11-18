@@ -6,8 +6,8 @@
    - En oscuro, los colores del agua van por banda horaria (bands.js).
    - En claro, agua celeste marcada (aguaClara).
    - De noche, si sigue en claro y no eligió, un aviso breve SEÑALA el botón.
-   El logo cambia por tema (swapLogo): claro = logo celeste (logo-befine.png);
-   oscuro = logo blanco (logo-befine-noche.png). Aplica a la barra y al loader.
+   El logo cambia por tema (swapLogo): claro = logo celeste (logo-befine.webp);
+   oscuro = logo blanco (logo-befine-noche.webp). Aplica a la barra y al loader.
    ===================================================================== */
 (function () {
   var KEY = "befine_tema", HINT = "befine_tema_hint";
@@ -20,7 +20,7 @@
   var claro = true, btn = null;
 
   // Logo por tema: claro = logo celeste actual; oscuro = logo blanco.
-  var LOGO = { claro: "assets/logo-befine.png", oscuro: "assets/logo-befine-noche.png" };
+  var LOGO = { claro: "assets/logo-befine.webp", oscuro: "assets/logo-befine-noche.webp" };
   function swapLogo(){
     var src = claro ? LOGO.claro : LOGO.oscuro;
     var logos = document.querySelectorAll(".brand img, .l-logo");
