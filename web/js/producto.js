@@ -81,9 +81,9 @@
 
         <div class="add-row">
           <div class="stepper">
-            <button id="fMenos">−</button>
-            <input id="fCant" value="1" readonly>
-            <button id="fMas">+</button>
+            <button id="fMenos" aria-label="Menos">−</button>
+            <input id="fCant" value="1" readonly aria-label="Cantidad">
+            <button id="fMas" aria-label="Más">+</button>
           </div>
           <button class="btn btn-ghost" id="fAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="fBuy">Comprar ahora</button>

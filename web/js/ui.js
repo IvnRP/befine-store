@@ -133,9 +133,9 @@
           ${i.a_pedido ? `<div class="var"><b>Disponible a pedido</b></div>` : ""}
           <div class="price">${Befine.clp(i.precio)} · x${i.cantidad}</div>
           <div class="stepper" style="margin-top:6px">
-            <button data-dec="${i.variante_id}">−</button>
-            <input value="${i.cantidad}" readonly>
-            <button data-inc="${i.variante_id}">+</button>
+            <button data-dec="${i.variante_id}" aria-label="Menos">−</button>
+            <input value="${i.cantidad}" readonly aria-label="Cantidad de ${i.nombre.replace(/"/g, "&quot;")}">
+            <button data-inc="${i.variante_id}" aria-label="Más">+</button>
           </div>
         </div>
         <button class="remove" data-del="${i.variante_id}">Quitar</button>

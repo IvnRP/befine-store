@@ -108,7 +108,7 @@
         <span class="badge">★ Lo más pedido</span>
         <div class="qhead${foto ? " con-foto-head" : ""}">
           <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `<img class="foto-prod" src="${foto}" alt="${prod.nombre.replace(/"/g, "&quot;")}" width="400" height="400" fetchpriority="high" decoding="async">` : ""}</div>
-          <div><h3>${prod.nombre}</h3>
+          <div><h2 class="q-nombre">${prod.nombre}</h2>
           <div class="price" id="qPrice">${precioHTML(vSel)}</div></div>
         </div>
         <p class="q-entrega" id="qEntrega" hidden></p>
@@ -118,7 +118,7 @@
           ${prod.variantes.map((v, i) => `<button class="opt ${i === 0 ? "active" : ""}" data-v="${v.id}">${v.nombre}</button>`).join("")}
         </div>
         <div class="lbl">2 · Cantidad</div>
-        <div class="stepper"><button id="qMenos" aria-label="Menos">−</button><input id="qCant" value="1" readonly><button id="qMas" aria-label="Más">+</button></div>
+        <div class="stepper"><button id="qMenos" aria-label="Menos">−</button><input id="qCant" value="1" readonly aria-label="Cantidad"><button id="qMas" aria-label="Más">+</button></div>
         <div class="actions">
           <button class="btn btn-ghost" id="qAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="qBuy">Comprar ahora</button>

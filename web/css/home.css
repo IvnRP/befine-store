@@ -93,7 +93,7 @@ body.fx-off .cur-dot, body.fx-off .cur-ring { display: none; }
 .qorder .badge { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #3a1f00; background: linear-gradient(180deg,#FFCE5C,#F2A63C); padding: 6px 12px; border-radius: 999px; margin-bottom: 14px; }
 .qorder .media { height: 150px; border-radius: var(--radius); position: relative; overflow: hidden; margin-bottom: 14px; }
 .qorder .media::before { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 80% at 30% 12%,rgba(255,255,255,.28),transparent 55%),var(--v-grad); }
-.qorder h3 { font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 0 0 6px; letter-spacing: -.01em; }
+.qorder h3, .qorder h2.q-nombre { font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 0 0 6px; letter-spacing: -.01em; }
 .qorder .price { margin-bottom: 6px; }
 .qorder .price .now { font-family: var(--font-display); font-weight: 800; font-size: 26px; color: var(--accent-soft); }
 .qorder .price s { color: var(--muted); font-size: .62em; margin-left: 6px; } /* precio anterior legible (Ley 19.496: informar el precio de referencia de la oferta) */
@@ -189,11 +189,13 @@ body:not(.tema-claro) .qorder .aviso-recarga .ico { background: #8EC5FF; color: 
 @media (max-width: 1180px) { .rev-nav.prev { left: 6px; } .rev-nav.next { right: 6px; } }
 @media (max-width: 640px) { .rev-nav { display: none; } } /* en celular: deslizar + puntos + rotación automática */
 /* Puntos */
-.rev-dots { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
-.rev-dots button { width: 8px; height: 8px; padding: 0; border: none; border-radius: 999px; cursor: pointer;
-  background: var(--line); transition: width .25s ease, background .25s ease; }
-.rev-dots button.on { width: 22px; background: var(--accent); }
-body.tema-claro .rev-dots button:not(.on) { background: rgba(11,78,122,.25); }
+.rev-dots { display: flex; justify-content: center; gap: 0; margin-top: 10px; }
+/* El botón mide 24 px (área táctil mínima); el punto visible sigue siendo de 8 px */
+.rev-dots button { width: 24px; height: 24px; padding: 0; border: none; background: none; cursor: pointer; display: grid; place-items: center; }
+.rev-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--line); transition: width .25s ease, background .25s ease; }
+.rev-dots button.on { width: 30px; }
+.rev-dots button.on::before { width: 22px; background: var(--accent); }
+body.tema-claro .rev-dots button:not(.on)::before { background: rgba(11,78,122,.25); }
 
 /* Grilla de tarjetas de reseña */
 .rev-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; }
@@ -233,7 +235,7 @@ body.tema-claro .rev-card { color: #fff; }
   .qorder { padding: 18px 20px; }
   .qorder .badge { margin-bottom: 10px; padding: 5px 11px; font-size: 11px; }
   .qorder .media { height: clamp(70px, 11vh, 110px); margin-bottom: 12px; }
-  .qorder h3 { font-size: 19px; margin-bottom: 4px; }
+  .qorder h3, .qorder h2.q-nombre { font-size: 19px; margin-bottom: 4px; }
   .qorder .price .now { font-size: 24px; }
   .qorder .lbl { margin: 10px 0 6px; }
   .qorder .opt { padding: 8px 12px; }
