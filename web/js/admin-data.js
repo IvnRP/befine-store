@@ -116,6 +116,26 @@
       return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
     },
 
+    /* ================= CLIENTES (HU-23 · RF-19 · migración 14) =================
+       Funciones del servidor: exigen clientes.ver (lista y ficha) o clientes.gestionar (editar).
+       El correo viene de Auth y solo lo entrega el servidor a quien tiene permiso (Ley 21.719). */
+    async clientes() {
+      const { data, error } = await sb.rpc("clientes_resumen");
+      if (error) throw error;
+      return data || [];
+    },
+    async cliente(id) {
+      const { data, error } = await sb.rpc("cliente_detalle", { p_perfil: id });
+      if (error) throw error;
+      return data;
+    },
+    /* datos = { nombre, apellido, telefono, es_empresa, rut, razon_social, giro, activo } (solo lo que cambia)
+       → { ok, cambios } | { ok, sin_cambios } | { ok:false, error } */
+    async editarCliente(id, datos) {
+      const { data, error } = await sb.rpc("editar_cliente", { p_perfil: id, p_datos: datos || {} });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+
     /* ================= EQUIPO Y ROLES (HU-31 · migración 02, solo admin) ================= */
     async equipo() {
       const { data, error } = await sb.rpc("equipo");

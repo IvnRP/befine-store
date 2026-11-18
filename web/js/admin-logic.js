@@ -32,6 +32,7 @@
   const SECCIONES = [
     { id: "pedidos", txt: "Pedidos", requiere: ["pedidos.ver", "pedidos.gestionar"] },
     { id: "reparto", txt: "Reparto", requiere: ["pedidos.repartir"] },
+    { id: "clientes", txt: "Clientes", requiere: ["clientes.ver", "clientes.gestionar"] },
     { id: "catalogo", txt: "Catálogo y precios", requiere: ["catalogo.gestionar", "precios.gestionar"] },
     { id: "inventario", txt: "Inventario", requiere: ["catalogo.gestionar"] },
     { id: "cupones", txt: "Cupones", requiere: ["promociones.gestionar"] },
@@ -465,6 +466,99 @@
     }));
   }
 
+  /* ---------- Clientes (HU-23 · RF-19, migración 14) ----------
+     Los datos llegan de clientes_resumen(): { id, nombre, email, telefono, comuna, invitado, empresa,
+     rol, activo, puntos, pedidos (pagados), gastado, ultimo_pedido, primer_pedido, creado }.
+     Umbrales de los segmentos: anotados en pendiente-admin-editable (pasarán a parámetros). */
+  const CLIENTES = { frecuenteMin: 3, recuperarDias: 45 };
+  const SEGMENTOS_CLIENTE = {
+    todos: "Todos", registrados: "Registrados", invitados: "Invitados", empresas: "Empresas",
+    frecuentes: "Frecuentes", recuperar: "Por recuperar", bloqueados: "Bloqueados",
+  };
+  const diasDesde = (iso, hoy = new Date()) =>
+    iso ? Math.floor((diaLocalMs(hoy) - diaLocalMs(new Date(iso))) / 864e5) : null;
+  function diaLocalMs(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+
+  /* Segmentos a los que pertenece un cliente (un cliente puede estar en varios) */
+  function segmentosDe(c, hoy = new Date()) {
+    const s = ["todos", c.invitado ? "invitados" : "registrados"];
+    if (c.empresa) s.push("empresas");
+    if ((Number(c.pedidos) || 0) >= CLIENTES.frecuenteMin) s.push("frecuentes");
+    const d = diasDesde(c.ultimo_pedido, hoy);
+    if (d != null && d > CLIENTES.recuperarDias) s.push("recuperar");
+    if (c.activo === false) s.push("bloqueados");
+    return s;
+  }
+  function contarSegmentos(lista, hoy = new Date()) {
+    const n = Object.fromEntries(Object.keys(SEGMENTOS_CLIENTE).map((k) => [k, 0]));
+    (lista || []).forEach((c) => segmentosDe(c, hoy).forEach((k) => { n[k]++; }));
+    return n;
+  }
+  /* Búsqueda por nombre, correo, comuna o celular (con o sin +56 9, espacios o guiones) */
+  function filtrarClientes(lista, { segmento = "todos", q = "" } = {}, hoy = new Date()) {
+    const t = norm(q), dig = String(q || "").replace(/\D/g, "");
+    return (lista || []).filter((c) => {
+      if (!segmentosDe(c, hoy).includes(segmento)) return false;
+      if (!t) return true;
+      if (norm([c.nombre, c.email, c.comuna].join(" ")).includes(t)) return true;
+      return dig.length >= 4 && String(c.telefono || "").includes(dig);
+    });
+  }
+  /* Indicadores: clientes, compradores, nuevos del mes (primer pedido pagado este mes),
+     recurrencia (% de compradores con 2 o más pedidos) y ticket promedio */
+  function resumenClientes(lista, hoy = new Date()) {
+    const l = lista || [];
+    const compradores = l.filter((c) => (Number(c.pedidos) || 0) > 0);
+    const pedidos = compradores.reduce((a, c) => a + (Number(c.pedidos) || 0), 0);
+    const gastado = compradores.reduce((a, c) => a + (Number(c.gastado) || 0), 0);
+    const mes = (iso) => { const d = new Date(iso); return d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth(); };
+    return {
+      total: l.length,
+      compradores: compradores.length,
+      nuevosMes: compradores.filter((c) => c.primer_pedido && mes(c.primer_pedido)).length,
+      recurrentes: compradores.filter((c) => c.pedidos >= 2).length,
+      recurrencia: compradores.length ? Math.round(compradores.filter((c) => c.pedidos >= 2).length * 100 / compradores.length) : 0,
+      ticket: pedidos ? Math.round(gastado / pedidos) : 0,
+      porRecuperar: l.filter((c) => segmentosDe(c, hoy).includes("recuperar")).length,
+    };
+  }
+
+  /* Mismas reglas que normalizar_telefono_cl() y es_rut_valido() del servidor (migración 01) */
+  function normalizarTelefono(v) {
+    const d = String(v || "").replace(/\D/g, "");
+    if (/^569\d{8}$/.test(d)) return d;
+    if (/^9\d{8}$/.test(d)) return "56" + d;
+    if (/^\d{8}$/.test(d)) return "569" + d;
+    return null;
+  }
+  function rutValido(v) {
+    const r = String(v || "").toUpperCase().replace(/[^0-9K]/g, "");
+    if (r.length < 2) return false;
+    const cuerpo = r.slice(0, -1);
+    if (!/^\d+$/.test(cuerpo)) return false;
+    let suma = 0, mult = 2;
+    for (let i = cuerpo.length - 1; i >= 0; i--) { suma += Number(cuerpo[i]) * mult; mult = mult === 7 ? 2 : mult + 1; }
+    const resto = 11 - (suma % 11);
+    return r.slice(-1) === (resto === 11 ? "0" : resto === 10 ? "K" : String(resto));
+  }
+  const formatoRut = (v) => {
+    const r = String(v || "").toUpperCase().replace(/[^0-9K]/g, "");
+    return r.length < 2 ? r : r.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "-" + r.slice(-1);
+  };
+  /* Valida el formulario "Editar cliente" → { campo: mensaje } (vacío = todo bien) */
+  function validarCliente(d) {
+    const e = {};
+    if (String(d.nombre || "").trim().length < 2) e.nombre = "Escribe al menos 2 letras.";
+    if (String(d.telefono || "").trim() && !normalizarTelefono(d.telefono)) e.telefono = "Celular no válido (ej.: 9 1234 5678).";
+    if (String(d.rut || "").trim() && !rutValido(d.rut)) e.rut = "RUT no válido.";
+    if (d.es_empresa) {
+      if (!String(d.rut || "").trim()) e.rut = "La empresa necesita RUT.";
+      if (!String(d.razon_social || "").trim()) e.razon_social = "Falta la razón social.";
+      if (!String(d.giro || "").trim()) e.giro = "Falta el giro.";
+    }
+    return e;
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
@@ -475,5 +569,7 @@
     normalizarCodigo, enteroOpcional, estadoCupon, ESTADOS_CUPON, textoDescuento, condicionesCupon, validarCupon, filaCupon, filtrarCupones,
     accionReparto, ordenarReparto, resumenReparto, agruparPorComuna, linkMaps, telLink,
     ROLES_ASIGNABLES, validarAsignacion, matrizPermisos,
+    CLIENTES, SEGMENTOS_CLIENTE, diasDesde, segmentosDe, contarSegmentos, filtrarClientes, resumenClientes,
+    normalizarTelefono, rutValido, formatoRut, validarCliente,
   };
 })(typeof window !== "undefined" ? window : globalThis);

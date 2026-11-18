@@ -4,6 +4,10 @@ Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla
 
 Orden: **01, 01b, 04, 03, 05, 06, 07 y 08 (aplicadas) → 02** (escrita y movida a `../`; se aplica con las secciones Reparto y Equipo y roles). Esta carpeta queda vacía de migraciones.
 
+## 14 · Clientes en el panel — `../20261112_14_clientes.sql` (aplicada el 13-nov-2026; prueba en seco T01..T14 OK)
+
+HU-23 / RF-19 ajustado por CM-03: `clientes_resumen()`, `cliente_detalle(id)` y `editar_cliente(id, datos)` (permisos `clientes.ver` / `clientes.gestionar`), auditoría en `cambios_cliente`. "Eliminar" → "Bloquear" (un cliente bloqueado no puede comprar). Prueba en seco `../20261112_14_prueba_en_seco.sql` (T01..T14). Se aplica junto con la sección Clientes del panel. Números reservados: 12 (Carlos, pg_cron) y 13 (Felipe, contacto).
+
 ---
 
 ## 07 · Fotos de productos — `../20261106_07_fotos_productos.sql` (aplicada el 06-nov-2026)

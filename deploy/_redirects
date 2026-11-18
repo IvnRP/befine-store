@@ -1,0 +1,17 @@
+# Redirecciones de las direcciones antiguas de Shopify (Go-Live en aguabefine.cl).
+# Los enlaces que circulan en Google, Instagram o WhatsApp no deben terminar en error.
+# Formato Cloudflare Pages: origen  destino  código (301 = permanente). Lo específico va primero.
+/policies/privacy-policy     /privacidad.html  301
+/policies/terms-of-service   /terminos.html    301
+/policies/refund-policy      /cambios.html     301
+/policies/shipping-policy    /despacho.html    301
+/policies/*                  /terminos.html    301
+/products/*                  /catalogo.html    301
+/collections/*               /catalogo.html    301
+/collections                 /catalogo.html    301
+/cart                        /checkout.html    301
+/checkout                    /checkout.html    301
+/account/*                   /cuenta.html      301
+/account                     /cuenta.html      301
+/pages/*                     /                 301
+/blogs/*                     /                 301
