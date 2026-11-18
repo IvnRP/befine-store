@@ -214,6 +214,12 @@
   const slugDe = (v) => norm(v).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80).replace(/-+$/, "");
   const SLUG_OK = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+  /* Avisos de pedidos: de la lista de pedidos pagados recientes, los que el panel todavía no había visto
+     (por id: un pedido antiguo que se paga tarde también avisa). Ordenados del más antiguo al más nuevo. */
+  function pedidosNuevos(vistos, lista) {
+    return (lista || []).filter((p) => p && p.id && !vistos.has(p.id)).sort((a, b) => (a.numero || 0) - (b.numero || 0));
+  }
+
   /* Validaciones → objeto { campo: "mensaje" } (vacío = válido) */
   function validarProducto(p) {
     const e = {};
@@ -573,7 +579,7 @@
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
     TRANSICIONES, siguientesEstados, puedeCambiar, ACCION_ESTADO,
     filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, OPCIONES_ENTREGA, rangoEntrega, enRangoEntrega, siguienteHabil, textoRango, linkWhatsApp, telefonoVisible,
-    parsePrecio, normalizarSku, slugDe, validarProducto, validarVariante, filtrarCatalogo,
+    parsePrecio, normalizarSku, slugDe, validarProducto, pedidosNuevos, validarVariante, filtrarCatalogo,
     UMBRAL_DEFECTO, umbralStock, nivelStock, NIVELES_STOCK, parseStock, sumarStock, resumenStock, filtrarInventario,
     normalizarCodigo, enteroOpcional, estadoCupon, ESTADOS_CUPON, textoDescuento, condicionesCupon, validarCupon, filaCupon, filtrarCupones,
     accionReparto, ordenarReparto, resumenReparto, agruparPorComuna, linkMaps, telLink,

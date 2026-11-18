@@ -5,7 +5,7 @@
 // aprobado, confirma el pedido con confirmar_pago() (migración 03):
 // pendiente_pago → pagado → en_preparacion, descuenta stock y suma puntos.
 // Después pide a enviar-correo la confirmación de compra por correo (HU-10) y
-// avisa al dueño por Telegram ("¡cha-ching!" en el celular) con el resumen del pedido.
+// avisa al dueño por correo con el resumen del pedido (el panel además suena con admin-avisos.js).
 //
 // Seguridad:
 //  - Nunca se confía en el cuerpo de la notificación: el pago se CONSULTA
@@ -20,8 +20,9 @@
 // Secretos (Supabase → Edge Functions → Secrets):
 //   MP_ACCESS_TOKEN    = Access Token de Mercado Pago (obligatorio)
 //   MP_WEBHOOK_SECRET  = clave secreta de Webhooks de Mercado Pago (recomendado)
-//   TELEGRAM_BOT_TOKEN = token del bot de avisos (BotFather) — opcional: sin él no se avisa
-//   TELEGRAM_CHAT_ID   = id del chat del dueño con el bot   — opcional
+//   AVISO_PEDIDOS_EMAIL = correo del dueño para el aviso de pedido nuevo (opcional;
+//                         por defecto befine.cl@gmail.com, el contacto del negocio)
+// RESEND_API_KEY y CORREO_REMITENTE ya existen (los usa enviar-correo).
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los entrega Supabase automáticamente.
 // =====================================================================
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -30,8 +31,9 @@ const MP_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
 const MP_SECRET = Deno.env.get("MP_WEBHOOK_SECRET");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const TG_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-const TG_CHAT = Deno.env.get("TELEGRAM_CHAT_ID");
+const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
+const REMITENTE = Deno.env.get("CORREO_REMITENTE") ?? "Befine <onboarding@resend.dev>";
+const AVISO_EMAIL = Deno.env.get("AVISO_PEDIDOS_EMAIL") ?? "befine.cl@gmail.com";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -60,36 +62,42 @@ async function firmaValida(req: Request, dataId: string) {
 const clp = (n: number) => "$" + Math.round(Number(n) || 0).toLocaleString("es-CL");
 const escHtml = (s: unknown) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 
-// Aviso al dueño por Telegram cuando un pedido queda PAGADO (solo la primera vez, nunca en los
-// avisos repetidos de Mercado Pago). El sonido de caja registradora se elige en el celular, en la
-// configuración de notificaciones de ese chat. Un fallo aquí NUNCA hace fallar el webhook.
-async function avisarTelegram(sb: ReturnType<typeof createClient>, pedidoId: string) {
-  if (!TG_TOKEN || !TG_CHAT) return;
+// Aviso al dueño por CORREO cuando un pedido queda PAGADO (solo la primera vez, nunca en los avisos
+// repetidos de Mercado Pago). Usa Resend, igual que el correo al cliente. Un fallo aquí NUNCA hace
+// fallar el webhook (el pago ya quedó confirmado).
+async function avisarDueno(sb: ReturnType<typeof createClient>, pedidoId: string) {
+  if (!RESEND_KEY || !AVISO_EMAIL) return;
   try {
     const { data: p, error } = await sb.from("pedidos")
-      .select("numero,total,contacto_nombre,fecha_entrega,direccion:direcciones(comuna)," +
-              "detalle_pedido(cantidad,variante:variantes_producto(nombre,producto:productos(nombre)))")
+      .select("numero,total,contacto_nombre,contacto_telefono,fecha_entrega,direccion:direcciones(calle,numero,comuna)," +
+              "detalle_pedido(cantidad,subtotal,variante:variantes_producto(nombre,producto:productos(nombre)))")
       .eq("id", pedidoId).maybeSingle();
-    if (error || !p) { console.warn("avisarTelegram: pedido", error); return; }
-    const items = ((p as any).detalle_pedido ?? []).map((d: any) => {
+    if (error || !p) { console.warn("avisarDueno: pedido", error); return; }
+    const q = p as any;
+    const filas = (q.detalle_pedido ?? []).map((d: any) => {
       const v = d.variante ?? {}, nom = v.producto?.nombre ?? "Producto";
-      return `• ${d.cantidad} x ${escHtml(nom)}${v.nombre && v.nombre !== "Estándar" ? ` (${escHtml(v.nombre)})` : ""}`;
-    }).join("\n");
-    const entrega = (p as any).fecha_entrega ? String((p as any).fecha_entrega).split("-").reverse().join("-") : "estándar (24 a 48 h hábiles)";
-    const texto =
-      `💰 <b>Nuevo pedido #${(p as any).numero} · ${clp((p as any).total)}</b>\n` +
-      `${escHtml((p as any).contacto_nombre)} · ${escHtml((p as any).direccion?.comuna ?? "")}\n` +
-      `${items}\n` +
-      `Entrega: ${entrega}\n` +
-      `<a href="https://aguabefine.cl/admin">Abrir el panel</a>`;
-    const r = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      const det = v.nombre && v.nombre !== "Estándar" ? ` (${escHtml(v.nombre)})` : "";
+      return `<tr><td style="padding:4px 8px">${d.cantidad} x ${escHtml(nom)}${det}</td><td style="padding:4px 8px;text-align:right">${clp(d.subtotal)}</td></tr>`;
+    }).join("");
+    const dir = q.direccion ? `${escHtml(q.direccion.calle)} ${escHtml(q.direccion.numero)}, ${escHtml(q.direccion.comuna)}` : "";
+    const entrega = q.fecha_entrega ? String(q.fecha_entrega).split("-").reverse().join("-") : "estándar (24 a 48 h hábiles)";
+    const html = `<div style="font-family:Arial,sans-serif;font-size:15px;color:#10333f">
+      <h2 style="margin:0 0 8px">Nuevo pedido #${q.numero} · ${clp(q.total)}</h2>
+      <p style="margin:0 0 12px">${escHtml(q.contacto_nombre)} · ${escHtml(q.contacto_telefono ?? "")}<br>${dir}<br>Entrega: ${entrega}</p>
+      <table style="border-collapse:collapse">${filas}</table>
+      <p style="margin:16px 0 0"><a href="https://aguabefine.cl/admin#pedidos">Abrir el panel de pedidos</a></p></div>`;
+    const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: TG_CHAT, text: texto, parse_mode: "HTML", disable_web_page_preview: true }),
-      signal: AbortSignal.timeout(5000),
+      headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json", "Idempotency-Key": `aviso-${pedidoId}` },
+      body: JSON.stringify({
+        from: REMITENTE, to: [AVISO_EMAIL],
+        subject: `Nuevo pedido #${q.numero} · ${clp(q.total)} · ${q.direccion?.comuna ?? ""}`,
+        html, text: `Nuevo pedido #${q.numero} · ${clp(q.total)} · ${q.contacto_nombre ?? ""} · ${dir.replace(/<[^>]+>/g, "")}`,
+      }),
+      signal: AbortSignal.timeout(8000),
     });
-    if (!r.ok) console.warn("avisarTelegram", r.status, await r.text());
-  } catch (e) { console.warn("avisarTelegram", e); }
+    if (!r.ok) console.warn("avisarDueno", r.status, await r.text());
+  } catch (e) { console.warn("avisarDueno", e); }
 }
 
 Deno.serve(async (req) => {
@@ -149,8 +157,8 @@ Deno.serve(async (req) => {
   }
   if (data && data.ok === false) console.warn("confirmar_pago no aplicado", pedidoId, data);
 
-  // Aviso al dueño ("¡cha-ching!"): solo cuando el pago se confirmó AHORA (no en avisos repetidos)
-  if (data && data.ok === true && !data.repetido) await avisarTelegram(sb, pedidoId);
+  // Aviso al dueño por correo: solo cuando el pago se confirmó AHORA (no en avisos repetidos)
+  if (data && data.ok === true && !data.repetido) await avisarDueno(sb, pedidoId);
 
   // 3. Correo de confirmación de compra (HU-10, exigido por ley). Es idempotente: si Mercado
   //    Pago repite el aviso, no se duplica. Un fallo del correo NO hace fallar el webhook
