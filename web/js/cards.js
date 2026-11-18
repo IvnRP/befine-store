@@ -14,7 +14,7 @@
     return `
       <article class="card reveal">
         <a class="vessel${foto ? " con-foto" : ""}" style="--v-grad:${grad}" href="producto.html?id=${p.id}" aria-label="${p.nombre}">
-          ${foto ? `<img class="foto-prod" src="${foto}" alt="" width="400" height="400" loading="lazy" decoding="async">` : ""}
+          ${foto ? `<img class="foto-prod" src="${foto}" alt="${p.nombre.replace(/"/g, "&quot;")}" width="400" height="400" loading="lazy" decoding="async">` : ""}
           <span class="tag">${p.categoria}</span>${p.desde_comparacion ? `<span class="oferta">Oferta</span>` : ""}
         </a>
         <div class="body">

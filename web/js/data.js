@@ -441,6 +441,46 @@ Befine.getCobertura = async function () {
   } catch (e) { return COBERTURA_RESPALDO; }
 };
 
+/* ===================== SEO (ficha de producto) =====================
+   La tienda vive en https://aguabefine.cl (Cloudflare quita el .html de las direcciones). */
+Befine.SITIO = "https://aguabefine.cl";
+
+/* Texto plano para buscadores: [texto](enlace) → texto, sin saltos de línea; recorta en una palabra. */
+Befine.textoPlano = function (s, max = 0) {
+  let t = String(s || "").replace(/\[([^\]\n]+)\]\([^)\s]+\)/g, "$1").replace(/\s+/g, " ").trim();
+  if (max && t.length > max) t = t.slice(0, max - 1).replace(/\s+\S*$/, "") + "…";
+  return t;
+};
+
+/* Datos estructurados schema.org/Product de una ficha (Google muestra precio y disponibilidad).
+   Una oferta por variante: precio en CLP; "a pedido" (sin stock pero se vende) = BackOrder. */
+Befine.productoLD = function (p) {
+  const url = Befine.SITIO + "/producto?id=" + encodeURIComponent(p.id);
+  const foto = Befine.foto(p.imagen_url, "lg");
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p.nombre,
+    description: Befine.textoPlano(p.descripcion, 5000) || p.nombre + ": agua purificada a domicilio en Quilicura y el sector norte de Santiago.",
+    ...(foto ? { image: [foto] } : {}),
+    ...(p.variantes[0] && p.variantes[0].sku ? { sku: p.variantes[0].sku } : {}),
+    brand: { "@type": "Brand", name: "Befine" },
+    ...(p.categoria ? { category: p.categoria } : {}),
+    url,
+    offers: p.variantes.map((v) => ({
+      "@type": "Offer",
+      ...(v.sku ? { sku: v.sku } : {}),
+      ...(p.variantes.length > 1 ? { name: v.nombre } : {}),
+      price: v.precio,
+      priceCurrency: "CLP",
+      availability: v.a_pedido ? "https://schema.org/BackOrder" : "https://schema.org/InStock",
+      itemCondition: "https://schema.org/NewCondition",
+      url,
+      seller: { "@type": "Organization", name: "Agua Purificada Befine" },
+    })),
+  };
+};
+
 /* ¿La dirección apunta a la propia tienda? (enlaces dentro de la descripción de un producto)
    Acepta páginas relativas (producto?id=..., catalogo?cat=packs, como-funciona) y https://aguabefine.cl/...
    Rechaza otros dominios y esquemas como javascript: o data:. */

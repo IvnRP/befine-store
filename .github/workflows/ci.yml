@@ -51,7 +51,7 @@ jobs:
         run: |
           docker run -d --name befine -p 8080:80 befine-store:ci
           for i in $(seq 1 15); do curl -fsS http://localhost:8080/ > /dev/null && break; sleep 1; done
-          curl -fsS http://localhost:8080/ | grep -q "Befine Store"
+          curl -fsS http://localhost:8080/ | grep -q "Agua purificada a domicilio"
           curl -fsS http://localhost:8080/checkout.html > /dev/null
       - name: Cabeceras de seguridad de nginx
         run: |

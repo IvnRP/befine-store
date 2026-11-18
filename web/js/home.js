@@ -54,7 +54,7 @@
       qbox.innerHTML = `
         <span class="badge">★ Lo más pedido</span>
         <div class="qhead${foto ? " con-foto-head" : ""}">
-          <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `<img class="foto-prod" src="${foto}" alt="" width="400" height="400" fetchpriority="high" decoding="async">` : ""}</div>
+          <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `<img class="foto-prod" src="${foto}" alt="${prod.nombre.replace(/"/g, "&quot;")}" width="400" height="400" fetchpriority="high" decoding="async">` : ""}</div>
           <div><h3>${prod.nombre}</h3>
           <div class="price" id="qPrice">${precioHTML(vSel)}</div></div>
         </div>

@@ -4,6 +4,33 @@
    cantidad, y agrega al carrito.
    ===================================================================== */
 (function () {
+  /* SEO de la ficha: descripción para buscadores, dirección canónica, vista previa (og:) y
+     datos estructurados schema.org/Product. Google ejecuta el JS y los lee. */
+  function seoFicha(p) {
+    const url = Befine.SITIO + "/producto?id=" + encodeURIComponent(p.id);
+    const desc = Befine.textoPlano(p.descripcion, 155) ||
+      p.nombre + ": agua purificada a domicilio en Quilicura y el sector norte de Santiago. Envío gratis desde $7.000.";
+    const meta = (attr, clave, valor) => {
+      let el = document.head.querySelector(`meta[${attr}="${clave}"]`);
+      if (!el) { el = document.createElement("meta"); el.setAttribute(attr, clave); document.head.appendChild(el); }
+      el.setAttribute("content", valor);
+    };
+    meta("name", "description", desc);
+    meta("property", "og:title", document.title);
+    meta("property", "og:description", desc);
+    meta("property", "og:url", url);
+    meta("property", "og:type", "product");
+    const foto = Befine.foto(p.imagen_url, "lg");
+    if (foto) meta("property", "og:image", foto);
+    let can = document.head.querySelector('link[rel="canonical"]');
+    if (!can) { can = document.createElement("link"); can.rel = "canonical"; document.head.appendChild(can); }
+    can.href = url;
+    const ld = document.createElement("script");
+    ld.type = "application/ld+json";
+    ld.textContent = JSON.stringify(Befine.productoLD(p)).replace(/</g, "\\u003c");
+    document.head.appendChild(ld);
+  }
+
   document.addEventListener("DOMContentLoaded", async () => {
     const id = new URLSearchParams(location.search).get("id");
     const cont = document.getElementById("ficha");
@@ -27,7 +54,8 @@
     let variante = p.variantes[0]; // seleccionada
     const foto = Befine.foto(p.imagen_url, "lg"), fotoSm = Befine.foto(p.imagen_url, "sm");
 
-    document.title = p.nombre + " · Befine Store";
+    document.title = p.nombre + " · Agua purificada a domicilio · Befine";
+    seoFicha(p);
 
     cont.innerHTML = `
       <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `

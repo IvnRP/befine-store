@@ -389,8 +389,8 @@ body.tema-claro.fx-off { background: var(--bg) !important; }
 /* ===== Bienvenida (loader): SIEMPRE sobre la cordillera oscura =====
    Aunque el tema sea claro, el saludo y el texto van en claro para que se
    lean de noche y madrugada (y en todas las bandas). */
-body.tema-claro .loader h1,
-body.tema-claro .loader h1 .accent { color: #eef7fd; }
+body.tema-claro .loader .l-greet,
+body.tema-claro .loader .l-greet .accent { color: #eef7fd; }
 body.tema-claro .loader p.msg { color: rgba(238,247,253,.92); }
 
 /* Botón "tema claro" del panel de vista previa (dev) */

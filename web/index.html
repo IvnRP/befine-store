@@ -3,8 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Befine Store · Agua purificada a domicilio</title>
-  <meta name="description" content="Agua purificada a domicilio en Quilicura y el sector norte de Santiago. Recargas, bidones y dispensadores en pocos clicks.">
+  <title>Agua purificada a domicilio en Quilicura | Recarga bidón 20 L · Befine</title>
+  <meta name="description" content="Agua purificada a domicilio en Quilicura y el sector norte de Santiago. Recarga de bidones de 20 y 12 litros, dispensadores y packs. Envío gratis desde $7.000.">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="icon" href="assets/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#0E6AA0">
+  <link rel="canonical" href="https://aguabefine.cl/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Agua Purificada Befine">
+  <meta property="og:locale" content="es_CL">
+  <meta property="og:title" content="Agua purificada a domicilio en Quilicura | Recarga bidón 20 L · Befine">
+  <meta property="og:description" content="Agua purificada a domicilio en Quilicura y el sector norte de Santiago. Recarga de bidones de 20 y 12 litros, dispensadores y packs. Envío gratis desde $7.000.">
+  <meta property="og:url" content="https://aguabefine.cl/">
+  <meta property="og:image" content="https://aguabefine.cl/assets/og-befine.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Agua purificada Befine a domicilio: envío gratis desde $7.000">
+  <meta name="twitter:card" content="summary_large_image">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +31,69 @@
   <link rel="stylesheet" href="css/shell.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/home.css">
+  <!-- Datos del negocio para Google (schema.org/LocalBusiness): negocio local con despacho en estas comunas -->
+  <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": "https://aguabefine.cl/#negocio",
+    "name": "Agua Purificada Befine",
+    "alternateName": [
+      "Befine",
+      "Agua Befine"
+    ],
+    "description": "Venta y despacho a domicilio de agua purificada en bidones de 20 y 12 litros, dispensadores y packs en Quilicura y el sector norte de Santiago.",
+    "url": "https://aguabefine.cl/",
+    "logo": "https://aguabefine.cl/assets/icon-512.png",
+    "image": "https://aguabefine.cl/assets/og-befine.jpg",
+    "telephone": "+56958549641",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Quilicura",
+      "addressRegion": "Región Metropolitana",
+      "addressCountry": "CL"
+    },
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "Quilicura"
+      },
+      {
+        "@type": "City",
+        "name": "Huechuraba"
+      },
+      {
+        "@type": "City",
+        "name": "Recoleta"
+      },
+      {
+        "@type": "City",
+        "name": "Valle Grande"
+      },
+      {
+        "@type": "City",
+        "name": "Valle Lo Campino"
+      }
+    ],
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday"
+        ],
+        "opens": "09:00",
+        "closes": "17:00"
+      }
+    ],
+    "priceRange": "$",
+    "currenciesAccepted": "CLP",
+    "paymentAccepted": "Tarjeta de crédito, tarjeta de débito, Mercado Pago"
+  }
+  </script>
 </head>
 <body>
 <script>try{document.body.classList.toggle('tema-claro',(localStorage.getItem('befine_tema')||'claro')==='claro');}catch(e){document.body.classList.add('tema-claro');}</script>
@@ -35,7 +114,7 @@
 <div class="loader" id="loader" role="dialog" aria-label="Bienvenida">
   <div class="loader-inner">
     <img class="l-logo" src="assets/logo-befine.png" alt="Befine">
-    <h1 id="loaderGreet">Hola</h1>
+    <p class="l-greet" id="loaderGreet">Hola</p>   <!-- no es h1: la página tiene un solo título principal (SEO) -->
     <p class="msg" id="loaderMsg"></p>
     <div class="bar"><span></span></div>
   </div>
@@ -54,9 +133,8 @@
       <div class="hero-grid">
         <div class="inner">
           <p class="eyebrow">Agua purificada a domicilio · Quilicura y sector norte</p>
-          <!-- H1 (EJEMPLO con SEO — edítalo). Mantiene el tamaño de letra grande. -->
+          <!-- H1 único de la página (SEO): servicio + comuna principal -->
           <h1>Recarga de agua purificada <span class="serif">a domicilio</span> en Quilicura</h1>
-          <!-- Párrafo SEO de ejemplo: reemplázalo con tus palabras clave reales. -->
           <p class="sub">Bidones y recargas de agua purificada de 20 L y 12 L, dispensadores frío/calor y despacho a domicilio en Quilicura, Huechuraba, Recoleta, Valle Grande y Valle Lo Campino. Envío gratis desde $7.000 y entrega en 24 a 48 horas hábiles.</p>
           <!-- Frase secundaria y pequeña (no es lo relevante del e-commerce). -->
           <p class="hint">Mueve el mouse: el agua reacciona en toda la página.</p>

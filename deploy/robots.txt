@@ -1,0 +1,7 @@
+# robots.txt de aguabefine.cl (lo copia deploy/construir.sh a dist/).
+# Cloudflare antepone sus propias reglas para bots de IA ("managed robots.txt").
+User-agent: *
+Allow: /
+Disallow: /admin
+
+Sitemap: https://aguabefine.cl/sitemap.xml

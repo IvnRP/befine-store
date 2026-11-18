@@ -40,8 +40,8 @@
 .loader.hide { opacity: 0; visibility: hidden; pointer-events: none; }
 .loader-inner { max-width: 640px; }
 .loader .l-logo { width: clamp(150px,26vw,210px); height: auto; margin: 0 auto 22px; display: block; filter: drop-shadow(0 12px 34px rgba(0,0,0,.5)); opacity: 0; transform: translateY(12px); animation: up .35s 0s forwards; }
-.loader h1 { font-family: var(--font-display); font-weight: 800; letter-spacing: -.03em; font-size: clamp(40px,9vw,84px); line-height: .98; margin: 0; text-wrap: balance; text-shadow: 0 12px 44px rgba(0,0,0,.45); opacity: 0; transform: translateY(16px); animation: up .35s .05s forwards; }
-.loader h1 .accent { color: var(--accent-soft); }
+.loader .l-greet { font-family: var(--font-display); font-weight: 800; letter-spacing: -.03em; font-size: clamp(40px,9vw,84px); line-height: .98; margin: 0; text-wrap: balance; text-shadow: 0 12px 44px rgba(0,0,0,.45); opacity: 0; transform: translateY(16px); animation: up .35s .05s forwards; }
+.loader .l-greet .accent { color: var(--accent-soft); }
 .loader p.msg { margin: 16px auto 0; font-size: clamp(16px,2.6vw,21px); color: var(--ink); opacity: 0; transform: translateY(12px); max-width: 32ch; text-shadow: 0 4px 18px rgba(0,0,0,.45); animation: up .35s .1s forwards; }
 .loader .bar { margin: 34px auto 0; width: 180px; height: 4px; border-radius: 999px; background: rgba(255,255,255,.16); overflow: hidden; }
 .loader .bar span { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg,var(--accent-soft),var(--accent)); animation: load .7s ease forwards; }

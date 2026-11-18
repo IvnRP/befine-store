@@ -8,6 +8,18 @@
 /policies/refund-policy      /cambios      301
 /policies/shipping-policy    /despacho     301
 /policies/*                  /terminos     301
+# Cada producto de Shopify → su ficha nueva (conserva el posicionamiento en Google de cada producto)
+/products/recarga-bidon-20-litros                                          /producto?id=4ec5bff2-2afe-40b4-bf78-0ab183cf1231  301
+/products/recarga-bidon-12-litros                                          /producto?id=5a0cdc0c-f7a7-49e3-9508-a723f4e4eb00  301
+/products/bidon-recarga-20-litros                                          /producto?id=a726a6ca-fd14-44b7-b4ee-664e378dbf9d  301
+/products/bidon-recarga-12                                                 /producto?id=24249d3c-8acc-452c-8553-d52a3a7e77fa  301
+/products/pack-inicial-3-bidones-de-20-litros-dispensador-soporte-blanco   /producto?id=2f1a3618-6e76-4786-b5bb-c29ab3ae1242  301
+/products/pack-inicial-4-recargas-de-12-litros-dispensador-soporte-blanco  /producto?id=7d11de88-0f93-4366-be1c-7dd75fde19d8  301
+/products/dispensador-compresor-sobre-mesa                                 /producto?id=0654f810-e308-40e3-af2a-b664af53b6d8  301
+/products/dispensador-compresor-con-bidon-oculto                           /producto?id=0f9f5ded-1480-444d-b27f-58f6aec1518d  301
+/products/dispensador-con-carga-usb                                        /producto?id=d70bb109-ef35-4ee7-9895-6548f5f9b78a  301
+/products/dispensadores-compresor-agua-purificada-befine                   /producto?id=0a8f5a4f-842a-453a-862f-1c0317f7e859  301
+/products/dispensador-soporte-plastico-blanco                              /producto?id=73408d46-69bc-40af-b734-735ac0557f4a  301
 /products/*                  /catalogo     301
 /collections/*               /catalogo     301
 /collections                 /catalogo     301
