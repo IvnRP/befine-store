@@ -4,7 +4,8 @@
 // Recibe las notificaciones de pago de Mercado Pago y, si el pago está
 // aprobado, confirma el pedido con confirmar_pago() (migración 03):
 // pendiente_pago → pagado → en_preparacion, descuenta stock y suma puntos.
-// Después pide a enviar-correo la confirmación de compra por correo (HU-10).
+// Después pide a enviar-correo la confirmación de compra por correo (HU-10) y
+// avisa al dueño por Telegram ("¡cha-ching!" en el celular) con el resumen del pedido.
 //
 // Seguridad:
 //  - Nunca se confía en el cuerpo de la notificación: el pago se CONSULTA
@@ -19,6 +20,8 @@
 // Secretos (Supabase → Edge Functions → Secrets):
 //   MP_ACCESS_TOKEN    = Access Token de Mercado Pago (obligatorio)
 //   MP_WEBHOOK_SECRET  = clave secreta de Webhooks de Mercado Pago (recomendado)
+//   TELEGRAM_BOT_TOKEN = token del bot de avisos (BotFather) — opcional: sin él no se avisa
+//   TELEGRAM_CHAT_ID   = id del chat del dueño con el bot   — opcional
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los entrega Supabase automáticamente.
 // =====================================================================
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -27,6 +30,8 @@ const MP_TOKEN = Deno.env.get("MP_ACCESS_TOKEN");
 const MP_SECRET = Deno.env.get("MP_WEBHOOK_SECRET");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const TG_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+const TG_CHAT = Deno.env.get("TELEGRAM_CHAT_ID");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -50,6 +55,41 @@ async function firmaValida(req: Request, dataId: string) {
   const id = /^[a-z0-9]+$/i.test(dataId) ? dataId.toLowerCase() : dataId;
   const manifiesto = `id:${id};request-id:${reqId};ts:${partes.ts};`;
   return (await hmacHex(MP_SECRET, manifiesto)) === partes.v1;
+}
+
+const clp = (n: number) => "$" + Math.round(Number(n) || 0).toLocaleString("es-CL");
+const escHtml = (s: unknown) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+
+// Aviso al dueño por Telegram cuando un pedido queda PAGADO (solo la primera vez, nunca en los
+// avisos repetidos de Mercado Pago). El sonido de caja registradora se elige en el celular, en la
+// configuración de notificaciones de ese chat. Un fallo aquí NUNCA hace fallar el webhook.
+async function avisarTelegram(sb: ReturnType<typeof createClient>, pedidoId: string) {
+  if (!TG_TOKEN || !TG_CHAT) return;
+  try {
+    const { data: p, error } = await sb.from("pedidos")
+      .select("numero,total,contacto_nombre,fecha_entrega,direccion:direcciones(comuna)," +
+              "detalle_pedido(cantidad,variante:variantes_producto(nombre,producto:productos(nombre)))")
+      .eq("id", pedidoId).maybeSingle();
+    if (error || !p) { console.warn("avisarTelegram: pedido", error); return; }
+    const items = ((p as any).detalle_pedido ?? []).map((d: any) => {
+      const v = d.variante ?? {}, nom = v.producto?.nombre ?? "Producto";
+      return `• ${d.cantidad} x ${escHtml(nom)}${v.nombre && v.nombre !== "Estándar" ? ` (${escHtml(v.nombre)})` : ""}`;
+    }).join("\n");
+    const entrega = (p as any).fecha_entrega ? String((p as any).fecha_entrega).split("-").reverse().join("-") : "estándar (24 a 48 h hábiles)";
+    const texto =
+      `💰 <b>Nuevo pedido #${(p as any).numero} · ${clp((p as any).total)}</b>\n` +
+      `${escHtml((p as any).contacto_nombre)} · ${escHtml((p as any).direccion?.comuna ?? "")}\n` +
+      `${items}\n` +
+      `Entrega: ${entrega}\n` +
+      `<a href="https://aguabefine.cl/admin">Abrir el panel</a>`;
+    const r = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: TG_CHAT, text: texto, parse_mode: "HTML", disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!r.ok) console.warn("avisarTelegram", r.status, await r.text());
+  } catch (e) { console.warn("avisarTelegram", e); }
 }
 
 Deno.serve(async (req) => {
@@ -108,6 +148,9 @@ Deno.serve(async (req) => {
     return ok({ error: "No se pudo confirmar el pago" }, 500); // MP reintentará
   }
   if (data && data.ok === false) console.warn("confirmar_pago no aplicado", pedidoId, data);
+
+  // Aviso al dueño ("¡cha-ching!"): solo cuando el pago se confirmó AHORA (no en avisos repetidos)
+  if (data && data.ok === true && !data.repetido) await avisarTelegram(sb, pedidoId);
 
   // 3. Correo de confirmación de compra (HU-10, exigido por ley). Es idempotente: si Mercado
   //    Pago repite el aviso, no se duplica. Un fallo del correo NO hace fallar el webhook
