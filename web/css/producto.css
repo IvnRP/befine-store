@@ -13,7 +13,9 @@
 .ficha .buybox .breadcrumb { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
 .ficha .buybox .breadcrumb a:hover { color: var(--accent-soft); }
 .ficha .buybox h1 { font-family: var(--font-display); font-weight: 800; letter-spacing: -.02em; font-size: clamp(24px, 4vw, 36px); margin: 0 0 8px; line-height: 1.1; }
-.ficha .buybox .desc { color: var(--muted); margin: 0 0 20px; white-space: pre-line; }   /* respeta los saltos de línea del panel */
+.ficha .buybox .desc { color: color-mix(in srgb, var(--ink) 82%, var(--muted)); margin: 0 0 20px; white-space: pre-line;   /* respeta los saltos de línea del panel */
+  font-size: 15.5px; line-height: 1.6; text-shadow: 0 1px 2px rgba(2,9,24,.45); }   /* se lee bien sobre la foto de fondo */
+body.tema-claro .ficha .buybox .desc { color: #1f3f4c; text-shadow: 0 0 6px rgba(255,255,255,.85), 0 1px 1px rgba(255,255,255,.9); }
 .ficha .buybox .desc a { color: var(--accent-soft); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 body.tema-claro .ficha .buybox .desc a { color: #0E6AA0; }
 .ficha .buybox .price { font-family: var(--font-display); font-weight: 800; font-size: 32px; margin: 0 0 20px; }
