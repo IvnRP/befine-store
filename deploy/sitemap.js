@@ -15,10 +15,11 @@ const PAGINAS = ["/", "/catalogo", "/como-funciona", "/despacho", "/terminos", "
 const escXml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
 
 /* Direcciones del sitemap: páginas + fichas de producto */
-function urlsDe(idsProductos = []) {
+/* productos: [{ id, slug }] → /productos/<slug> (migración 16); sin slug, la dirección antigua ?id= */
+function urlsDe(productos = []) {
   return [
     ...PAGINAS.map((p) => SITIO + p),
-    ...idsProductos.map((id) => SITIO + "/producto?id=" + encodeURIComponent(id)),
+    ...productos.map((p) => p.slug ? SITIO + "/productos/" + encodeURIComponent(p.slug) : SITIO + "/producto?id=" + encodeURIComponent(p.id)),
   ];
 }
 
@@ -38,14 +39,14 @@ function credenciales() {
   return { url, key };
 }
 
-async function idsProductosActivos() {
+async function productosActivos() {
   const { url, key } = credenciales();
-  const r = await fetch(`${url}/rest/v1/productos?select=id&activo=eq.true&order=nombre`, {
+  const r = await fetch(`${url}/rest/v1/productos?select=id,slug&activo=eq.true&order=nombre`, {
     headers: { apikey: key, Authorization: `Bearer ${key}` },
     signal: AbortSignal.timeout(15000),
   });
   if (!r.ok) throw new Error("Supabase respondió " + r.status);
-  return (await r.json()).map((p) => p.id);
+  return (await r.json()).map((p) => ({ id: p.id, slug: p.slug || null }));
 }
 
 module.exports = { SITIO, PAGINAS, urlsDe, sitemapXML };
@@ -54,7 +55,7 @@ if (require.main === module) {
   (async () => {
     const salida = process.argv[2] || "dist";
     let ids = [];
-    try { ids = await idsProductosActivos(); }
+    try { ids = await productosActivos(); }
     catch (e) { console.warn("Aviso: sitemap sin fichas de producto (" + e.message + ")"); }
     fs.writeFileSync(path.join(salida, "sitemap.xml"), sitemapXML(urlsDe(ids)));
     console.log(`sitemap.xml: ${PAGINAS.length} páginas + ${ids.length} productos`);

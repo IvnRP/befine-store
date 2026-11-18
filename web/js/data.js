@@ -57,7 +57,7 @@ const HERO_SKU = "BEF-REC-20-BEFINE"; // Recarga Bidón 20 L (protagonista del i
 
 /* ---------- Consulta base: producto + categoría + variantes + precios ---------- */
 const SELECT_PRODUCTO =
-  "id,categoria_id,nombre,descripcion,imagen_url,activo," +
+  "id,slug,categoria_id,nombre,descripcion,imagen_url,activo," +   // slug: dirección /productos/<slug> (migración 16)
   "categorias(nombre,slug)," +
   "variantes_producto(id,producto_id,sku,nombre,atributos,stock,controla_stock,suma_puntos,activo," +
   "precios_variante(nivel_precio_id,precio))";
@@ -110,6 +110,7 @@ function _armarProducto(p, nivel) {
   const cat = p.categorias || {};
   return {
     id: p.id,
+    slug: p.slug || null,
     nombre: p.nombre,
     descripcion: p.descripcion,
     imagen_url: p.imagen_url,
@@ -178,6 +179,19 @@ const Befine = {
       .eq("activo", true)
       .maybeSingle();
     if (error) { console.error("getProducto:", error.message); return null; }
+    return data ? _armarProducto(data, nivel) : null;
+  },
+
+  /* Un producto por su dirección amigable (/productos/<slug>, migración 16) */
+  async getProductoPorSlug(slug) {
+    const nivel = await _nivelRetail();
+    const { data, error } = await sb
+      .from("productos")
+      .select(SELECT_PRODUCTO)
+      .eq("slug", slug)
+      .eq("activo", true)
+      .maybeSingle();
+    if (error) { console.error("getProductoPorSlug:", error.message); return null; }
     return data ? _armarProducto(data, nivel) : null;
   },
 
@@ -445,6 +459,15 @@ Befine.getCobertura = async function () {
    La tienda vive en https://aguabefine.cl (Cloudflare quita el .html de las direcciones). */
 Befine.SITIO = "https://aguabefine.cl";
 
+/* Dirección de la ficha: /productos/<slug> (SEO, migración 16); sin slug, la antigua producto.html?id= */
+Befine.urlProducto = function (p) {
+  return p && p.slug ? "/productos/" + encodeURIComponent(p.slug) : "producto.html?id=" + encodeURIComponent((p && p.id) || "");
+};
+/* La misma dirección, completa (canónica, sitemap, datos estructurados) */
+Befine.urlProductoAbs = function (p) {
+  return p && p.slug ? Befine.SITIO + "/productos/" + encodeURIComponent(p.slug) : Befine.SITIO + "/producto?id=" + encodeURIComponent((p && p.id) || "");
+};
+
 /* Texto plano para buscadores: [texto](enlace) → texto, sin saltos de línea; recorta en una palabra. */
 Befine.textoPlano = function (s, max = 0) {
   let t = String(s || "").replace(/\[([^\]\n]+)\]\([^)\s]+\)/g, "$1").replace(/\s+/g, " ").trim();
@@ -455,7 +478,7 @@ Befine.textoPlano = function (s, max = 0) {
 /* Datos estructurados schema.org/Product de una ficha (Google muestra precio y disponibilidad).
    Una oferta por variante: precio en CLP; "a pedido" (sin stock pero se vende) = BackOrder. */
 Befine.productoLD = function (p) {
-  const url = Befine.SITIO + "/producto?id=" + encodeURIComponent(p.id);
+  const url = Befine.urlProductoAbs(p);
   const foto = Befine.foto(p.imagen_url, "lg");
   return {
     "@context": "https://schema.org",
@@ -482,11 +505,13 @@ Befine.productoLD = function (p) {
 };
 
 /* ¿La dirección apunta a la propia tienda? (enlaces dentro de la descripción de un producto)
-   Acepta páginas relativas (producto?id=..., catalogo?cat=packs, como-funciona) y https://aguabefine.cl/...
+   Acepta páginas relativas (producto?id=..., catalogo?cat=packs, como-funciona), fichas /productos/<slug>
+   y https://aguabefine.cl/...
    Rechaza otros dominios y esquemas como javascript: o data:. */
 Befine.enlaceTienda = function (url) {
   const u = String(url || "").trim();
   if (/^https:\/\/(www\.)?aguabefine\.cl(\/[\w\-./?=&%#]*)?$/i.test(u)) return true;
+  if (/^\/?productos\/[a-z0-9]+(-[a-z0-9]+)*\/?$/.test(u)) return true;
   return /^\/?[a-z0-9-]+(\.html)?(\?[\w\-=&%.]*)?(#[\w-]*)?$/i.test(u);
 };
 

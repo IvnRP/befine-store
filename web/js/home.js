@@ -69,7 +69,7 @@
           <button class="btn btn-ghost" id="qAdd">Agregar al carrito</button>
           <button class="btn btn-primary" id="qBuy">Comprar ahora</button>
         </div>
-        <a class="verdet" href="producto.html?id=${prod.id}">Ver más detalles →</a>`;
+        <a class="verdet" href="${Befine.urlProducto(prod)}">Ver más detalles →</a>`;
 
       const qPrice = qbox.querySelector("#qPrice");
       const qCant = qbox.querySelector("#qCant");

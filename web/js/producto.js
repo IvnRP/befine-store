@@ -7,7 +7,7 @@
   /* SEO de la ficha: descripción para buscadores, dirección canónica, vista previa (og:) y
      datos estructurados schema.org/Product. Google ejecuta el JS y los lee. */
   function seoFicha(p) {
-    const url = Befine.SITIO + "/producto?id=" + encodeURIComponent(p.id);
+    const url = Befine.urlProductoAbs(p);
     const desc = Befine.textoPlano(p.descripcion, 155) ||
       p.nombre + ": agua purificada a domicilio en Quilicura y el sector norte de Santiago. Envío gratis desde $7.000.";
     const meta = (attr, clave, valor) => {
@@ -32,9 +32,13 @@
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
+    // Ficha por dirección amigable /productos/<slug> (Cloudflare la sirve con producto.html) o por ?id= (antigua)
+    const mSlug = location.pathname.match(/^\/productos\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
     const id = new URLSearchParams(location.search).get("id");
     const cont = document.getElementById("ficha");
-    const p = id ? await Befine.getProducto(id) : null;
+    const p = mSlug ? await Befine.getProductoPorSlug(mSlug[1]) : id ? await Befine.getProducto(id) : null;
+    // Entró por ?id= y el producto tiene dirección amigable: la barra muestra la nueva (sin recargar)
+    if (p && p.slug && !mSlug && history.replaceState) history.replaceState(null, "", Befine.urlProducto(p));
 
     if (!p) { cont.innerHTML = `<p class="empty-state">Producto no encontrado. <a href="catalogo.html">Volver al catálogo</a>.</p>`; return; }
 

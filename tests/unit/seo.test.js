@@ -1,4 +1,4 @@
-/* SEO técnico (auditoría 18-nov-2026) — 8 pruebas
+/* SEO técnico (auditoría 18-nov-2026) — 11 pruebas
    Casos CP-U33: texto para buscadores, datos estructurados de producto, sitemap, redirecciones de
    Shopify por producto, etiquetas de vista previa/ícono/canónica y un solo H1 en el inicio. */
 const { test } = require("node:test");
@@ -13,7 +13,8 @@ const RAIZ = path.join(__dirname, "..", "..");
 const leer = (r) => fs.readFileSync(path.join(RAIZ, r), "utf8");
 
 const prod = {
-  id: "4ec5bff2-2afe-40b4-bf78-0ab183cf1231", nombre: "Recarga Bidón 20 Litros", categoria: "Recargas",
+  id: "4ec5bff2-2afe-40b4-bf78-0ab183cf1231", slug: "recarga-agua-purificada-bidon-20-litros",
+  nombre: "Recarga Bidón 20 Litros", categoria: "Recargas",
   imagen_url: "bidon-20l-befine-1000.webp",
   descripcion: "Agua purificada en bidón de 20 litros.\n\n• Envío gratis.\n¿Sin bidón? Elige [Bidón + Recarga](producto?id=abc).",
   variantes: [
@@ -32,7 +33,7 @@ test("CP-U33a textoPlano quita los enlaces [texto](dirección) y los saltos de l
 test("CP-U33b datos estructurados Product: una oferta por variante, en CLP y con disponibilidad", () => {
   const ld = Befine.productoLD(prod);
   assert.equal(ld["@type"], "Product");
-  assert.equal(ld.url, "https://aguabefine.cl/producto?id=" + prod.id);
+  assert.equal(ld.url, "https://aguabefine.cl/productos/recarga-agua-purificada-bidon-20-litros");
   assert.equal(ld.offers.length, 2);
   assert.deepEqual(ld.offers.map((o) => [o.price, o.priceCurrency, o.availability.split("/").pop()]),
     [[2500, "CLP", "InStock"], [2990, "CLP", "BackOrder"]]);
@@ -40,9 +41,10 @@ test("CP-U33b datos estructurados Product: una oferta por variante, en CLP y con
 });
 
 test("CP-U33c sitemap: páginas públicas + una ficha por producto, con & escapado", () => {
-  const urls = urlsDe(["a1", "b2"]);
+  const urls = urlsDe([{ id: "a1", slug: "recarga-agua-purificada-bidon-20-litros" }, { id: "b2", slug: null }]);
   assert.equal(urls.length, PAGINAS.length + 2);
-  assert.ok(urls.includes("https://aguabefine.cl/") && urls.includes("https://aguabefine.cl/producto?id=a1"));
+  assert.ok(urls.includes("https://aguabefine.cl/") && urls.includes("https://aguabefine.cl/productos/recarga-agua-purificada-bidon-20-litros"));
+  assert.ok(urls.includes("https://aguabefine.cl/producto?id=b2"), "sin slug usa la dirección antigua");
   const xml = sitemapXML(["https://aguabefine.cl/x?a=1&b=2"]);
   assert.match(xml, /<loc>https:\/\/aguabefine\.cl\/x\?a=1&amp;b=2<\/loc>/);
   assert.ok(!urls.some((u) => /checkout|cuenta|admin|\.html/.test(u)), "solo direcciones canónicas e indexables");
@@ -55,8 +57,37 @@ test("CP-U33d cada producto de Shopify redirige a su ficha, antes de la regla ge
   assert.equal(especificas.length, 11);
   for (const [l, i] of especificas) {
     assert.ok(i < general, "debe ir antes de /products/*: " + l);
-    assert.match(l, /\s\/producto\?id=[0-9a-f-]{36}\s+301$/);
+    assert.match(l, /\s\/productos\/[a-z0-9]+(-[a-z0-9]+)*\s+301$/);
   }
+});
+
+test("CP-U33i dirección amigable: /productos/<slug> se sirve con la ficha (Cloudflare y nginx) antes de las redirecciones", () => {
+  const r = leer("deploy/_redirects").split("\n").filter((l) => l.trim() && !l.startsWith("#"));
+  const rew = r.findIndex((l) => /^\/productos\/\*\s+\/producto\s+200$/.test(l));
+  assert.ok(rew >= 0, "falta la reescritura /productos/* → /producto 200");
+  assert.ok(rew < r.findIndex((l) => l.startsWith("/products/")), "la reescritura va antes de las redirecciones de Shopify");
+  assert.match(leer("docker/nginx.conf"), /location \/productos\/ \{\s*try_files \/producto\.html =404;/);
+  assert.match(leer("web/producto.html"), /<base href="\/">/);
+});
+
+test("CP-U33j enlaces de producto: /productos/<slug> si tiene, si no la antigua ?id=", () => {
+  assert.equal(Befine.urlProducto(prod), "/productos/recarga-agua-purificada-bidon-20-litros");
+  assert.equal(Befine.urlProducto({ id: "x1", slug: null }), "producto.html?id=x1");
+  assert.equal(Befine.urlProductoAbs(prod), "https://aguabefine.cl/productos/recarga-agua-purificada-bidon-20-litros");
+  assert.equal(Befine.enlaceTienda("/productos/bidon-20-litros-con-agua-purificada"), true);
+  assert.equal(Befine.enlaceTienda("productos/bidon-20-litros-con-agua-purificada"), true);
+  assert.equal(Befine.enlaceTienda("/productos/../admin"), false);
+});
+
+test("CP-U33k la migración 16 carga las mismas 11 direcciones que usan las redirecciones de Shopify", () => {
+  const dir = path.join(RAIZ, "web", "supabase", "migrations");
+  const mig = fs.readdirSync(dir).find((f) => /_16_productos_slug\.sql$/.test(f));
+  assert.ok(mig, "falta la migración 16");
+  const sql = fs.readFileSync(path.join(dir, mig), "utf8");
+  const enSql = [...sql.matchAll(/'([a-z0-9]+(?:-[a-z0-9]+)+)'\),?\n/g)].map((m) => m[1]).sort();
+  const enRed = [...leer("deploy/_redirects").matchAll(/\/productos\/([a-z0-9-]+)\s+301/g)].map((m) => m[1]).sort();
+  assert.equal(enSql.length, 11);
+  assert.deepEqual(enRed, enSql);
 });
 
 test("CP-U33e robots.txt publica el sitemap y construir.sh copia robots y genera el sitemap", () => {

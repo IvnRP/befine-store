@@ -19,6 +19,7 @@
     const low = m.toLowerCase();
     if (e && e.code === "42501" || low.includes("row-level security") || low.includes("permission denied"))
       return "No tienes permiso para hacer este cambio.";
+    if (low.includes("productos_slug_unico")) return "Esa dirección ya la usa otro producto. Elige otra.";
     if (e && e.code === "23505" || low.includes("duplicate key")) return "Ya existe un registro con ese valor (revisa el SKU o el nombre).";
     if (e && e.code === "23514" || low.includes("check constraint")) return "Algún valor no es válido (revisa números negativos o vacíos).";
     if (low.includes("failed to fetch") || low.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
@@ -174,12 +175,12 @@
     async listCatalogo() {
       const nivel = await _nivelRetail();
       const { data, error } = await sb.from("productos")
-        .select("id,categoria_id,nombre,descripcion,imagen_url,activo,created_at,categorias(nombre)," +
+        .select("id,slug,categoria_id,nombre,descripcion,imagen_url,activo,created_at,categorias(nombre)," +
                 "variantes_producto(id,producto_id,sku,nombre,stock,controla_stock,activo,precios_variante(nivel_precio_id,precio))")
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data || []).map((p) => ({
-        id: p.id, categoria_id: p.categoria_id, categoria: (p.categorias && p.categorias.nombre) || "Sin categoría",
+        id: p.id, slug: p.slug || null, categoria_id: p.categoria_id, categoria: (p.categorias && p.categorias.nombre) || "Sin categoría",
         nombre: p.nombre, descripcion: p.descripcion, imagen_url: p.imagen_url, activo: p.activo,
         variantes: (p.variantes_producto || [])
           .sort((a, b) => (a.sku || "").localeCompare(b.sku || ""))
@@ -199,6 +200,7 @@
         categoria_id: Number(p.categoria_id) || null,
         imagen_url: String(p.imagen_url || "").trim() || null,
         activo: !!p.activo,
+        slug: String(p.slug || "").trim() || null,   // vacía: la base la genera desde el nombre (migración 16)
       };
       const q = p.id
         ? sb.from("productos").update(fila).eq("id", p.id).select("id")
