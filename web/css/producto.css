@@ -14,6 +14,8 @@
 .ficha .buybox .breadcrumb a:hover { color: var(--accent-soft); }
 .ficha .buybox h1 { font-family: var(--font-display); font-weight: 800; letter-spacing: -.02em; font-size: clamp(24px, 4vw, 36px); margin: 0 0 8px; line-height: 1.1; }
 .ficha .buybox .desc { color: var(--muted); margin: 0 0 20px; white-space: pre-line; }   /* respeta los saltos de línea del panel */
+.ficha .buybox .desc a { color: var(--accent-soft); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+body.tema-claro .ficha .buybox .desc a { color: #0E6AA0; }
 .ficha .buybox .price { font-family: var(--font-display); font-weight: 800; font-size: 32px; margin: 0 0 20px; }
 
 /* Selector de variantes (cuando el producto tiene más de una) */

@@ -441,6 +441,15 @@ Befine.getCobertura = async function () {
   } catch (e) { return COBERTURA_RESPALDO; }
 };
 
+/* ¿La dirección apunta a la propia tienda? (enlaces dentro de la descripción de un producto)
+   Acepta páginas relativas (producto?id=..., catalogo?cat=packs, como-funciona) y https://aguabefine.cl/...
+   Rechaza otros dominios y esquemas como javascript: o data:. */
+Befine.enlaceTienda = function (url) {
+  const u = String(url || "").trim();
+  if (/^https:\/\/(www\.)?aguabefine\.cl(\/[\w\-./?=&%#]*)?$/i.test(u)) return true;
+  return /^\/?[a-z0-9-]+(\.html)?(\?[\w\-=&%.]*)?(#[\w-]*)?$/i.test(u);
+};
+
 /* Costo de despacho que VE el cliente (el backend lo recalcula al crear el pedido) */
 Befine.costoDespacho = function (cobertura, comuna, subtotal) {
   const c = cobertura && cobertura.comunas.find((x) => x.comuna === comuna);
