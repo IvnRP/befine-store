@@ -106,14 +106,14 @@
   function pintarComunas() {
     const sel = $("coComuna");
     sel.innerHTML = `<option value="">Elige tu comuna…</option>` + cobertura.comunas.map((c) =>
-      `<option value="${esc(c.comuna)}">${esc(c.comuna)} — ${c.costo === 0 ? "envío gratis" : clp(c.costo)}</option>`).join("");
+      `<option value="${esc(c.comuna)}">${esc(c.comuna)}</option>`).join("");
     pintarHintComuna();
   }
   function pintarHintComuna() {
     const c = cobertura.comunas.find((x) => x.comuna === $("coComuna").value);
     const wa = `https://wa.me/${Befine.contacto.whatsapp}?text=${encodeURIComponent("Hola Befine, ¿llegan a mi comuna?")}`;
-    $("coComunaHint").innerHTML = c
-      ? (c.costo === 0 ? "Despacho gratis en tu comuna." : `Despacho ${clp(c.costo)} · gratis desde ${clp(cobertura.envioGratisDesde)}.`)
+    // El costo se ve en el resumen (Despacho); aquí solo la ayuda si la comuna no aparece
+    $("coComunaHint").innerHTML = c ? ""
       : `¿No aparece tu comuna? <a href="${wa}" target="_blank" rel="noopener" style="text-decoration:underline">Escríbenos por WhatsApp</a>.`;
   }
 
@@ -260,15 +260,15 @@
     const txtPagar = `Pagar ${clp(t.total)}`;
     if (!enviando) { $("coPagar").textContent = txtPagar; $("coBarPagar").textContent = txtPagar; }
 
-    // Meta de envío gratis: solo si la comuna tiene costo
-    const c = cobertura.comunas.find((x) => x.comuna === $("coComuna").value);
-    const meta = $("coEnvioMeta");
-    if (c && c.costo > 0) {
-      const falta = Math.max(0, cobertura.envioGratisDesde - t.sub);
-      meta.hidden = false;
-      $("coEnvioBar").style.width = Math.min(100, (t.sub / cobertura.envioGratisDesde) * 100) + "%";
-      $("coEnvioTxt").textContent = falta > 0 ? `Te faltan ${clp(falta)} para envío gratis` : "¡Tienes envío gratis!";
-    } else meta.hidden = true;
+    // Franja "Envío gratis en compras desde $X" con el avance según el subtotal (igual que el servidor)
+    const minimo = cobertura.envioGratisDesde;
+    $("coEnvioMeta").hidden = !minimo;
+    if (minimo) {
+      const falta = Math.max(0, minimo - t.sub);
+      $("coEnvioMin").textContent = clp(minimo);
+      $("coEnvioBar").style.width = Math.min(100, (t.sub / minimo) * 100) + "%";
+      $("coEnvioTxt").textContent = falta > 0 ? `Te faltan ${clp(falta)} para el envío gratis` : "¡Tu compra tiene envío gratis!";
+    }
   }
 
   /* ================= Datos ================= */

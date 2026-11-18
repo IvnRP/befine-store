@@ -44,7 +44,6 @@
 
   const HEADER = `
   <header class="topbar" id="topbar">
-    <a class="barra-envio" href="despacho.html#cobertura">Envío gratis en pedidos desde <b data-envio-min>$7.000</b></a>
     <div class="wrap row">
       <a class="brand" href="index.html"><img src="assets/logo-befine.png" alt="Befine"></a>
       <nav class="nav">
@@ -87,14 +86,6 @@
 
   const h = document.getElementById("app-header"); if (h) h.outerHTML = HEADER;
   const f = document.getElementById("app-footer"); if (f) f.outerHTML = FOOTER;
-
-  // Barra "Envío gratis en pedidos desde $X": el monto sale de parametros.envio_gratis_minimo
-  // (el mismo que usa crear_pedido); si la base no responde queda el valor escrito arriba.
-  if (window.Befine && Befine.getCobertura && Befine.clp) {
-    Befine.getCobertura().then((c) => {
-      if (c && c.envioGratisDesde) document.querySelectorAll("[data-envio-min]").forEach((el) => { el.textContent = Befine.clp(c.envioGratisDesde); });
-    }).catch(() => {});
-  }
 
   // Cuenta: si hay sesión, el ícono muestra la inicial del cliente y el menú dice "Mi cuenta"
   async function pintarCuenta() {

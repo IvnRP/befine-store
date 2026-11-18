@@ -27,14 +27,6 @@
   box-shadow: 0 6px 22px -14px rgba(0,0,0,.8);
   transition: transform .22s ease;   /* rápida, para que reaparezca casi al instante */
 }
-/* Franja "Envío gratis en pedidos desde $7.000" sobre la barra (se esconde junto con ella) */
-.barra-envio {
-  display: block; text-align: center; padding: 6px 16px; text-decoration: none;
-  background: #0E6AA0; color: #fff;   /* celeste oscuro: contraste AA con texto blanco */
-  font-size: 12.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-}
-.barra-envio b { font-weight: 800; }
-.barra-envio:hover { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
 /* Al bajar se esconde hacia arriba; al subir vuelve (lo controla fx.js) */
 .topbar.nav-hidden { transform: translateY(-100%); }
 .topbar .row {
@@ -180,6 +172,15 @@ body.tema-claro .acct-btn { background: #fff; color: var(--accent); }
 .drawer .items { flex: 1; overflow-y: auto; padding: 12px 20px; }
 .drawer .empty { color: var(--muted); text-align: center; margin-top: 40px; }
 .drawer footer { padding: 18px 20px; border-top: 1px solid var(--line-soft); }
+/* Franja "Envío gratis en compras desde $7.000" (carrito y checkout) + barra de avance */
+.franja-envio { margin: 0; padding: 8px 12px; border-radius: 10px; text-align: center;
+  background: #0E6AA0; color: #fff;   /* celeste oscuro: contraste AA con texto blanco */
+  font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.franja-envio b { font-weight: 800; }
+.carro-envio { margin: 0 0 14px; }
+.carro-envio .barra { height: 6px; margin-top: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.carro-envio .barra span { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent-soft), var(--mint)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+.carro-envio p.txt { margin: 6px 0 0; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .drawer .total-row { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 12px; }
 .drawer .total-row .big { font-size: 20px; font-family: var(--font-display); }
 
