@@ -9,7 +9,7 @@
 
    Requisito: cargar supabase-js ANTES que este archivo. En cada HTML,
    justo antes de <script src="js/data.js">:
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+     <script src="vendor/supabase-js-2.119.0.min.js"></script>   (copia local fija, ver tests/unit/rendimiento.test.js)
    Eso expone window.supabase.createClient (sin build, sin bundler).
 
    Seguridad: la anon/publishable key es PÚBLICA por diseño; lo que protege
@@ -197,13 +197,11 @@ const Befine = {
 
   /* Producto protagonista del hero (Recarga 20 L), elegido por SKU estable */
   async getHero() {
-    const nivel = await _nivelRetail();
-    // Busca la variante por SKU y de ahí sube al producto completo.
-    const { data: v } = await sb
-      .from("variantes_producto")
-      .select("producto_id")
-      .eq("sku", HERO_SKU)
-      .maybeSingle();
+    // Nivel de precio y variante en paralelo (es lo primero que ve el cliente: menos espera)
+    const [nivel, { data: v }] = await Promise.all([
+      _nivelRetail(),
+      sb.from("variantes_producto").select("producto_id").eq("sku", HERO_SKU).maybeSingle(),
+    ]);
     if (!v) return null;
     const { data, error } = await sb
       .from("productos")

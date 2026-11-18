@@ -45,7 +45,7 @@
   const HEADER = `
   <header class="topbar" id="topbar">
     <div class="wrap row">
-      <a class="brand" href="index.html"><img src="assets/logo-befine.png" alt="Befine"></a>
+      <a class="brand" href="index.html"><img src="assets/logo-befine.webp" alt="Befine"></a>
       <nav class="nav">
         ${NAV.map(navLink).join("")}
         <a class="nav-cuenta" href="cuenta.html"${isActive("cuenta.html")}>Mi cuenta · Ingresar</a>

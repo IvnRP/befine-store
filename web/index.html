@@ -24,7 +24,10 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,700;1,6..96,400&display=swap">
+  <link rel="preconnect" href="https://tbnevbvvwwzpnowxqyps.supabase.co" crossorigin>   <!-- datos y fotos: conexión lista antes de pedirlos -->
+  <!-- Foto de la Recarga 20 L (lo primero que ve el cliente): se descarga en paralelo al código -->
+  <link rel="preload" as="image" href="https://tbnevbvvwwzpnowxqyps.supabase.co/storage/v1/object/public/productos/bidon-20l-befine-400.webp" fetchpriority="high">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
 
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/base.css">
@@ -113,7 +116,7 @@
 <!-- INTRO / LOADER (saludo por hora) -->
 <div class="loader" id="loader" role="dialog" aria-label="Bienvenida">
   <div class="loader-inner">
-    <img class="l-logo" src="assets/logo-befine.png" alt="Befine">
+    <img class="l-logo" src="assets/logo-befine.webp" alt="Befine">
     <p class="l-greet" id="loaderGreet">Hola</p>   <!-- no es h1: la página tiene un solo título principal (SEO) -->
     <p class="msg" id="loaderMsg"></p>
     <div class="bar"><span></span></div>
@@ -196,7 +199,7 @@
 <button class="sound-btn" id="soundBtn" aria-label="Silenciar"></button>
 
 <!-- SCRIPTS: base → shell → agua → bandas → home -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="vendor/supabase-js-2.119.0.min.js"></script>   <!-- copia local fija (sin depender de otro sitio) -->
 <script src="js/data.js"></script>
 <script src="js/store.js"></script>
 <script src="js/shell.js"></script>

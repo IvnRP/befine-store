@@ -239,7 +239,7 @@ footer.site .legal { margin-top: 22px; padding-top: 16px; border-top: 1px solid 
 /* Marca de agua del logo, muy sutil, detrás de todo el contenido */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: var(--z-veil); pointer-events: none;
-  background: url("../assets/logo-befine.png") no-repeat center 40% / min(600px, 80vw);
+  background: url("../assets/logo-befine.webp") no-repeat center 40% / min(600px, 80vw);
   opacity: .1; mix-blend-mode: screen; transition: opacity .5s ease;
 }
 body.fx-off::before { opacity: 0; }
