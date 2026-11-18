@@ -1,0 +1,23 @@
+/* =====================================================================
+   como.css — Página "Cómo funciona" (pasos de compra y preguntas frecuentes).
+   Se apoya en legal.css (mismo ancho de lectura y tipografía).
+   ===================================================================== */
+.como .pasos { list-style: none; counter-reset: paso; padding: 0; margin: 6px 0 8px; display: grid; gap: 14px; }
+.como .pasos > li { counter-increment: paso; position: relative; padding: 16px 18px 14px 66px;
+  border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.como .pasos > li::before { content: counter(paso); position: absolute; left: 16px; top: 16px;
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: #0E6AA0; color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+.como .pasos h3 { margin: 4px 0 6px; font-size: 17px; }
+.como .pasos p, .como .pasos ul { margin: 0 0 6px; }
+.como .faq { display: grid; gap: 8px; }
+.como .faq details { border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
+.como .faq summary { cursor: pointer; font-weight: 700; padding: 12px 0; line-height: 1.4; }
+.como .faq details[open] summary { border-bottom: 1px solid var(--line-soft); margin-bottom: 8px; }
+.como .faq details p { margin: 0 0 12px; }
+.como .como-cta { margin-top: 28px; text-align: center; }
+.como .como-cta .btn { text-decoration: none; }
+@media (max-width: 560px) {
+  .como .pasos > li { padding: 58px 14px 12px; }
+  .como .pasos > li::before { left: 14px; top: 14px; }
+}

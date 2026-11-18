@@ -14,9 +14,9 @@
   const NAV = [
     ["index.html", "Inicio"],
     ["catalogo.html", "Catálogo"],
-    ["index.html#como", "Cómo funciona"],
+    ["como-funciona.html", "Cómo funciona"],
   ];
-  const isActive = (href) => !href.includes("#") && href === page ? ' aria-current="page"' : ""; // los anclas (#como) no se marcan
+  const isActive = (href) => !href.includes("#") && href === page ? ' aria-current="page"' : ""; // los anclas (#algo) no se marcan
 
   /* Submenú del Catálogo: cada opción abre el catálogo ya filtrado (?cat=slug).
      Los slugs son los de la tabla `categorias` de Supabase. */
@@ -44,6 +44,7 @@
 
   const HEADER = `
   <header class="topbar" id="topbar">
+    <a class="barra-envio" href="despacho.html#cobertura">Envío gratis en pedidos desde <b data-envio-min>$7.000</b></a>
     <div class="wrap row">
       <a class="brand" href="index.html"><img src="assets/logo-befine.png" alt="Befine"></a>
       <nav class="nav">
@@ -77,7 +78,7 @@
   <footer class="site">
     <div class="wrap cols">
       <div><h5>Befine</h5><p class="muted" style="max-width:26ch">Agua purificada a domicilio en el sector norte de Santiago. 5 años de operación.</p></div>
-      <div><h5>Tienda</h5><a href="catalogo.html?cat=recargas">Recargas</a><a href="catalogo.html?cat=bidones">Envase y recarga</a><a href="catalogo.html?cat=dispensadores">Dispensadores</a><a href="catalogo.html?cat=packs">Packs</a></div>
+      <div><h5>Tienda</h5><a href="como-funciona.html">Cómo funciona</a><a href="catalogo.html?cat=recargas">Recargas</a><a href="catalogo.html?cat=bidones">Envase y recarga</a><a href="catalogo.html?cat=dispensadores">Dispensadores</a><a href="catalogo.html?cat=packs">Packs</a></div>
       <div><h5>Contacto</h5><a href="${WA}" target="_blank" rel="noopener">WhatsApp</a><a href="despacho.html#cobertura">Cobertura de zonas</a><a href="cambios.html">Cambios y garantía</a></div>
       <div><h5>Legal</h5><a href="terminos.html">Términos y condiciones</a><a href="privacidad.html">Política de privacidad</a><a href="despacho.html">Despacho y entregas</a><a href="cambios.html#retracto">Derecho a retracto</a></div>
     </div>
@@ -86,6 +87,14 @@
 
   const h = document.getElementById("app-header"); if (h) h.outerHTML = HEADER;
   const f = document.getElementById("app-footer"); if (f) f.outerHTML = FOOTER;
+
+  // Barra "Envío gratis en pedidos desde $X": el monto sale de parametros.envio_gratis_minimo
+  // (el mismo que usa crear_pedido); si la base no responde queda el valor escrito arriba.
+  if (window.Befine && Befine.getCobertura && Befine.clp) {
+    Befine.getCobertura().then((c) => {
+      if (c && c.envioGratisDesde) document.querySelectorAll("[data-envio-min]").forEach((el) => { el.textContent = Befine.clp(c.envioGratisDesde); });
+    }).catch(() => {});
+  }
 
   // Cuenta: si hay sesión, el ícono muestra la inicial del cliente y el menú dice "Mi cuenta"
   async function pintarCuenta() {

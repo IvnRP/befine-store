@@ -367,7 +367,7 @@ function _parseFeriados(valor) {
 const COBERTURA_RESPALDO = {
   envioGratisDesde: 7000,
   comunas: [
-    { comuna: "Quilicura", zona: "Quilicura", costo: 0 },
+    { comuna: "Quilicura", zona: "Quilicura", costo: 2500 },
     { comuna: "Huechuraba", zona: "Sector Norte", costo: 2500 },
     { comuna: "Recoleta", zona: "Sector Norte", costo: 2500 },
     { comuna: "Valle Grande", zona: "Sector Norte", costo: 2500 },
@@ -400,7 +400,7 @@ const PROVEEDOR = {
 Befine.proveedor = PROVEEDOR;
 // Versión vigente de los textos legales. Debe coincidir con parametros.terminos_version (migración 06),
 // que es la que queda registrada en cada pedido al aceptar los Términos.
-Befine.legalVersion = "2026-11-07"; // debe coincidir con parametros.terminos_version (migración 08: programa de puntos)
+Befine.legalVersion = "2026-11-17"; // debe coincidir con parametros.terminos_version (migración 15: despacho gratis desde $7.000 en todas las comunas)
 
 /* ---------- Derecho a retracto por tipo de producto (Ley 19.496 art. 3 bis y Reglamento de exclusiones) ----------
    Compras a distancia: 10 días desde la entrega. Exclusión permitida para bienes de higiene o que

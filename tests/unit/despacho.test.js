@@ -1,4 +1,4 @@
-/* Pruebas de despacho, fechas de entrega y formato CLP (web/js/data.js) — 7 pruebas
+/* Pruebas de despacho, fechas de entrega y formato CLP (web/js/data.js) — 8 pruebas
    Casos CP-U08 a CP-U11 del Plan de Pruebas. */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -10,7 +10,7 @@ const { Befine } = cargar(["data.js"]);
 const cobertura = {
   envioGratisDesde: 7000,
   comunas: [
-    { comuna: "Quilicura", costo: 0 },
+    { comuna: "Quilicura", costo: 2500 },   // migración 15: Quilicura paga igual que el resto bajo $7.000
     { comuna: "Huechuraba", costo: 2500 },
     { comuna: "Recoleta", costo: 2500 },
   ],
@@ -22,8 +22,17 @@ test("CP-U11 formato de pesos chilenos", () => {
   assert.equal(Befine.clp(0), "$0");
 });
 
-test("CP-U08a Quilicura tiene despacho gratis con cualquier monto", () => {
-  assert.equal(Befine.costoDespacho(cobertura, "Quilicura", 2500), 0);
+test("CP-U08a Quilicura paga $2.500 bajo $7.000 y tiene envío gratis desde $7.000 (migración 15)", () => {
+  assert.equal(Befine.costoDespacho(cobertura, "Quilicura", 2500), 2500);
+  assert.equal(Befine.costoDespacho(cobertura, "Quilicura", 6999), 2500);
+  assert.equal(Befine.costoDespacho(cobertura, "Quilicura", 7000), 0);
+});
+
+test("CP-U08d sin conexión a la base, ninguna comuna queda con despacho gratis sin mínimo", async () => {
+  const resp = await Befine.getCobertura();   // en las pruebas no hay base: devuelve el respaldo de data.js
+  assert.equal(resp.envioGratisDesde, 7000);
+  assert.ok(resp.comunas.length > 0);
+  for (const c of resp.comunas) assert.ok(c.costo > 0, c.comuna + " no debería tener despacho $0");
 });
 
 test("CP-U08b comuna con tarifa paga despacho bajo el mínimo", () => {
