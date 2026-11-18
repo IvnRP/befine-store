@@ -58,7 +58,7 @@
     let variante = p.variantes[0]; // seleccionada
     const foto = Befine.foto(p.imagen_url, "lg"), fotoSm = Befine.foto(p.imagen_url, "sm");
 
-    document.title = p.nombre + " · Agua purificada a domicilio · Befine";
+    document.title = p.nombre + " a domicilio · Befine";   // el nombre ya lleva las palabras clave (ej. Recarga de Agua Purificada Bidón 20 Litros)
     seoFicha(p);
 
     cont.innerHTML = `

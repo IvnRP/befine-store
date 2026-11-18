@@ -57,8 +57,25 @@
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 6s linear infinite; }
 @keyframes shimmer { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
 .hero p.sub { margin: 18px 0 0; font-size: clamp(16px,2.3vw,20px); color: var(--ink); opacity: .92; max-width: 46ch; }
-/* Frase secundaria pequeña (el "mueve el mouse"): discreta, no protagonista */
-.hero .hint { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); opacity: .7; }
+/* Comuna que rota en el título: cambia con un deslizado suave; el ancho lo reserva home.js (sin saltos) */
+.hero h1 .rota { display: inline-block; white-space: nowrap; transition: opacity .35s ease, transform .35s ease; }
+.hero h1 .rota.sale { opacity: 0; transform: translateY(-.25em); }
+.hero h1 .rota.entra { opacity: 0; transform: translateY(.25em); transition: none; }
+/* Beneficios con ícono (se leen de un vistazo) */
+.hero .beneficios { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 10px 22px; }
+.hero .beneficios li { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.hero .beneficios svg { flex: 0 0 20px; width: 20px; height: 20px; fill: none; stroke: var(--accent-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 480px) { .hero .beneficios { grid-template-columns: 1fr; } }
+/* Nota de Google (lleva a la sección de reseñas) */
+.hero .hero-rating { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--glass-2); color: var(--ink); font-size: 13.5px; text-decoration: none; }
+.hero .hero-rating .est { color: #F2A63C; letter-spacing: 1px; }
+.hero .hero-rating:hover { border-color: var(--accent); }
+/* Fecha de entrega en la tarjeta de compra */
+.qorder .q-entrega { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; font-size: 13.5px; color: var(--ink); }
+.qorder .q-entrega svg { flex: 0 0 18px; width: 18px; height: 18px; fill: none; stroke: #1F9D55; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.qorder .q-entrega b { color: #1F9D55; }
+body:not(.tema-claro) .qorder .q-entrega b, body:not(.tema-claro) .qorder .q-entrega svg { color: #6EE7A0; stroke: #6EE7A0; }
 .hero .trust { margin-top: 22px; display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
 .hero .trust b { color: var(--accent-soft); }
 

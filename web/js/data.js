@@ -435,7 +435,13 @@ Befine.retractoDe = function (categoriaSlug) {
 };
 
 /* Comunas con cobertura y su costo → { envioGratisDesde, comunas:[{comuna, zona, zona_id, costo}] } */
-Befine.getCobertura = async function () {
+/* Una sola consulta por página: el carrito, el inicio y el checkout comparten la misma respuesta */
+let _coberturaP = null;
+Befine.getCobertura = function () {
+  if (!_coberturaP) _coberturaP = _cargarCobertura();
+  return _coberturaP;
+};
+async function _cargarCobertura() {
   try {
     const [{ data: com, error: e1 }, { data: pars }] = await Promise.all([
       sb.from("comunas_cobertura").select("comuna,zona_id,zonas_despacho(nombre,costo_despacho,activo)").eq("activo", true).order("comuna"),
@@ -541,6 +547,19 @@ Befine.siguienteHabil = function (fecha) {
   return d;
 };
 Befine.horarioReparto = ENTREGA.horario;
+
+/* "el jueves 19 o el viernes 20 de noviembre" (mismo mes) / "el viernes 28 de noviembre o el lunes 1 de diciembre".
+   Lo usa el inicio ("Pide hoy y recibe …"); las fechas salen de Befine.diasEntrega (días hábiles y feriados). */
+const _DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const _MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+Befine.textoRangoEntrega = function (d1, d2) {
+  const dia = (d) => _DIAS[d.getDay()] + " " + d.getDate();
+  const mes = (d) => " de " + _MESES[d.getMonth()];
+  if (!d2 || +d1 === +d2) return "el " + dia(d1) + mes(d1);
+  return d1.getMonth() === d2.getMonth()
+    ? "el " + dia(d1) + " o el " + dia(d2) + mes(d2)
+    : "el " + dia(d1) + mes(d1) + " o el " + dia(d2) + mes(d2);
+};
 
 /* Foto del producto (migración 07): imagen_url guarda la ruta del archivo grande en el bucket público
    "productos" (ej. "bidon-12l-1000.webp") o una URL completa. tam "sm" = versión de 400 px (tarjetas,
