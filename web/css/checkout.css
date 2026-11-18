@@ -53,9 +53,9 @@ body.tema-claro .co-sesion .aviso a.link { color: var(--accent); }
 .r-item .pr { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .r-item .pr button { display: block; margin: 4px 0 0 auto; border: 0; background: none; color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: underline; }
 .r-envio { margin: 14px 0 2px; }
-.r-envio .barra { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.r-envio .barra { height: 6px; margin-top: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .r-envio .barra span { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent-soft), var(--mint)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
-.r-envio p { margin: 6px 0 0; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.r-envio p#coEnvioTxt { margin: 6px 0 0; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .r-tot { margin: 16px 0; border-top: 1px solid var(--line); padding-top: 12px; }
 .r-tot div { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; font-size: 14.5px; }
 .r-tot dt { color: var(--muted); } .r-tot dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }

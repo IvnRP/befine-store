@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cómo funciona · Befine Store</title>
+  <meta name="description" content="Cómo comprar en Befine Store: eliges tus recargas o bidones, pagas con Mercado Pago y te despachamos a domicilio en 24 a 48 horas hábiles. Envío gratis en pedidos desde $7.000.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/shell.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/forms.css">
+  <link rel="stylesheet" href="css/legal.css">
+  <link rel="stylesheet" href="css/como.css">
+</head>
+<body>
+<script>try{document.body.classList.toggle('tema-claro',(localStorage.getItem('befine_tema')||'claro')==='claro');}catch(e){document.body.classList.add('tema-claro');}</script>
+
+<canvas id="water" aria-hidden="true"></canvas>
+<div class="bg-veil"></div>
+<div class="depth" id="depth" aria-hidden="true"></div>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
+<div class="cur-ring" id="curRing" aria-hidden="true"></div>
+<div class="cur-dot" id="curDot" aria-hidden="true"></div>
+
+<div id="app-header"></div>
+
+<div class="app">
+  <main class="wrap legal-page">
+    <article class="sheet legal-doc como">
+      <a class="volver" href="index.html">← Volver a la tienda</a>
+      <h1>Cómo funciona</h1>
+      <p class="meta">Comprar agua purificada en Befine, paso a paso</p>
+      <div class="resumen"><p><b>En simple:</b> eliges tus productos, pagas en línea con Mercado Pago y te los llevamos a tu casa de lunes a viernes hábiles, <b>entre 24 y 48 horas hábiles</b> o el día que agendes. El envío es <b>gratis en pedidos desde <span data-envio-gratis>$7.000</span></b>.</p></div>
+
+      <h2 id="pasos">Tu compra en 6 pasos</h2>
+      <ol class="pasos">
+        <li>
+          <h3>Elige tus productos</h3>
+          <p>En el <a href="catalogo.html">Catálogo</a> están las recargas, los bidones con agua, los dispensadores y los packs. Agrega lo que necesites al carrito.</p>
+          <ul>
+            <li><b>Recarga:</b> es solo el agua. Al recibirla entregas al repartidor un bidón vacío de la misma capacidad, limpio y en buen estado. En la recarga de 20 L eliges si tu bidón es Befine o de otra marca.</li>
+            <li><b>Envase y recarga:</b> si no tienes un bidón para intercambiar, compras el bidón nuevo con el agua. Desde ahí, tus siguientes pedidos pueden ser recargas.</li>
+          </ul>
+        </li>
+        <li>
+          <h3>Revisa tu carrito y ve a pagar</h3>
+          <p>Puedes comprar <b>como invitado</b>, sin crear cuenta, o ingresar con tu cuenta (también con Google). Con cuenta ves tus pedidos y sumas puntos del <a href="#club">Club Befine</a>.</p>
+        </li>
+        <li>
+          <h3>Completa la entrega</h3>
+          <p>Indica tu nombre, celular, correo, dirección y comuna. Luego elige:</p>
+          <ul>
+            <li><b>Entrega estándar:</b> llega el siguiente o el subsiguiente día hábil. Antes de pagar ves las fechas posibles.</li>
+            <li><b>Agendar un día:</b> eliges la fecha que prefieras, de lunes a viernes, entre 9:00 y 17:00 h.</li>
+            <li><b>Boleta o factura:</b> si compras para una empresa, elige factura e ingresa RUT, razón social y giro.</li>
+            <li><b>Cupón:</b> si tienes un código de descuento, aplícalo en el resumen antes de pagar.</li>
+          </ul>
+        </li>
+        <li>
+          <h3>Paga con Mercado Pago</h3>
+          <p>Te llevamos al sitio seguro de Mercado Pago para pagar con tarjeta de crédito, débito o prepago, u otros medios que ofrezca. Befine no ve ni guarda los datos de tu tarjeta. Cuando el pago se aprueba, tu pedido queda confirmado y te llega la <b>confirmación de compra</b> a tu correo.</p>
+        </li>
+        <li>
+          <h3>Recibe tu pedido</h3>
+          <p>Te avisamos por WhatsApp cuando tu pedido va en camino. Debe recibirlo una persona mayor de edad en la dirección indicada. Si compraste recargas, ten listos los bidones vacíos para entregarlos al repartidor.</p>
+        </li>
+        <li>
+          <h3>Sigue tus pedidos y suma puntos</h3>
+          <p>En <a href="cuenta.html">Mi cuenta</a> ves el estado de tus pedidos, tus puntos y los premios que puedes canjear. ¿Dudas? Escríbenos por <a data-wa href="#">WhatsApp</a>.</p>
+        </li>
+      </ol>
+
+      <h2 id="despacho">Cuánto cuesta el despacho</h2>
+      <p>El envío es <b>gratis en pedidos desde <span data-envio-gratis>$7.000</span></b> en todas las comunas donde despachamos. Bajo ese monto se cobra el costo de la tabla, y siempre lo ves separado antes de pagar.</p>
+      <div class="tabla-wrap"><table>
+        <thead><tr><th>Comuna</th><th>Zona</th><th>Costo de despacho</th></tr></thead>
+        <tbody id="tablaCobertura"><tr><td colspan="3">Cargando comunas…</td></tr></tbody></table></div>
+      <p>Plazos, horarios y qué pasa si no hay nadie para recibir: <a href="despacho.html">Despacho y entregas</a>.</p>
+
+      <h2 id="club">Club Befine</h2>
+      <p>Si compras con tu cuenta, sumas <b>1 punto por cada $1.000</b> pagados en recargas con envase Befine (recarga 20 L con bidón Befine y recarga 12 L), y <b>+2 puntos</b> en los pedidos con 6 o más de esas recargas. Con tus puntos canjeas descuentos y un bidón con agua de regalo desde <a href="cuenta.html">Mi cuenta</a>. Reglas completas en los <a href="terminos.html#puntos">Términos y condiciones</a>.</p>
+
+      <h2 id="preguntas">Preguntas frecuentes</h2>
+      <div class="faq">
+        <details><summary>¿Qué pasa si no tengo un bidón para la recarga?</summary>
+          <p>Compra la opción <a href="catalogo.html?cat=bidones">Envase y recarga</a>: te llevamos el bidón nuevo con agua. En tu siguiente pedido ya puedes comprar solo la recarga.</p></details>
+        <details><summary>¿Reciben bidones de otra marca?</summary>
+          <p>Sí, si están limpios y en buen estado. En la recarga de 20 L elige la opción <b>Bidón de otra marca</b>. Si el envase no está en condiciones sanitarias, el repartidor puede no recibirlo y te contactamos para coordinar.</p></details>
+        <details><summary>¿Necesito crear una cuenta?</summary>
+          <p>No. Puedes comprar como invitado. Si creas una cuenta, ves tus pedidos y sumas puntos del Club Befine.</p></details>
+        <details><summary>¿Cómo pago?</summary>
+          <p>En la web pagas en línea con Mercado Pago: tarjeta de crédito, débito o prepago, u otros medios que Mercado Pago ofrezca. Un pedido pendiente de pago no se despacha.</p></details>
+        <details><summary>¿Y si no estoy en casa cuando llega el pedido?</summary>
+          <p>Te contactamos por WhatsApp o teléfono para coordinar una nueva entrega, sin costo adicional.</p></details>
+        <details><summary>¿Puedo pedir boleta o factura?</summary>
+          <p>Sí. En el checkout eliges boleta o factura. Para factura ingresa el RUT, la razón social y el giro de la empresa.</p></details>
+        <details><summary>¿Puedo cambiar o devolver un producto?</summary>
+          <p>Sí, según las condiciones de cada producto. Revisa <a href="cambios.html">Cambios, devoluciones, garantía y retracto</a>.</p></details>
+      </div>
+
+      <p class="como-cta"><a class="btn btn-primary" href="catalogo.html">Ir al catálogo</a></p>
+    </article>
+  </main>
+
+  <div id="app-footer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/data.js"></script>
+<script src="js/store.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/transitions.js"></script>
+<script src="js/scenes.js"></script>
+<button class="sound-btn" id="soundBtn" aria-label="Silenciar"></button>
+<script src="js/ui.js"></script>
+<script src="js/water.js"></script>
+<script src="js/bands.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/perf.js"></script>
+<script src="js/legal.js"></script>
+</body>
+</html>

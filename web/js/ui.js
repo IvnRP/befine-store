@@ -61,6 +61,11 @@
         <header><h3>Tu carrito</h3><button class="close" id="cartClose" aria-label="Cerrar">&times;</button></header>
         <div class="items" id="cartItems"></div>
         <footer>
+          <div class="carro-envio" id="cartEnvio">
+            <p class="franja-envio">Envío gratis en compras desde <b data-envio-min>$7.000</b></p>
+            <div class="barra" hidden><span id="cartEnvioBar"></span></div>
+            <p class="txt" id="cartEnvioTxt" hidden></p>
+          </div>
           <div class="total-row"><span>Total</span><span class="big" id="cartTotal">$0</span></div>
           <button class="btn btn-primary btn-block" id="cartCheckout">Ir a pagar</button>
         </footer>
@@ -85,8 +90,28 @@
     window.openCheckout = openCheckout;   // lo usan el carrito y el botón "Comprar ahora"
     document.getElementById("cartCheckout").addEventListener("click", openCheckout);
 
+    // Monto del envío gratis: parametros.envio_gratis_minimo (el mismo que usa crear_pedido);
+    // si la base no responde queda $7.000.
+    if (window.Befine && Befine.getCobertura) {
+      Befine.getCobertura().then((c) => {
+        if (c && c.envioGratisDesde) { envioGratisDesde = c.envioGratisDesde; renderCart(Store.items ? Store.items() : []); }
+      }).catch(() => {});
+    }
+
     // Redibujar el contenido del carrito cada vez que cambia
     Store.subscribe(renderCart);
+  }
+
+  let envioGratisDesde = 7000;
+  // Franja del carrito: monto mínimo y cuánto falta para el envío gratis (según el subtotal)
+  function pintarEnvioCarrito() {
+    document.querySelectorAll("[data-envio-min]").forEach((el) => { el.textContent = Befine.clp(envioGratisDesde); });
+    const bar = document.getElementById("cartEnvioBar"), txt = document.getElementById("cartEnvioTxt");
+    if (!bar || !txt) return;
+    const sub = Store.count() ? Store.total() : 0, falta = Math.max(0, envioGratisDesde - sub);
+    bar.parentElement.hidden = txt.hidden = !sub;
+    bar.style.width = Math.min(100, (sub / envioGratisDesde) * 100) + "%";
+    txt.textContent = falta > 0 ? `Te faltan ${Befine.clp(falta)} para el envío gratis` : "¡Tu compra tiene envío gratis!";
   }
 
   function renderCart(items) {
@@ -97,6 +122,7 @@
     const box = document.getElementById("cartItems");
     const totalEl = document.getElementById("cartTotal");
     if (!box) return;
+    pintarEnvioCarrito();
     if (!items.length) { box.innerHTML = `<p class="empty">Aún no agregas productos.</p>`; if (totalEl) totalEl.textContent = "$0"; return; }
     box.innerHTML = items.map((i) => `
       <div class="cart-item">
