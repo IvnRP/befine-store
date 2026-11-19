@@ -21,6 +21,7 @@ Documentación completa del proyecto: [Cmfg96/Documentos_Capstone_Grupo_N3](http
 | Pagos | Mercado Pago Checkout Pro, confirmado por webhook |
 | Correo | Resend (dominio aguabefine.cl): confirmación de compra, aviso de pedido al dueño y correos de cuenta |
 | Integraciones | Google OAuth (inicio de sesión) y Google Places API (reseñas) |
+| Posicionamiento y medición | Google Search Console (sitemap e indexación), perfil de Google del negocio con productos y Cloudflare Web Analytics |
 | Hosting de producción | Cloudflare Pages (HTTPS, CDN, vista previa por rama y rollback; CM-04) |
 | Despliegue reproducible | Docker + nginx |
 | Integración continua | GitHub Actions: pruebas e imagen Docker en cada PR; ping programado a Supabase |

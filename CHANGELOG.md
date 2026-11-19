@@ -9,6 +9,7 @@ Cambios relevantes del producto, del más reciente al más antiguo, agrupados po
 - **Accesibilidad:** etiquetas en los selectores de cantidad, contraste, áreas táctiles, contenido principal y orden de encabezados.
 - **Inicio:** comuna rotando en el título, fecha de entrega en la tarjeta, nota de Google, textos de confianza y beneficio "Factura para empresas".
 - **Ficha de producto:** descripción legible sobre la foto, con saltos de línea y enlaces.
+- **Posicionamiento y medición (configuración externa):** sitemap enviado e inicio indexado en Google Search Console, fichas de producto con fragmentos válidos, productos cargados en el perfil de Google del negocio y Cloudflare Web Analytics activado.
 - **Avisos de pedido pagado:** sonido de caja registradora en el panel y correo al dueño desde `mp-webhook` (Resend).
 - Pruebas: 138 unitarias.
 
