@@ -38,6 +38,10 @@ test("CP-U33b datos estructurados Product: una oferta por variante, en CLP y con
   assert.deepEqual(ld.offers.map((o) => [o.price, o.priceCurrency, o.availability.split("/").pop()]),
     [[2500, "CLP", "InStock"], [2990, "CLP", "BackOrder"]]);
   assert.ok(!ld.description.includes("]("), "la descripción no debe llevar la sintaxis de enlaces");
+  // Envío para Google: $2.500 bajo el mínimo y gratis desde $7.000 (por la compra de esa sola unidad)
+  assert.deepEqual(ld.offers.map((o) => o.shippingDetails.shippingRate.value), [2500, 2500]);
+  assert.equal(Befine.productoLD({ ...prod, variantes: [{ sku: "P", precio: 21990 }] }).offers[0].shippingDetails.shippingRate.value, 0);
+  assert.equal(ld.offers[0].shippingDetails.shippingDestination.addressCountry, "CL");
 });
 
 test("CP-U33c sitemap: páginas públicas + una ficha por producto, con & escapado", () => {

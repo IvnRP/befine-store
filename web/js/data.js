@@ -504,9 +504,28 @@ Befine.productoLD = function (p) {
       itemCondition: "https://schema.org/NewCondition",
       url,
       seller: { "@type": "Organization", name: "Agua Purificada Befine" },
+      shippingDetails: _envioLD(v.precio),
     })),
   };
 };
+
+/* Envío para Google (fichas de comerciantes): despacho en Chile, $2.500 o gratis si esa compra llega al
+   mínimo (mismo valor que parametros.envio_gratis_minimo), preparación el mismo día hábil y entrega en
+   1 a 2 días hábiles (L–V). Los productos "a pedido" suman ENTREGA.diasAPedido días. */
+function _envioLD(precio) {
+  const minimo = COBERTURA_RESPALDO.envioGratisDesde, costo = 2500;
+  return {
+    "@type": "OfferShippingDetails",
+    shippingRate: { "@type": "MonetaryAmount", value: Number(precio) >= minimo ? 0 : costo, currency: "CLP" },
+    shippingDestination: { "@type": "DefinedRegion", addressCountry: "CL", addressRegion: "RM" },
+    deliveryTime: {
+      "@type": "ShippingDeliveryTime",
+      businessDays: { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] },
+      handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
+      transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 2, unitCode: "DAY" },
+    },
+  };
+}
 
 /* ¿La dirección apunta a la propia tienda? (enlaces dentro de la descripción de un producto)
    Acepta páginas relativas (producto?id=..., catalogo?cat=packs, como-funciona), fichas /productos/<slug>

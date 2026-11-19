@@ -73,6 +73,19 @@
       }));
     },
 
+    /* Avisos del panel: pedidos PAGADOS de los últimos días (solo lo necesario para avisar) */
+    async pedidosPagadosRecientes(dias = 3) {
+      const desde = new Date(Date.now() - dias * 864e5).toISOString();
+      const { data, error } = await sb.from("pedidos")
+        .select("id,numero,total,contacto_nombre,created_at")
+        .in("estado", ["pagado", "en_preparacion", "en_ruta", "entregado"])
+        .gte("created_at", desde)
+        .order("numero", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+
     /* Detalle completo de un pedido: productos, historial de estados y cupón */
     async getPedido(id) {
       const { data, error } = await sb.from("pedidos")

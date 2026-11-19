@@ -152,5 +152,6 @@
     visibles.forEach((s) => { const sec = AdminApp.SECCIONES[s.id]; if (sec && sec.montar) sec.montar($("sec-" + s.id), App); });
     ir(location.hash.slice(1));
     window.addEventListener("hashchange", () => ir(location.hash.slice(1)));
+    document.dispatchEvent(new CustomEvent("admin:listo", { detail: App }));   // avisos de pedidos (admin-avisos.js)
   });
 })();
