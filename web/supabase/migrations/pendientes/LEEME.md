@@ -2,7 +2,13 @@
 
 Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla su requisito, se mueven a `../` (carpeta `migrations/`) y se aplican en Supabase como migración. Cada una tiene su archivo de reversa.
 
-Estado al 18-nov-2026: **todas las migraciones escritas están aplicadas en producción** (orden de aplicación: 01, 01b, 04, 03, 05, 06, 07, 08, 02, 09, 10, 11, 14, 15 y 16). Esta carpeta queda vacía de migraciones. Números reservados: **12** (tareas programadas con pg_cron) y **13** (formulario de contacto).
+Estado al 20-nov-2026: **todas las migraciones escritas están aplicadas en producción** (orden de aplicación: 01, 01b, 04, 03, 05, 06, 07, 08, 02, 09, 10, 11, 14, 15, 16 y 17). Esta carpeta queda vacía de migraciones. Números reservados: **12** (tareas programadas con pg_cron) y **13** (formulario de contacto).
+
+## 17 · Compra como invitado desde otro navegador — `../20261120_17_pedidos_invitado.sql` (escrita y aplicada el 20-nov-2026; prueba en seco T01..T12 OK)
+
+Incidente 19-nov-2026: una clienta pagó como invitada desde el navegador de WhatsApp y Mercado Pago la devolvió a otro navegador (sin su sesión): el pago quedó confirmado, pero la tienda mostró "No pudimos revisar tu pedido" y no pudo crear su cuenta. `pedido_vuelta(id)` muestra el resultado del pago sin sesión (número, estado, montos y correo enmascarado; 7 días) y `reclamar_pedidos_invitado()` pasa a la cuenta con correo **confirmado** las compras como invitado hechas con ese correo (pedidos, direcciones y puntos; auditado en `cambios_cliente`). **Aplicar ANTES de publicar** el sitio que las usa. Prueba en seco `../20261120_17_prueba_en_seco.sql` (T01..T12). Reversa `../20261120_17_pedidos_invitado_reversa.sql`.
+
+---
 
 ## 16 · Dirección amigable de productos (SEO) — `../20261118_16_productos_slug.sql` (escrita y aplicada el 18-nov-2026; prueba en seco T01..T08 OK)
 

@@ -116,8 +116,12 @@ test("CP-U33f páginas públicas con ícono, canónica y vista previa para Whats
 test("CP-U33g el inicio tiene un solo H1 y sus datos de negocio local (LocalBusiness)", () => {
   const h = leer("web/index.html");
   assert.equal((h.match(/<h1[\s>]/g) || []).length, 1);
-  const ld = JSON.parse(h.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
-  assert.equal(ld["@type"], "LocalBusiness");
+  const datos = [].concat(JSON.parse(h.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]));
+  const ld = datos.find((d) => d["@type"] === "LocalBusiness");
+  assert.ok(ld, "falta LocalBusiness");
+  // Nombre del sitio para las búsquedas de la marca ("aguabefine", "Agua Befine")
+  const web = datos.find((d) => d["@type"] === "WebSite");
+  assert.ok(web && web.alternateName.includes("AguaBefine") && web.url === "https://aguabefine.cl/");
   assert.equal(ld.areaServed.length, 5);
   assert.equal(ld.telephone, "+" + Befine.contacto.whatsapp);
 });

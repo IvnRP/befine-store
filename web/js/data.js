@@ -278,6 +278,7 @@ Befine.auth = {
   /* Sesión actual + datos de public.perfiles → { id, email, nombre, telefono, rut, razon_social, giro, es_empresa, puntos, rol } | null */
   async sesion() {
     try {
+      await _esperarReclamo();
       const { data } = await sb.auth.getSession();
       const u = data && data.session && data.session.user;
       if (!u || u.is_anonymous) return null;
@@ -297,7 +298,9 @@ Befine.auth = {
   },
   async ingresar(email, password) {
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    return error ? { ok: false, error: _msgAuth(error) } : { ok: true };
+    if (error) return { ok: false, error: _msgAuth(error) };
+    await Befine.reclamarInvitado(true);   // sus compras como invitado (mismo correo) pasan a la cuenta
+    return { ok: true };
   },
   /* Registro: el trigger handle_new_user crea la fila en perfiles con el nombre enviado */
   async registrar({ nombre, email, password, telefono }) {
@@ -337,6 +340,49 @@ Befine.auth = {
   },
   async salir() { await sb.auth.signOut(); },
   onCambio(cb) { return sb.auth.onAuthStateChange((evento) => cb(evento)); },
+};
+
+/* ---------- Compras como invitado → cuenta (migración 17) ----------
+   Si el cliente compró como invitado en otro navegador (p. ej. abrió la tienda desde WhatsApp y
+   Mercado Pago lo devolvió a otro navegador), al entrar con una cuenta cuyo correo está CONFIRMADO
+   el servidor le pasa esas compras hechas con ese mismo correo (reclamar_pedidos_invitado).
+   Se intenta 1 vez por pestaña y por usuario; el servidor decide y es idempotente. */
+const KEY_RECLAMO = "befine_reclamo_";
+let _reclamoP = null;
+Befine.reclamarInvitado = function (forzar) {
+  if (_reclamoP && !forzar) return _reclamoP;
+  _reclamoP = (async () => {
+    try {
+      const { data } = await sb.auth.getSession();
+      const u = data && data.session && data.session.user;
+      if (!u || u.is_anonymous || !u.email_confirmed_at) return 0;
+      try { if (window.sessionStorage.getItem(KEY_RECLAMO + u.id)) return 0; } catch (e) {}
+      const { data: r, error } = await sb.rpc("reclamar_pedidos_invitado");
+      if (error) { console.warn("reclamarInvitado:", error.message); return 0; }
+      try { window.sessionStorage.setItem(KEY_RECLAMO + u.id, "1"); } catch (e) {}
+      return (r && r.pedidos) || 0;
+    } catch (e) { return 0; }
+  })();
+  return _reclamoP;
+};
+async function _esperarReclamo() { if (_reclamoP) { try { await _reclamoP; } catch (e) {} } }
+try {
+  Befine.reclamarInvitado();   // al abrir cualquier página con sesión
+  // Al entrar (Google, enlace del correo de confirmación…). Fuera del callback: supabase-js
+  // recomienda no llamar a la base dentro de onAuthStateChange.
+  sb.auth.onAuthStateChange((evento) => {
+    if (evento === "SIGNED_IN") setTimeout(() => Befine.reclamarInvitado(true), 0);
+  });
+} catch (e) {}
+
+/* ¿El correo escrito calza con el correo enmascarado del pedido ("an•••@correo.cl")?
+   Sirve para avisar al cliente que use el MISMO correo de la compra (el servidor igual lo exige). */
+Befine.coincideCorreo = function (email, mascara) {
+  const e = String(email || "").trim().toLowerCase(), m = String(mascara || "").toLowerCase();
+  const i = m.indexOf("•••@");
+  if (!e || i < 1) return false;
+  const [local, dominio] = e.split("@");
+  return !!local && dominio === m.slice(i + 4) && local.startsWith(m.slice(0, i)) && local.length >= i;
 };
 
 /* =====================================================================
@@ -635,6 +681,7 @@ Befine.club = {
   },
   async estado() {
     try {
+      await _esperarReclamo();   // puntos de compras como invitado que recién pasaron a la cuenta
       const { data, error } = await sb.rpc("club_estado");
       return error ? { ok: false, error: "No pudimos cargar tus puntos." } : { ok: true, ...data };
     } catch (e) { return { ok: false, error: "Sin conexión. Revisa tu internet." }; }
@@ -819,6 +866,7 @@ Befine.vueltaPago = function (search) {
 /* Estado actual de un pedido del cliente (RLS: solo los propios). Devuelve el pedido o null. */
 Befine.estadoPedido = async function (id) {
   if (!UUID_RE.test(String(id || ""))) return null;
+  await _esperarReclamo();
   try {
     const { data, error } = await sb.from("pedidos")
       .select("id,numero,estado,total,descuento_cupon,fecha_entrega,contacto_nombre,contacto_email,tipo_documento,created_at")
@@ -829,10 +877,23 @@ Befine.estadoPedido = async function (id) {
   } catch (e) { console.error("estadoPedido:", e); return null; }
 };
 
+/* Vuelta desde Mercado Pago en OTRO navegador (sin la sesión del invitado): pedido_vuelta()
+   entrega solo número, estado, montos, fecha y el correo enmascarado (migración 17).
+   Devuelve { id, numero, estado, total, descuento_cupon, fecha_entrega, tipo_documento, correo, invitado } o null. */
+Befine.pedidoVuelta = async function (id) {
+  if (!UUID_RE.test(String(id || ""))) return null;
+  try {
+    const { data, error } = await sb.rpc("pedido_vuelta", { p_pedido: id });
+    if (error) { console.error("pedidoVuelta:", error.message); return null; }
+    return data && data.numero ? data : null;
+  } catch (e) { console.error("pedidoVuelta:", e); return null; }
+};
+
 /* Pedidos del cliente con sesión (RLS: solo los propios). Formato que usa cuenta.js:
    [{ id, numero, estado, total, created_at, items:[{cantidad}] }] */
 Befine.misPedidos = async function () {
   try {
+    await _esperarReclamo();
     const { data: ses } = await sb.auth.getSession();
     const uid = ses && ses.session && ses.session.user && ses.session.user.id;
     if (!uid) return [];

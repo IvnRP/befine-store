@@ -9,20 +9,44 @@
    - El botón de la campana activa/desactiva los avisos (se recuerda en este
      navegador) y, al tocarlo, pide permiso de notificaciones.
    - Sin servicios externos: consulta la misma base del panel (RLS).
+   - El navegador solo deja sonar audio después de un toque en la página: el
+     primer toque en cualquier parte del panel "desbloquea" el sonido, y al
+     activar la campana suena una vez para probarlo.
+   - Con avisos activos, la pantalla del celular no se apaga mientras el panel
+     está a la vista (Wake Lock): con la pantalla apagada el navegador detiene
+     la página y no puede sonar.
    ===================================================================== */
 (function () {
   const L = window.AdminLogic;
   const KEY = "befine_avisos_pedidos";      // "off" = desactivados en este navegador
   const CADA_MS = 20000;
-  const SONIDO = "assets/sonidos/caja-registradora.mp3";
+  const SONIDO = "assets/sonidos/caja-registradora.mp3?v=3";   // ?v=: /assets tiene caché de 30 días; subir el número al cambiar el sonido
   const ICONO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>';
 
   const leer = () => { try { return localStorage.getItem(KEY) !== "off"; } catch (e) { return true; } };
   const guardar = (on) => { try { localStorage.setItem(KEY, on ? "on" : "off"); } catch (e) {} };
 
-  let on = leer(), vistos = null, sinVer = 0, timer = null;
+  let on = leer(), vistos = null, sinVer = 0, timer = null, desbloqueado = false, bloqueoPantalla = null;
   const tituloBase = document.title;
   const audio = new Audio(SONIDO); audio.preload = "auto";
+
+  // Primer toque en el panel: reproduce en silencio para que el navegador permita sonar después
+  async function desbloquear() {
+    if (desbloqueado) return true;
+    try { audio.muted = true; await audio.play(); audio.pause(); audio.currentTime = 0; desbloqueado = true; }
+    catch (e) { /* se intentará en el próximo toque */ }
+    audio.muted = false;
+    return desbloqueado;
+  }
+  ["pointerdown", "keydown"].forEach((ev) => document.addEventListener(ev, () => { if (on) desbloquear(); }, { capture: true, passive: true }));
+
+  // Pantalla encendida mientras el panel está a la vista y los avisos activos
+  async function mantenerPantalla() {
+    if (!on || document.hidden || bloqueoPantalla || !("wakeLock" in navigator)) return;
+    try { bloqueoPantalla = await navigator.wakeLock.request("screen"); bloqueoPantalla.addEventListener("release", () => { bloqueoPantalla = null; }); }
+    catch (e) { bloqueoPantalla = null; }
+  }
+  function soltarPantalla() { if (bloqueoPantalla) { bloqueoPantalla.release().catch(() => {}); bloqueoPantalla = null; } }
 
   function boton() { return document.getElementById("pnAvisos"); }
   function pintar() {
@@ -33,7 +57,15 @@
   }
   function limpiarContador() { sinVer = 0; document.title = tituloBase; pintar(); }
 
-  function sonar() { try { audio.currentTime = 0; const p = audio.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+  // Devuelve una promesa: true si sonó. Si el navegador lo bloqueó, avisa que falta un toque.
+  async function sonar() {
+    try { audio.muted = false; audio.currentTime = 0; await audio.play(); desbloqueado = true; return true; }
+    catch (e) {
+      desbloqueado = false;
+      if (window.AdminApp && AdminApp.UI) AdminApp.UI.toast("Llegó un pedido. Toca la pantalla una vez para que el sonido funcione.");
+      return false;
+    }
+  }
 
   function avisar(p) {
     const texto = `Nuevo pedido #${p.numero} · ${Befine.clp(p.total)} · ${p.contacto_nombre || "Cliente"}`;
@@ -72,15 +104,17 @@
       if (!faltaPermiso) { on = !on; guardar(on); }
       pintar();
       if (on) {
-        // El toque del usuario "desbloquea" el sonido en el navegador y permite pedir notificaciones
-        try { audio.muted = true; await audio.play(); audio.pause(); audio.currentTime = 0; audio.muted = false; } catch (err) { audio.muted = false; }
+        // El toque del usuario permite sonar: suena una vez para probar el volumen
+        const sono = await sonar();
         if ("Notification" in window && Notification.permission === "default") { try { await Notification.requestPermission(); } catch (err) {} }
         pintar();
-        AdminApp.UI.toast("Avisos de pedidos activados: sonará la caja con cada pedido pagado.");
+        mantenerPantalla();
+        AdminApp.UI.toast(sono ? "Avisos activados: así sonará cada pedido pagado. Deja el panel abierto." : "Sube el volumen y vuelve a tocar la campana.");
         revisar();
-      } else AdminApp.UI.toast("Avisos de pedidos desactivados en este navegador.");
+      } else { soltarPantalla(); AdminApp.UI.toast("Avisos de pedidos desactivados en este navegador."); }
     });
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) { limpiarContador(); revisar(); } });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) { limpiarContador(); mantenerPantalla(); revisar(); } });
+    mantenerPantalla();
     revisar();
     timer = setInterval(revisar, CADA_MS);
   });

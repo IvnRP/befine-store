@@ -115,6 +115,8 @@ body.tema-claro .co-ok .det { background: #f7fbfe; }
 .co-ok .crear .beneficios li::before { content: "✓"; color: var(--mint); font-weight: 800; margin-right: 8px; }
 .co-ok .crear .fila { display: flex; gap: 10px; align-items: flex-end; }
 .co-ok .crear .fila .fld { flex: 1; }
+.co-ok .crear .fila.con-correo { flex-wrap: wrap; }
+.co-ok .crear .fila.con-correo .fld { min-width: 210px; }
 @media (max-width: 520px) { .co-ok .crear .fila { flex-direction: column; align-items: stretch; } }
 
 /* ---------- Cupón de descuento (RF-20) ---------- */

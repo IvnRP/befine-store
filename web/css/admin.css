@@ -41,7 +41,18 @@ body.page-admin {
   background: linear-gradient(140deg, #29ABE2, var(--pn-deep)); }
 .pn-who { display: flex; flex-direction: column; line-height: 1.15; }
 .pn-who b { font-size: 14px; } .pn-who small { font-size: 12px; color: var(--pn-muted); }
-@media (max-width: 640px) { .pn-who { display: none; } .pn-top .pn-btn.ghost[href] { display: none; } }
+@media (max-width: 640px) { .pn-who { display: none; } }
+/* Celular: barra compacta con íconos (flecha atrás, tienda, salir siempre visibles) */
+.pn-ico { width: 40px; padding: 0; flex: none; }
+.pn-top .pn-ico svg, .pn-top .pn-tienda svg, .pn-top .pn-salir svg { width: 20px; height: 20px; flex: none; }
+@media (max-width: 640px) {
+  .pn-top { gap: 6px; padding: 0 10px; padding-top: env(safe-area-inset-top); height: calc(56px + env(safe-area-inset-top)); }
+  .pn-brand img { height: 26px; }
+  .pn-tienda .txt, .pn-salir .txt { display: none; }
+  .pn-tienda, .pn-salir { width: 40px; padding: 0; flex: none; }
+  .pn-user .pn-avatar { width: 30px; height: 30px; font-size: 13px; }
+}
+@media (max-width: 400px) { .pn-brand span { display: none; } }
 
 /* ---------- Botones ---------- */
 .pn-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 14px;
@@ -68,9 +79,21 @@ body.page-admin {
 .pn-nav .cnt { margin-left: auto; font-size: 12px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--pn-warn-soft); color: var(--pn-warn); }
 .pn-main { padding: 22px clamp(16px, 3vw, 32px) 64px; min-width: 0; }
 @media (max-width: 860px) {
-  .pn-shell { grid-template-columns: 1fr; }
-  .pn-nav { position: sticky; top: 60px; z-index: 20; flex-direction: row; overflow-x: auto; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--pn-line); }
-  .pn-nav button { width: auto; flex: none; }
+  .pn-shell { grid-template-columns: 1fr; align-content: start; }   /* el menú no se estira si la sección es corta */
+  .pn-nav { position: sticky; top: 60px; z-index: 20; flex-direction: row; overflow-x: auto; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--pn-line);
+    scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .pn-nav::-webkit-scrollbar { display: none; }
+  .pn-nav button { width: auto; flex: none; min-height: 40px; }
+}
+@media (max-width: 640px) {
+  .pn-nav { top: calc(56px + env(safe-area-inset-top)); padding: 6px 10px; }
+  .pn-main { padding: 14px 12px calc(72px + env(safe-area-inset-bottom)); }
+  .pn-inp, .pn-form .pn-inp, select.pn-inp, textarea.pn-inp { font-size: 16px; }   /* iPhone no hace zoom al escribir */
+  .pn-drawer-in { padding: 14px 14px calc(40px + env(safe-area-inset-bottom)); }
+  .pn-modal { padding: 10px; align-items: end; }
+  .pn-modal-in { padding: 18px; border-radius: 16px 16px 12px 12px; max-height: calc(100dvh - 20px); }
+  .pn-form-acc .pn-btn { flex: 1; min-height: 44px; }
+  .pn-toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
 
 .pn-card { background: var(--pn-surface); border: 1px solid var(--pn-line); border-radius: var(--pn-radius); box-shadow: var(--pn-shadow); }
@@ -114,8 +137,9 @@ body.page-admin {
   overflow-y: auto; overscroll-behavior: contain; }
 .pn-drawer.abierto { transform: none; }
 .pn-drawer-in { padding: 20px 20px 40px; }
-.pn-x { position: sticky; top: 0; float: right; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--pn-line); background: #fff;
-  cursor: pointer; font-size: 20px; line-height: 1; color: var(--pn-muted); }
+.pn-x { position: sticky; top: 0; z-index: 2; float: left; display: grid; place-items: center; width: 40px; height: 40px; margin: 0 10px 6px 0;
+  border-radius: 10px; border: 1px solid var(--pn-line); background: #fff; cursor: pointer; color: var(--pn-ink); }
+.pn-x svg { width: 20px; height: 20px; }
 
 /* ---------- Modal (formularios) ---------- */
 .pn-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(12,30,45,.45); }

@@ -89,6 +89,7 @@ body.tema-claro .seg2 { background: #fff; border-color: rgba(11,78,122,.18); }
 .dia[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
 .dia[aria-pressed="true"] .dw, .dia[aria-pressed="true"] .dm { color: rgba(255,255,255,.85); }
 body.tema-claro .dia { background: #fff; border-color: rgba(11,78,122,.18); }
+body.tema-claro .dia[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); }   /* día elegido visible en tema claro */
 
 /* ---------- Interruptor (switch) y casilla ---------- */
 .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; user-select: none; }
