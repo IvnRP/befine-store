@@ -431,12 +431,13 @@
   }
 
   // El webhook de Mercado Pago confirma el pago en el servidor; aquí solo se consulta el estado.
-  async function esperarConfirmacion(id) {
-    let p = await Befine.estadoPedido(id);
+  // leer: Befine.estadoPedido (pedido propio, con sesión) o Befine.pedidoVuelta (otro navegador).
+  async function esperarConfirmacion(id, leer = Befine.estadoPedido) {
+    let p = await leer(id);
     for (const ms of ESPERAS_MS) {
       if (!p || p.estado !== "pendiente_pago") break;
       await new Promise((r) => setTimeout(r, ms));
-      p = await Befine.estadoPedido(id);
+      p = await leer(id);
     }
     return p;
   }
@@ -458,7 +459,16 @@
       <h2>Confirmando tu pago…</h2>
       <p class="lead">${guardado ? `Pedido #${guardado.numero}. ` : ""}Esto toma solo unos segundos; no cierres esta página.</p></div>`;
 
-    const srv = await esperarConfirmacion(v.pedido);
+    let srv = await esperarConfirmacion(v.pedido), extra = {};
+    if (!srv) {
+      // Otro navegador (p. ej. abrió la tienda desde WhatsApp y Mercado Pago lo devolvió a Chrome):
+      // no tiene la sesión del invitado. pedido_vuelta() muestra el resultado sin datos personales.
+      const vta = await esperarConfirmacion(v.pedido, Befine.pedidoVuelta);
+      if (vta) {
+        srv = { ...vta, contacto_nombre: "", contacto_email: "" };
+        extra = { mascara: vta.correo, invitado: !!vta.invitado };
+      }
+    }
     if (!srv) {
       document.querySelector(".co-head h1").textContent = "Volviste desde Mercado Pago";
       ok.innerHTML = `<div class="sheet"><h2>No pudimos revisar tu pedido</h2>
@@ -474,11 +484,11 @@
       return;
     }
     const pagado = Befine.pedidoPagado(srv.estado);
-    if (pagado) Befine.enviarCorreo(srv.id);   // respaldo: si el webhook ya lo envió, el servidor no lo repite
+    if (pagado && !extra.mascara) Befine.enviarCorreo(srv.id);   // respaldo: si el webhook ya lo envió, el servidor no lo repite
     const aviso = v.estado === "pendiente"
       ? "Mercado Pago está procesando tu pago. Tu pedido se confirmará apenas se apruebe."
       : "Recibimos tu pago y lo estamos confirmando con Mercado Pago. Puede tardar unos minutos.";
-    confirmar(armarPedido(srv, guardado), pagado, aviso);
+    confirmar(armarPedido(srv, guardado), pagado, aviso, extra);
   }
 
   function pintarPagoFallido(id, g) {
@@ -507,7 +517,11 @@
 
   /* ================= Confirmación ================= */
   // pagado: el servidor ya confirmó el pago · aviso: texto mientras el pago se confirma
-  function confirmar(pedido, pagado, aviso) {
+  // extra.mascara: correo enmascarado (vuelta desde otro navegador: el cliente escribe su correo)
+  function confirmar(pedido, pagado, aviso, extra = {}) {
+    const email = (pedido.contacto && pedido.contacto.email) || "";
+    const mascara = email ? "" : (extra.mascara || "");
+    const ofrecerCuenta = !sesion && (email || (mascara && extra.invitado));
     const fecha = pedido.entrega && pedido.entrega.fecha ? new Date(pedido.entrega.fecha + "T12:00:00") : null;
     const d = pedido.direccion;
     const nombre = esc(((pedido.contacto && pedido.contacto.nombre) || "").split(" ")[0]);
@@ -526,7 +540,7 @@
         <p class="lead">${pagado
           ? `Gracias${nombre ? ", " + nombre : ""}. Tu pago fue aprobado y ya estamos preparando tu pedido.`
           : esc(aviso || "Estamos confirmando tu pago.")}</p>
-        ${pagado && pedido.contacto && pedido.contacto.email ? `<p class="hint">Te enviamos la confirmación de compra a <b>${esc(pedido.contacto.email)}</b>. Si no la ves, revisa Spam o Promociones.</p>` : ""}
+        ${pagado && (email || mascara) ? `<p class="hint">Te enviamos la confirmación de compra a <b>${esc(email || mascara)}</b>. Si no la ves, revisa Spam o Promociones.</p>` : ""}
         <dl class="det">
           ${fecha ? `<div><dt>Entrega</dt><dd>${pedido.entrega.tipo === "agendada"
             ? `${fmtDia(fecha)} (agendada)`
@@ -541,12 +555,16 @@
           ${botonWhatsApp(pedido.numero)}
         </div>
       </div>
-      ${sesion || !pedido.contacto.email ? "" : `
+      ${!ofrecerCuenta ? "" : `
       <div class="sheet crear" id="coCrear">
         <h3>Guarda tus datos en 1 paso</h3>
-        <p class="hint">Crea tu cuenta con los datos de esta compra: solo elige una contraseña.</p>
+        <p class="hint">${mascara
+          ? `Crea tu cuenta con el correo de esta compra (<b>${esc(mascara)}</b>): al activarla, el pedido #${pedido.numero} y sus puntos quedan en tu cuenta.`
+          : "Crea tu cuenta con los datos de esta compra: solo elige una contraseña."}</p>
         <ul class="beneficios"><li>Tu próxima compra en segundos</li><li>Acumula puntos y canjéalos por recargas</li><li>Sigue el estado de tus pedidos</li></ul>
-        <form class="fila" id="coCrearForm" novalidate>
+        <form class="fila${mascara ? " con-correo" : ""}" id="coCrearForm" novalidate>
+          ${mascara ? `<div class="fld"><label for="coCorreoCuenta">Tu correo</label>
+            <input class="inp" id="coCorreoCuenta" type="email" autocomplete="email" inputmode="email" placeholder="${esc(mascara)}"></div>` : ""}
           <div class="fld"><label for="coClave">Contraseña</label>
             <div class="inp-wrap"><input class="inp" id="coClave" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" minlength="8">
             <button type="button" class="eye" data-ver-clave="coClave" aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
@@ -562,15 +580,25 @@
     if (!sesion && $("coCrearForm")) {
       $("coCrearForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const inp = $("coClave"), btn = $("coCrearBtn");
+        const inp = $("coClave"), btn = $("coCrearBtn"), inpCorreo = $("coCorreoCuenta");
+        const correo = email || ((inpCorreo && inpCorreo.value) || "").trim().toLowerCase();
+        if (inpCorreo) {
+          if (!Befine.coincideCorreo(correo, mascara)) {
+            setError(inpCorreo, `Usa el mismo correo de tu compra (${mascara}) para que el pedido quede en tu cuenta.`);
+            inpCorreo.focus(); return;
+          }
+          clearError(inpCorreo);
+        }
         if ((inp.value || "").length < 8) { setError(inp, "Usa al menos 8 caracteres."); inp.focus(); return; }
         clearError(inp); cargando(btn, true, "Creando…");
-        const r = await Befine.auth.registrar({ nombre: pedido.contacto.nombre, email: pedido.contacto.email, password: inp.value, telefono: pedido.contacto.telefono || "" });
+        const r = await Befine.auth.registrar({ nombre: (pedido.contacto && pedido.contacto.nombre) || undefined, email: correo,
+          password: inp.value, telefono: (pedido.contacto && pedido.contacto.telefono) || "" });
         cargando(btn, false);
         const box = $("coCrear");
         if (!r.ok) { setError(inp, r.error); return; }
         box.innerHTML = `<div class="aviso ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>
-          <span>${r.confirmar ? `¡Listo! Te enviamos un correo a <b>${esc(pedido.contacto.email)}</b> para activar tu cuenta.` : "¡Cuenta creada! Tu próxima compra será en segundos."}</span></div>`;
+          <span>${r.confirmar ? `¡Listo! Te enviamos un correo a <b>${esc(correo)}</b> para activar tu cuenta.` : "¡Cuenta creada! Tu próxima compra será en segundos."}${mascara
+            ? ` Al activarla, el pedido #${pedido.numero} aparecerá en <a href="cuenta.html" style="text-decoration:underline">Mi cuenta</a>. Si ya tenías cuenta con ese correo, solo ingresa con ella.` : ""}</span></div>`;
       });
       $("coGoogle").addEventListener("click", async () => {
         const r = await Befine.auth.google("cuenta.html");

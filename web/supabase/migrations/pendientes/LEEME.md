@@ -4,6 +4,12 @@ Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla
 
 Orden: **01, 01b, 04, 03, 05, 06, 07 y 08 (aplicadas) → 02** (escrita y movida a `../`; se aplica con las secciones Reparto y Equipo y roles). Esta carpeta queda vacía de migraciones.
 
+## 17 · Compra como invitado desde otro navegador — `../20261120_17_pedidos_invitado.sql` (escrita el 20-nov-2026; prueba en seco T01..T12 OK en Postgres local)
+
+Incidente 19-nov-2026: una clienta pagó como invitada desde el navegador de WhatsApp y Mercado Pago la devolvió a otro navegador (sin su sesión): el pago quedó confirmado, pero la tienda mostró "No pudimos revisar tu pedido" y no pudo crear su cuenta. `pedido_vuelta(id)` muestra el resultado del pago sin sesión (número, estado, montos y correo enmascarado; 7 días) y `reclamar_pedidos_invitado()` pasa a la cuenta con correo **confirmado** las compras como invitado hechas con ese correo (pedidos, direcciones y puntos; auditado en `cambios_cliente`). **Aplicar ANTES de publicar** el sitio que las usa. Prueba en seco `../20261120_17_prueba_en_seco.sql` (T01..T12). Reversa `../20261120_17_pedidos_invitado_reversa.sql`.
+
+---
+
 ## 16 · Dirección amigable de productos (SEO) — `../20261118_16_productos_slug.sql` (escrita el 18-nov-2026; prueba en seco T01..T08 OK en Postgres local)
 
 Auditoría SEO: `productos.slug` (único, minúsculas y guiones) con las 11 direcciones decididas por el dueño, `slug_de()` y trigger que la genera desde el nombre si el panel la deja vacía (con -2, -3 si se repite). La ficha queda en `https://aguabefine.cl/productos/<slug>` (`deploy/_redirects`: reescritura 200 a `producto.html`). **Aplicar ANTES de publicar** el sitio que lee `slug` (la versión actual no lo usa). Reversa `../20261118_16_productos_slug_reversa.sql`.
