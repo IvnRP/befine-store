@@ -2,21 +2,21 @@
 
 Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla su requisito, se mueven a `../` (carpeta `migrations/`) y se aplican en Supabase como migración. Cada una tiene su archivo de reversa.
 
-Orden: **01, 01b, 04, 03, 05, 06, 07 y 08 (aplicadas) → 02** (escrita y movida a `../`; se aplica con las secciones Reparto y Equipo y roles). Esta carpeta queda vacía de migraciones.
+Estado al 20-nov-2026: **todas las migraciones escritas están aplicadas en producción** (orden de aplicación: 01, 01b, 04, 03, 05, 06, 07, 08, 02, 09, 10, 11, 14, 15, 16 y 17). Esta carpeta queda vacía de migraciones. Números reservados: **12** (tareas programadas con pg_cron) y **13** (formulario de contacto).
 
-## 17 · Compra como invitado desde otro navegador — `../20261120_17_pedidos_invitado.sql` (escrita el 20-nov-2026; prueba en seco T01..T12 OK en Postgres local)
+## 17 · Compra como invitado desde otro navegador — `../20261120_17_pedidos_invitado.sql` (escrita y aplicada el 20-nov-2026; prueba en seco T01..T12 OK)
 
 Incidente 19-nov-2026: una clienta pagó como invitada desde el navegador de WhatsApp y Mercado Pago la devolvió a otro navegador (sin su sesión): el pago quedó confirmado, pero la tienda mostró "No pudimos revisar tu pedido" y no pudo crear su cuenta. `pedido_vuelta(id)` muestra el resultado del pago sin sesión (número, estado, montos y correo enmascarado; 7 días) y `reclamar_pedidos_invitado()` pasa a la cuenta con correo **confirmado** las compras como invitado hechas con ese correo (pedidos, direcciones y puntos; auditado en `cambios_cliente`). **Aplicar ANTES de publicar** el sitio que las usa. Prueba en seco `../20261120_17_prueba_en_seco.sql` (T01..T12). Reversa `../20261120_17_pedidos_invitado_reversa.sql`.
 
 ---
 
-## 16 · Dirección amigable de productos (SEO) — `../20261118_16_productos_slug.sql` (escrita el 18-nov-2026; prueba en seco T01..T08 OK en Postgres local)
+## 16 · Dirección amigable de productos (SEO) — `../20261118_16_productos_slug.sql` (escrita y aplicada el 18-nov-2026; prueba en seco T01..T08 OK)
 
 Auditoría SEO: `productos.slug` (único, minúsculas y guiones) con las 11 direcciones decididas por el dueño, `slug_de()` y trigger que la genera desde el nombre si el panel la deja vacía (con -2, -3 si se repite). La ficha queda en `https://aguabefine.cl/productos/<slug>` (`deploy/_redirects`: reescritura 200 a `producto.html`). **Aplicar ANTES de publicar** el sitio que lee `slug` (la versión actual no lo usa). Reversa `../20261118_16_productos_slug_reversa.sql`.
 
 ---
 
-## 15 · Despacho gratis desde $7.000 en todas las comunas — `../20261117_15_despacho_desde_7000.sql` (escrita el 17-nov-2026; prueba en seco T01..T06 OK en Postgres local)
+## 15 · Despacho gratis desde $7.000 en todas las comunas — `../20261117_15_despacho_desde_7000.sql` (escrita el 17-nov-2026, aplicada el 18-nov-2026; prueba en seco T01..T06 OK; CM-05)
 
 Decisión del dueño: Quilicura deja de tener despacho gratis con cualquier monto y paga $2.500 bajo $7.000, igual que el Sector Norte; desde $7.000 de subtotal el envío es gratis en todas las comunas. Solo datos (`zonas_despacho`) y nueva versión de textos legales `2026-11-17`. El despacho gratis para clientes elegidos se da con un cupón personal. Prueba en seco `../20261117_15_prueba_en_seco.sql` (T01..T06). Reversa `../20261117_15_despacho_desde_7000_reversa.sql`. Se aplica junto con la versión del sitio que trae la franja "Envío gratis en pedidos desde $7.000" y la página Cómo funciona.
 
