@@ -23,6 +23,7 @@
 
 <!-- ============ Barra superior ============ -->
 <header class="pn-top">
+  <button class="pn-btn ghost pn-ico" id="pnAtras" type="button" hidden aria-label="Volver atrás" title="Volver atrás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
   <a class="pn-brand" href="admin.html"><img src="assets/logo-befine.webp" alt="Befine"><span>Panel</span></a>
   <span class="pn-spacer"></span>
   <div class="pn-user" id="pnUser" hidden>
@@ -30,8 +31,8 @@
     <span class="pn-who"><b id="pnNombre"></b><small id="pnRol"></small></span>
   </div>
   <button class="pn-btn ghost pn-campana" id="pnAvisos" type="button" hidden aria-pressed="true" title="Avisos de pedidos nuevos (sonido y notificación)"></button>
-  <a class="pn-btn ghost" href="index.html">Ver tienda</a>
-  <button class="pn-btn ghost" id="pnSalir" type="button" hidden>Salir</button>
+  <a class="pn-btn ghost pn-tienda" href="index.html" aria-label="Ver tienda" title="Ver tienda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M10 20v-5h4v5"/></svg><span class="txt">Ver tienda</span></a>
+  <button class="pn-btn ghost pn-salir" id="pnSalir" type="button" hidden aria-label="Salir" title="Salir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span class="txt">Salir</span></button>
 </header>
 
 <div class="pn-shell">
