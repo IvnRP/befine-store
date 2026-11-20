@@ -1,4 +1,4 @@
-/* Compra como invitado y vuelta desde OTRO navegador (web/js/data.js + migración 17) — 6 pruebas
+/* Compra como invitado y vuelta desde OTRO navegador (web/js/data.js + migración 17) — 7 pruebas
    Caso CP-U37 (incidente 19-nov-2026): la clienta pagó como invitada desde el navegador de WhatsApp
    y Mercado Pago la devolvió a otro navegador, sin su sesión. Ahora la vuelta muestra el pedido
    (pedido_vuelta, sin datos personales) y, al entrar con su cuenta de correo confirmado, sus compras
@@ -94,4 +94,16 @@ test("CP-U37f la vuelta de Mercado Pago usa pedido_vuelta en otro navegador y la
   assert.doesNotMatch(sql.match(/function public\.pedido_vuelta[\s\S]*?\$\$;/)[0], /contacto_(nombre|telefono)|direccion/);
   for (const f of ["20261120_17_pedidos_invitado_reversa.sql", "20261120_17_prueba_en_seco.sql"])
     assert.ok(fs.existsSync(path.join(web, "supabase", "migrations", f)), f);
+});
+
+test("CP-U37g si Mercado Pago (su app) devuelve al checkout sin la página de vuelta, se revisa el pago y se muestra", () => {
+  const web = path.join(__dirname, "..", "..", "web");
+  const co = fs.readFileSync(path.join(web, "js", "checkout.js"), "utf8");
+  assert.match(co, /else revisarPagoSinVuelta\(\);/);                                    // al abrir el checkout
+  assert.match(co, /visibilitychange[\s\S]{0,80}revisarPagoSinVuelta\(\)/);              // al volver de la app
+  assert.match(co, /if \(Befine\.pedidoPagado\(srv\.estado\)\) \{ mostrarVuelta\(\{ estado: "ok", pedido: g\.id \}\)/);
+  assert.match(co, /fueAMercadoPago = true;\s+\/\/[^\n]*\n\s+window\.location\.assign\(p\.url\);/);
+  // Día agendado visible en tema claro (antes quedaba texto blanco sobre fondo blanco)
+  const css = fs.readFileSync(path.join(web, "css", "forms.css"), "utf8");
+  assert.match(css, /body\.tema-claro \.dia\[aria-pressed="true"\] \{[^}]*background: var\(--accent\)/);
 });

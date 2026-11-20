@@ -37,6 +37,9 @@
     precargar();
     const vuelta = Befine.vueltaPago(location.search);
     if (vuelta) mostrarVuelta(vuelta);          // volvió desde Mercado Pago: se muestra el resultado del pago
+    else revisarPagoSinVuelta();                // ¿ya pagó ese pedido y volvió sin pasar por la página de vuelta?
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") revisarPagoSinVuelta(); });
+    window.addEventListener("pageshow", (e) => { if (e.persisted) revisarPagoSinVuelta(); });
     Store.subscribe((items) => { pintarResumen(items); revisarCuponDeNuevo(); revisandoStock = revisarStock(items); });   // el resumen se actualiza solo al cambiar cantidades
 
     /* ---------- Formato en vivo ---------- */
@@ -353,6 +356,7 @@
       return;
     }
     guardarPagoEnCurso(pedido);
+    fueAMercadoPago = true;                     // si vuelve a esta pestaña sin la página de vuelta, se revisa el pago
     window.location.assign(p.url);              // los botones siguen "cargando" mientras se abre Mercado Pago
   }
 
@@ -402,6 +406,36 @@
     }
     window.toast(r.error || "No pudimos crear el pedido. Inténtalo de nuevo.");
     return null;
+  }
+
+  /* ================= Volvió sin pasar por la página de vuelta =================
+     En el celular Mercado Pago suele abrirse en su app: al pagar, el cliente vuelve al navegador de
+     WhatsApp/Instagram con el checkout tal como lo dejó, sin confirmación (incidente 19-nov-2026).
+     Al volver a la pestaña, o al abrir de nuevo el checkout, se pregunta al servidor si ese pedido ya
+     se pagó: si se pagó, se muestra la confirmación; si no, el botón Pagar vuelve a funcionar. */
+  const SIN_VUELTA_MS = [0, 3000, 5000, 8000, 12000, 20000];   // ~48 s mientras llega el aviso de Mercado Pago
+  const SIN_VUELTA_HORAS = 6;                                  // un pedido más antiguo no se muestra solo
+  let revisandoSinVuelta = false, fueAMercadoPago = false;
+  async function revisarPagoSinVuelta() {
+    if (revisandoSinVuelta || !$("coOk").hidden) return;
+    const g = leerPendiente();
+    if (!g) return;
+    revisandoSinVuelta = true;
+    try {
+      for (const ms of SIN_VUELTA_MS) {
+        if (ms) await new Promise((r) => setTimeout(r, ms));
+        if (document.visibilityState === "hidden" || !$("coOk").hidden) return;
+        const srv = await Befine.estadoPedido(g.id);
+        if (!srv || srv.estado === "cancelado") break;
+        if (Date.now() - new Date(srv.created_at).getTime() > SIN_VUELTA_HORAS * 3600 * 1000) break;
+        if (Befine.pedidoPagado(srv.estado)) { mostrarVuelta({ estado: "ok", pedido: g.id }); return; }
+        if (!fueAMercadoPago) break;   // no viene de Mercado Pago: no hay pago que esperar
+      }
+      if (fueAMercadoPago) {    // volvió sin pagar: el cliente puede reintentar (se paga el MISMO pedido)
+        [$("coPagar"), $("coBarPagar")].forEach((b) => cargando(b, false));
+        enviando = false; fueAMercadoPago = false;
+      }
+    } finally { revisandoSinVuelta = false; }
   }
 
   /* ================= Vuelta desde Mercado Pago ================= */
