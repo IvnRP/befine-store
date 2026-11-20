@@ -68,15 +68,16 @@
       document.addEventListener("pointerout", (e) => { if (e.target.closest("button,a,.card,input,.float,.opt")) ring.classList.remove("big"); });
     })();
 
-    /* ---------- Sonido: "plip" al tocar + MÚSICA AMBIENTAL relajada ----------
-       La música es un "pad" generado con Web Audio (sin archivos externos),
-       tipo unseen. Empieza en el primer clic del usuario (regla de autoplay).
+    /* ---------- Sonido: "plip" al tocar + AMBIENTE ARMÓNICO DE FONDO ----------
+       Se genera con Web Audio (sin archivos externos): acordes suaves que respiran
+       lento y, de vez en cuando, ~3 s de agua muy suave. Como la música ambiente de
+       una tienda física: acompaña sin distraer. Empieza en el primer clic del usuario (regla de autoplay).
        Expone window.BefineSound para que el botón "apagar animación" también
        pueda silenciar todo. */
     (function () {
       let actx = null, soundOn = _pref("befine_sound", true), ambient = null, started = false;
       let uwFilter = null, ambDepth = null, submerged = false; // efecto "bajo el agua"
-      const AMB_VOL = 0.08; // volumen de la música (súbelo/bájalo aquí)
+      const AMB_VOL = 0.45; // volumen del ambiente (súbelo/bájalo aquí)
       const ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a3 3 0 0 1 0 6"/><path d="M18.6 6.4a7 7 0 0 1 0 11.2"/></svg>';
       const OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l4.5 5M21.5 9.5l-4.5 5"/></svg>';
       // El botón inferior izquierdo ahora es el "modo ligero" (js/perf.js). Aquí solo vive el motor de audio (window.BefineSound).
@@ -89,52 +90,99 @@
         g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v || 0.14, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
         o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.2); }
 
-      // Construye el pad ambiental (acorde suave + filtro que "respira")
+      // Ambiente ARMÓNICO de fondo (sin archivos, generado con Web Audio): solo acordes suaves, sin
+      // instrumentos ni ruido, como la música ambiente de una tienda física. No distrae.
+      //   - Ciclo de 4 acordes (Do, La menor, Fa, Sol), 8 s cada uno, que entran y salen despacio.
+      //   - Cada voz "respira" a su propio ritmo, así nunca suena plano ni repetitivo.
+      //   - Agua muy suave en episodios: ~3 s de un hilo de agua con 2–4 gotitas, y luego silencio de
+      //     6–12 s antes del siguiente (nunca constante).
+      //   - Sin graves (no zumba) y con un eco corto. Ajusta AMB_VOL (arriba) para el volumen.
+      const ACORDES = [[48, 55, 64, 67, 72], [45, 52, 60, 64, 69], [41, 48, 57, 60, 65], [43, 50, 59, 62, 67]];   // notas MIDI
+      const DUR_ACORDE = 8;
+      const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+      let fondoBus = null, aguaBus = null, compas = 0, proximo = 0, proxAgua = 0;
+      function eco(a) {
+        const n = Math.floor(a.sampleRate * 3), b = a.createBuffer(2, n, a.sampleRate);
+        for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / a.sampleRate / 1.0); }
+        const cv = a.createConvolver(); cv.buffer = b; return cv;
+      }
       function buildAmbient(a) {
         const master = a.createGain(); master.gain.value = 0;
-        // Cadena "bajo el agua": master -> filtro (se cierra al bajar) -> volumen -> salida
+        // Cadena "bajo el agua": master -> sin graves -> filtro (se cierra al bajar) -> volumen -> salida
         uwFilter = a.createBiquadFilter(); uwFilter.type = "lowpass"; uwFilter.frequency.value = 20000; uwFilter.Q.value = 0.7;
         ambDepth = a.createGain(); ambDepth.gain.value = 1;
-        master.connect(uwFilter); uwFilter.connect(ambDepth); ambDepth.connect(a.destination);
-        const filt = a.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 850; filt.Q.value = 0.4; filt.connect(master);
-        // Acorde cálido y consonante (Do mayor, voicing abierto y grave) — más relajado
-        const freqs = [130.81, 196.00, 261.63, 392.00]; // C3, G3, C4, G4
-        freqs.forEach((f, i) => {
-          const o = a.createOscillator(); o.type = "sine"; o.frequency.value = f; o.detune.value = (i - 1) * 2;
-          const g = a.createGain(); g.gain.value = 0.10 / (1 + i * 0.35); o.connect(g).connect(filt); o.start();
-          const lfo = a.createOscillator(); lfo.frequency.value = 0.018 + 0.01 * i; const lg = a.createGain(); lg.gain.value = 0.035;
-          lfo.connect(lg).connect(g.gain); lfo.start(); // swell muy lento por voz
-        });
-        const flfo = a.createOscillator(); flfo.frequency.value = 0.022; const fg = a.createGain(); fg.gain.value = 220;
-        flfo.connect(fg).connect(filt.frequency); flfo.start(); // brillo que respira, sutil
+        const sinGraves = a.createBiquadFilter(); sinGraves.type = "highpass"; sinGraves.frequency.value = 90;
+        master.connect(sinGraves); sinGraves.connect(uwFilter); uwFilter.connect(ambDepth); ambDepth.connect(a.destination);
+        // Bus de los acordes: suave (pasa-bajos 900 Hz) + eco sin graves
+        fondoBus = a.createBiquadFilter(); fondoBus.type = "lowpass"; fondoBus.frequency.value = 900; fondoBus.Q.value = 0.5;
+        const seco = a.createGain(); seco.gain.value = 0.7; fondoBus.connect(seco).connect(master);
+        const rev = eco(a), revFiltro = a.createBiquadFilter(); revFiltro.type = "bandpass"; revFiltro.frequency.value = 800; revFiltro.Q.value = 0.4;
+        const mojado = a.createGain(); mojado.gain.value = 0.3; fondoBus.connect(rev); rev.connect(revFiltro).connect(mojado).connect(master);
+        // Bus del agua: directo + el mismo eco (no pasa por el pasa-bajos de los acordes)
+        aguaBus = a.createGain(); aguaBus.gain.value = 1;
+        const aguaSeca = a.createGain(); aguaSeca.gain.value = 0.7; aguaBus.connect(aguaSeca).connect(master); aguaBus.connect(rev);
         return master;
       }
       function fadeAmbient(on) { const a = ctx(); if (!a) return; if (!ambient) ambient = buildAmbient(a);
         const t = a.currentTime; ambient.gain.cancelScheduledValues(t);
-        ambient.gain.linearRampToValueAtTime(on ? AMB_VOL : 0, t + (on ? 2.5 : 1.2)); }
+        ambient.gain.linearRampToValueAtTime(on ? AMB_VOL : 0, t + (on ? 3 : 1.2)); }
 
-      // Campanitas suaves en escala pentatónica: "gotas" musicales de agua limpia.
-      // Aparecen espaciadas y al azar; van al mismo bus que la música (se apagan/
-      // amortiguan con ella). Cambia SCALE o los tiempos para otro carácter.
-      const SCALE = [392.00, 440.00, 523.25, 587.33, 659.25]; // pentatónica más grave y dulce
-      let chimeTimer = null;
-      function chime() {
-        const a = ctx(); if (!a || !ambient) return; const t = a.currentTime;
-        const base = SCALE[Math.floor(Math.random() * SCALE.length)] * (Math.random() < 0.5 ? 0.5 : 1);
-        [1, 2].forEach((mult, k) => { // fundamental + octava = timbre de campana/gota
-          const o = a.createOscillator(), g = a.createGain(); o.type = "sine"; o.frequency.value = base * mult;
-          const vol = (k === 0 ? 0.4 : 0.13) * (0.7 + Math.random() * 0.3);
-          g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8 + Math.random() * 1.2);
-          o.connect(g).connect(ambient); o.start(t); o.stop(t + 3.4);
+      // Un acorde que entra (2,5 s), se mantiene y sale (3 s) encima del siguiente: transición sin cortes
+      function tocarAcorde(a, t0, acorde) {
+        acorde.forEach((nota, i) => {
+          const voz = a.createGain(); voz.gain.value = 0;
+          const v = 0.07 / (1 + 0.45 * i);
+          voz.gain.setValueAtTime(0, t0); voz.gain.linearRampToValueAtTime(v, t0 + 2.5);
+          voz.gain.setValueAtTime(v, t0 + DUR_ACORDE); voz.gain.linearRampToValueAtTime(0, t0 + DUR_ACORDE + 3);
+          // respiración propia de cada voz (0,8–1,0 del volumen)
+          const lfo = a.createOscillator(); lfo.frequency.value = 0.07 + 0.02 * i; const lg = a.createGain(); lg.gain.value = v * 0.2;
+          lfo.connect(lg).connect(voz.gain); lfo.start(t0); lfo.stop(t0 + DUR_ACORDE + 3.1);
+          voz.connect(fondoBus);
+          [[1, 1], [1.002, 0.3]].forEach(([det, amp]) => {
+            const o = a.createOscillator(), g = a.createGain(); o.type = "sine"; o.frequency.value = hz(nota) * det; g.gain.value = amp;
+            o.connect(g).connect(voz); o.start(t0); o.stop(t0 + DUR_ACORDE + 3.1);
+          });
         });
       }
+      // Episodio de agua (~3 s): hilo de agua que aparece y se va + 2–4 gotitas suaves
+      let ruidoAgua = null;
+      function episodioAgua(a, t0) {
+        if (!ruidoAgua) {
+          const n = Math.floor(a.sampleRate * 3), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+          for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+          ruidoAgua = b;
+        }
+        const src = a.createBufferSource(); src.buffer = ruidoAgua;
+        const bp = a.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1500; bp.Q.value = 0.8;
+        const g = a.createGain(); g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(0.012, t0 + 1.5); g.gain.linearRampToValueAtTime(0, t0 + 3);
+        src.connect(bp).connect(g).connect(aguaBus); src.start(t0); src.stop(t0 + 3);
+        const n = 2 + Math.floor(Math.random() * 3);
+        for (let k = 0; k < n; k++) {
+          const t = t0 + 0.3 + Math.random() * 2.2, f = 700 + Math.random() * 400, d = 0.14;
+          const o = a.createOscillator(), gg = a.createGain(); o.type = "sine";
+          o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.6, t + d);
+          gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.03 + Math.random() * 0.02, t + 0.004);
+          gg.gain.exponentialRampToValueAtTime(0.0001, t + d);
+          o.connect(gg).connect(aguaBus); o.start(t); o.stop(t + d + 0.02);
+        }
+      }
+
+      // Programador: deja listo el siguiente acorde antes de que termine el actual
+      // (solo con sonido activo y pestaña visible: no gasta batería en segundo plano)
+      let chimeTimer = null;
       function scheduleChime() {
         clearTimeout(chimeTimer);
         chimeTimer = setTimeout(() => {
-          if (soundOn && started && document.visibilityState === "visible") chime();
+          const a = actx;
+          if (a && fondoBus && soundOn && started && document.visibilityState === "visible") {
+            if (proximo < a.currentTime) proximo = a.currentTime + 0.1;
+            while (proximo < a.currentTime + 1.5) { tocarAcorde(a, proximo, ACORDES[compas % ACORDES.length]); compas++; proximo += DUR_ACORDE; }
+            if (proxAgua < a.currentTime) proxAgua = a.currentTime + 3;            // primer episodio a los ~3 s
+            if (proxAgua < a.currentTime + 1) { episodioAgua(a, proxAgua); proxAgua += 3 + 6 + Math.random() * 6; }   // 3 s de agua + 6–12 s de silencio
+          }
           scheduleChime();
-        }, 4800 + Math.random() * 6000); // cada ~4.8–10.8 s (más espaciado y relajado)
+        }, 500);
       }
 
       // Sumergirse: un "whoomp" grave, suave y breve. Relajante, no molesto.
