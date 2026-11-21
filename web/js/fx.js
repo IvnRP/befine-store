@@ -77,7 +77,8 @@
     (function () {
       let actx = null, soundOn = _pref("befine_sound", true), ambient = null, started = false;
       let uwFilter = null, ambDepth = null, submerged = false; // efecto "bajo el agua"
-      const AMB_VOL = 0.45; // volumen del ambiente (súbelo/bájalo aquí)
+      const AMB_VOL = 0.15;     // volumen del ambiente (súbelo/bájalo aquí). Antes 0.45: el dueño lo pidió mucho más bajo (21-nov-2026)
+      const VOL_EFECTOS = 0.4;  // multiplica las gotitas al tocar y el "whoomp" al sumergirse
       const ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a3 3 0 0 1 0 6"/><path d="M18.6 6.4a7 7 0 0 1 0 11.2"/></svg>';
       const OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5l4.5 5M21.5 9.5l-4.5 5"/></svg>';
       // El botón inferior izquierdo ahora es el "modo ligero" (js/perf.js). Aquí solo vive el motor de audio (window.BefineSound).
@@ -87,7 +88,7 @@
       function plip(v) { if (!soundOn) return; const a = ctx(); if (!a) return; const t = a.currentTime;
         const o = a.createOscillator(), g = a.createGain(); const f0 = 540 + Math.random() * 280;
         o.type = "sine"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 0.34, t + 0.09);
-        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v || 0.14, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime((v || 0.14) * VOL_EFECTOS, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
         o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.2); }
 
       // Ambiente ARMÓNICO de fondo (sin archivos, generado con Web Audio): solo acordes suaves, sin
@@ -190,7 +191,7 @@
         if (!soundOn) return; const a = ctx(); if (!a) return; const t = a.currentTime, dur = 1.1;
         const o = a.createOscillator(), g = a.createGain(); o.type = "sine";
         o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(80, t + dur);
-        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05 * VOL_EFECTOS, t + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
       }
 
