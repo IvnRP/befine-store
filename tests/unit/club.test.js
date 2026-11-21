@@ -1,4 +1,4 @@
-/* Pruebas del Club Befine (web/js/data.js) — 5 pruebas
+/* Pruebas del Club Befine (web/js/data.js) — 6 pruebas
    Casos CP-U28 del Plan de Pruebas (HU-19, migración 08): puntos solo por recargas con envase Befine,
    bono por pedido grande, puntos sobre lo pagado, invitación (Trae un amigo) y coherencia con la base. */
 const { test } = require("node:test");
@@ -64,4 +64,20 @@ test("CP-U28e datos actuales de las variantes del carrito: a pedido y suma punto
   const m = await Befine.infoVariantes(["A", "B"]);
   assert.deepEqual([m.get("A").a_pedido, m.get("A").suma_puntos, m.get("B").a_pedido, m.get("B").suma_puntos], [true, true, false, false]);
   assert.deepEqual([...(await Befine.disponibilidad(["A", "B"]))], ["A"]);
+});
+
+test("CP-U39 Trae un amigo: se premia al entregar, se revierte al cancelar y tiene tope mensual (migración 18)", () => {
+  const fs = require("node:fs"), path = require("node:path");
+  const web = path.join(__dirname, "..", "..", "web");
+  const sql = fs.readFileSync(path.join(web, "supabase", "migrations", "20261121_18_referidos_seguros.sql"), "utf8");
+  assert.match(sql, /when \(new\.estado = 'entregado' and old\.estado is distinct from 'entregado'\)/);
+  assert.match(sql, /'club_referido_tope_mes', '10'/);
+  assert.match(sql, /where pedido_id = new\.id and perfil_id = new\.perfil_id and tipo in \('acumulacion', 'ajuste'\)/);
+  assert.match(sql, /Trae un amigo: el pedido de tu invitado se canceló/);
+  const pagar = sql.match(/function public\.club_al_pagar\(\)[\s\S]*?\$\$;/)[0];
+  assert.doesNotMatch(pagar, /referid/);                                   // al pagar ya no se premia
+  for (const f of ["20261121_18_referidos_seguros_reversa.sql", "20261121_18_prueba_en_seco.sql"])
+    assert.ok(fs.existsSync(path.join(web, "supabase", "migrations", f)), f);
+  assert.match(fs.readFileSync(path.join(web, "terminos.html"), "utf8"), /hasta 10 amigos al mes/);
+  assert.match(fs.readFileSync(path.join(web, "js", "cuenta.js"), "utf8"), /reciba su primer pedido \(hasta 10 amigos al mes\)/);
 });

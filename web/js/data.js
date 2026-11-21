@@ -458,7 +458,7 @@ const PROVEEDOR = {
 Befine.proveedor = PROVEEDOR;
 // Versión vigente de los textos legales. Debe coincidir con parametros.terminos_version (migración 06),
 // que es la que queda registrada en cada pedido al aceptar los Términos.
-Befine.legalVersion = "2026-11-17"; // debe coincidir con parametros.terminos_version (migración 15: despacho gratis desde $7.000 en todas las comunas)
+Befine.legalVersion = "2026-11-21"; // debe coincidir con parametros.terminos_version (migración 18: Trae un amigo se premia al entregar el pedido)
 
 /* ---------- Derecho a retracto por tipo de producto (Ley 19.496 art. 3 bis y Reglamento de exclusiones) ----------
    Compras a distancia: 10 días desde la entrega. Exclusión permitida para bienes de higiene o que

@@ -4,6 +4,12 @@ Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla
 
 Estado al 20-nov-2026: **todas las migraciones escritas están aplicadas en producción** (orden de aplicación: 01, 01b, 04, 03, 05, 06, 07, 08, 02, 09, 10, 11, 14, 15, 16 y 17). Esta carpeta queda vacía de migraciones. Números reservados: **12** (tareas programadas con pg_cron) y **13** (formulario de contacto).
 
+## 18 · Trae un amigo a prueba de abusos — `../20261121_18_referidos_seguros.sql` (escrita el 21-nov-2026; prueba en seco T01..T09 OK en Postgres local)
+
+Decisión del dueño: los 10 puntos de Trae un amigo se dan cuando el primer pedido del amigo se **entrega** (ya no al pagar); si ese pedido se cancela, se descuentan a los dos (sin saldos negativos) y la invitación queda pendiente; tope de `club_referido_tope_mes` = 10 amigos premiados al mes para quien invita (el amigo igual recibe su bienvenida). Nueva versión de Términos `2026-11-21`. **Aplicar junto con** la versión del sitio que trae los textos nuevos (`terminos.html`, `cuenta.js`, `Befine.legalVersion`). Prueba en seco `../20261121_18_prueba_en_seco.sql` (T01..T09). Reversa `../20261121_18_referidos_seguros_reversa.sql`.
+
+---
+
 ## 17 · Compra como invitado desde otro navegador — `../20261120_17_pedidos_invitado.sql` (escrita y aplicada el 20-nov-2026; prueba en seco T01..T12 OK)
 
 Incidente 19-nov-2026: una clienta pagó como invitada desde el navegador de WhatsApp y Mercado Pago la devolvió a otro navegador (sin su sesión): el pago quedó confirmado, pero la tienda mostró "No pudimos revisar tu pedido" y no pudo crear su cuenta. `pedido_vuelta(id)` muestra el resultado del pago sin sesión (número, estado, montos y correo enmascarado; 7 días) y `reclamar_pedidos_invitado()` pasa a la cuenta con correo **confirmado** las compras como invitado hechas con ese correo (pedidos, direcciones y puntos; auditado en `cambios_cliente`). **Aplicar ANTES de publicar** el sitio que las usa. Prueba en seco `../20261120_17_prueba_en_seco.sql` (T01..T12). Reversa `../20261120_17_pedidos_invitado_reversa.sql`.
