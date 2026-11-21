@@ -207,7 +207,7 @@
       <p class="hint">1 punto por cada ${clp(R.clp_por_punto)} en recargas con envase Befine · ${R.bono_min_recargas} o más recargas en un pedido: +${R.bono_puntos} de bono. Vencen tras ${R.vencimiento_meses} meses sin compras. <a href="terminos.html#puntos">Condiciones</a></p>
       ${link ? `<div class="club-amigo">
         <b>Trae un amigo: ganan ${R.referido_puntos} puntos cada uno</b>
-        <small>Cuando tu amigo cree su cuenta con tu enlace y pague su primer pedido.</small>
+        <small>Cuando tu amigo cree su cuenta con tu enlace y reciba su primer pedido (hasta 10 amigos al mes).</small>
         <div class="cod"><input class="inp" readonly value="${esc(link)}" aria-label="Tu enlace para invitar"><button type="button" class="btn btn-ghost" data-copiar="${esc(link)}">Copiar</button></div>
         <a class="btn btn-ghost btn-block" href="${wa}" target="_blank" rel="noopener">Invitar por WhatsApp</a>
       </div>` : ""}
