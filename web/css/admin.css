@@ -483,3 +483,6 @@ button.pn-kpi[aria-pressed="true"] { border-color: var(--pn-brand); box-shadow: 
 .pn-dte-form { display: grid; gap: 10px; margin-top: 10px; padding: 12px; border: 1px solid var(--pn-line); border-radius: 12px; background: #F9FBFC; }
 .pn-dte-form label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; }
 .pn-dte-ok { color: var(--pn-ok); }
+.pn-dte-correo { font-size: 13px; color: var(--pn-muted); margin: -2px 0 8px; }
+.pn-dte-correo.enviado { color: var(--pn-ok); }
+.pn-dte-correo.error { color: var(--pn-warn); }

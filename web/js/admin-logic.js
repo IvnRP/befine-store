@@ -81,7 +81,7 @@
     cancelado: "Cancelar pedido",
   };
 
-  /* Filtro de la lista: estado ("todos" | "activos" | un estado) y búsqueda por
+  /* Filtro de la lista: estado ("todos" | "activos" | "sin_documento" | un estado) y búsqueda por
      número (#123 o 123), nombre, teléfono o comuna. */
   const ACTIVOS = ["pagado", "en_preparacion", "en_ruta"];
   function filtrarPedidos(lista, { estado = "todos", q = "", entrega = null } = {}) {
@@ -90,7 +90,8 @@
     return (lista || []).filter((p) => {
       if (!enRangoEntrega(p, entrega)) return false;
       if (estado === "activos" && !ACTIVOS.includes(p.estado)) return false;
-      if (estado !== "todos" && estado !== "activos" && p.estado !== estado) return false;
+      if (estado === "sin_documento" && !pendienteDocumento(p)) return false;
+      if (!["todos", "activos", "sin_documento"].includes(estado) && p.estado !== estado) return false;
       if (!t) return true;
       if (/^\d+$/.test(t) && String(p.numero) === t) return true;
       const dir = p.direccion || {};
@@ -101,11 +102,12 @@
 
   /* Cantidad de pedidos por estado (para los filtros) */
   function contarPorEstado(lista) {
-    const c = { todos: 0, activos: 0 };
+    const c = { todos: 0, activos: 0, sin_documento: 0 };
     ORDEN_ESTADOS.forEach((e) => { c[e] = 0; });
     (lista || []).forEach((p) => {
       c.todos++; if (c[p.estado] != null) c[p.estado]++;
       if (ACTIVOS.includes(p.estado)) c.activos++;
+      if (pendienteDocumento(p)) c.sin_documento++;
     });
     return c;
   }
@@ -590,6 +592,18 @@
   // Documento emitido del pedido (o null)
   const documentoDe = (p) => ((p && p.documentos_tributarios) || []).find((d) => d.estado === "emitido") || null;
   // ¿Falta emitir la boleta/factura? Solo pedidos pagados con monto (un canje de $0 no lleva documento)
+  /* Envío por correo del documento (migración 20) → { estado: "enviado" | "error" | "pendiente", texto } */
+  function estadoCorreoDoc(doc) {
+    if (!doc) return { estado: "pendiente", texto: "" };
+    if (doc.correo_enviado_at) {
+      const f = new Date(doc.correo_enviado_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      return { estado: "enviado", texto: `Enviada por correo${doc.correo_destino ? " a " + doc.correo_destino : ""} el ${f}` +
+               (doc.correo_error ? ` · El último reenvío falló (${doc.correo_error}).` : "") };
+    }
+    if (doc.correo_error) return { estado: "error", texto: `No se pudo enviar por correo (${doc.correo_error}).` };
+    return { estado: "pendiente", texto: "Aún no se envía por correo al cliente." };
+  }
+
   const pendienteDocumento = (p) => !!p && PAGADOS_DTE.includes(p.estado) && (Number(p.total) || 0) > 0 && !documentoDe(p);
 
   /* Datos para copiar en el formulario de Haulmer, en su mismo orden. p = pedido como lo trae getPedido(). */
@@ -648,6 +662,6 @@
     ROLES_ASIGNABLES, validarAsignacion, matrizPermisos,
     CLIENTES, SEGMENTOS_CLIENTE, diasDesde, segmentosDe, contarSegmentos, filtrarClientes, resumenClientes,
     normalizarTelefono, rutValido, formatoRut, validarCliente,
-    montosDTE, netoUnitario, fmtCLP, valorPegar, documentoDe, pendienteDocumento, datosHaulmer, leerNombreDTE, validarDocumento,
+    montosDTE, netoUnitario, fmtCLP, valorPegar, documentoDe, pendienteDocumento, estadoCorreoDoc, datosHaulmer, leerNombreDTE, validarDocumento,
   };
 })(typeof window !== "undefined" ? window : globalThis);

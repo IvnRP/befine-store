@@ -1,4 +1,4 @@
-/* Boletas y facturas en la tienda (opción A: emisión en Haulmer + PDF en la tienda, migración 19) — 8 pruebas
+/* Boletas y facturas en la tienda (opción A: emisión en Haulmer + PDF en la tienda, migración 19) — 9 pruebas
    Caso CP-U41: el panel prepara los datos igual que los documentos de Haulmer (boleta N° 11298 y factura
    N° 496 reales), lee tipo y folio del nombre del PDF, valida antes de subir, y el cliente descarga solo
    lo suyo con un enlace temporal. */
@@ -96,4 +96,24 @@ test("CP-U41h la migración 19 protege los PDF y valida el registro", () => {
     assert.ok(fs.existsSync(path.join(WEB, "supabase", "migrations", f)), f);
   const ped = fs.readFileSync(path.join(WEB, "js", "admin-pedidos.js"), "utf8");
   assert.match(ped, /app\.puede\("documentos\.gestionar"\)/);
+});
+
+test("CP-U41i filtro \"Sin boleta/factura\": lista y cuenta solo los pedidos que esperan documento", () => {
+  const ped = (numero, estado, total, docs = []) => ({ numero, estado, total, documentos_tributarios: docs });
+  const lista = [
+    ped(1, "entregado", 10000),                                                   // pendiente
+    ped(2, "en_preparacion", 5000),                                               // pendiente
+    ped(3, "entregado", 7500, [{ tipo: "boleta", folio: 11298, estado: "emitido" }]), // ya tiene boleta
+    ped(4, "pendiente_pago", 2500),                                               // sin pagar
+    ped(5, "cancelado", 2500),                                                    // cancelado
+    ped(6, "entregado", 0),                                                       // canje sin monto
+  ];
+  const nums = (xs) => xs.map((p) => p.numero);
+  assert.deepEqual(nums(L.filtrarPedidos(lista, { estado: "sin_documento" })), [1, 2]);
+  assert.deepEqual(nums(L.filtrarPedidos(lista, { estado: "sin_documento", q: "#2" })), [2]);
+  assert.equal(L.contarPorEstado(lista).sin_documento, 2);
+  assert.equal(L.contarPorEstado(lista).sin_documento, lista.filter(L.pendienteDocumento).length); // = tarjeta del panel
+  const js = fs.readFileSync(path.join(WEB, "js", "admin-pedidos.js"), "utf8");
+  assert.match(js, /\["sin_documento", "Sin boleta\/factura"\]/);              // chip solo con documentos.gestionar
+  assert.match(js, /data-kpi-doc/);                                              // la tarjeta filtra al hacer clic
 });

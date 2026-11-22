@@ -91,6 +91,22 @@
       return data;
     },
 
+    /* Envía al cliente la boleta/factura con el PDF adjunto (Edge Function enviar-correo, migración 20).
+       Idempotente: si ya se envió no se repite (salvo reenviar). Nunca lanza: { ok, enviado, destino, mensaje } */
+    async enviarDocumento(pedidoId, reenviar = false) {
+      try {
+        const { data, error } = await sb.functions.invoke("enviar-correo", { body: { pedido_id: pedidoId, tipo: "documento", reenviar: !!reenviar } });
+        if (error) {
+          let det = null;
+          try { det = error.context && typeof error.context.json === "function" ? await error.context.json() : null; } catch (_) { /* sin cuerpo */ }
+          const base = (det && det.error) || "No se pudo enviar el correo";
+          return { ok: false, enviado: false, mensaje: base + (det && det.detalle ? ` (${det.detalle}).` : ".") };
+        }
+        return { ok: !!(data && data.ok), enviado: !!(data && data.enviado), destino: data && data.destino,
+                 motivo: data && data.motivo, mensaje: data && data.mensaje };
+      } catch (e) { return { ok: false, enviado: false, mensaje: "Sin conexión: no se pudo enviar el correo." }; }
+    },
+
     /* Enlace temporal (10 min) para ver el PDF de un documento */
     async urlDocumento(ruta) {
       const { data, error } = await sb.storage.from("documentos").createSignedUrl(ruta, 600);
@@ -118,7 +134,7 @@
                 "zona:zonas_despacho(nombre),cupon:cupones(codigo)," +
                 "detalle_pedido(cantidad,precio_unitario,subtotal,variante:variantes_producto(sku,nombre,producto:productos(nombre)))," +
                 "historial_pedido(estado_anterior,estado_nuevo,nota,created_at)," +
-                "documentos_tributarios(tipo,folio,estado,archivo,fecha_emision)")
+                "documentos_tributarios(tipo,folio,estado,archivo,fecha_emision,correo_enviado_at,correo_destino,correo_error)")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;

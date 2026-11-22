@@ -64,10 +64,10 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
   const base = String(sitio || "").replace(/\/+$/, "");
   const nombre = primerNombre(p.contacto_nombre);
   const dir = textoDireccion(p.direccion);
-  // Sin boleta automática por ahora (decisión del dueño, 12-nov-2026): el cliente la pide si la necesita.
+  // El documento se emite en Haulmer y llega en otro correo, con el PDF adjunto, al subirlo al panel (migración 20).
   const docHtml = p.tipo_documento === "factura"
-    ? "Pediste <b>factura</b>: te la enviaremos a este correo."
-    : "¿Necesitas boleta o factura? Responde este correo y te la enviamos.";
+    ? "Pediste <b>factura</b>: te la enviaremos a este correo apenas la emitamos."
+    : "Te enviaremos tu <b>boleta electrónica</b> a este correo apenas la emitamos.";
   const docTexto = docHtml.replace(/<[^>]+>/g, "");
   const asunto = `Befine: confirmación de tu pedido #${p.numero}`;
   const filas = (p.lineas || []).map((l) =>
@@ -140,6 +140,64 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
     "", "TUS DERECHOS", retracto, `Condiciones: ${base}/cambios.html#retracto`,
     `Garantía legal: 6 meses. ${aceptacion.replace(/<[^>]+>/g, "")} Términos: ${base}/terminos.html`,
     "", `¿Dudas? Responde este correo o escríbenos por WhatsApp: https://wa.me/${PROVEEDOR.whatsapp}`,
+    "", `${PROVEEDOR.nombre_fantasia} · ${PROVEEDOR.razon_social} · RUT ${PROVEEDOR.rut} · ${PROVEEDOR.domicilio} · ${PROVEEDOR.correo}`,
+  ].join("\n");
+
+  return { asunto, html, texto };
+}
+
+// =====================================================================
+// Correo con la boleta o factura (migración 20): se envía al subir el PDF en el panel, con el
+// documento ADJUNTO, a clientes con cuenta y a invitados. Funciones puras (tests/unit/correo-documento.test.js).
+// =====================================================================
+export type DocumentoCorreo = {
+  numero: number;                    // n° del pedido
+  contacto_nombre?: string | null;
+  tipo: "boleta" | "factura" | string;
+  folio: number | string;
+  total: number;
+  razon_social?: string | null;      // factura: a nombre de quién
+  con_cuenta?: boolean;              // true: también la ve en Mi cuenta → Mis pedidos
+};
+
+const etiquetaDoc = (t: string) => (t === "factura" ? "Factura" : "Boleta");
+
+/* Nombre del PDF adjunto: Boleta_Befine_N11298.pdf (solo letras y números: seguro para cualquier correo) */
+export function nombreAdjunto(tipo: string, folio: number | string): string {
+  return `${etiquetaDoc(tipo)}_Befine_N${String(folio).replace(/\D/g, "") || "0"}.pdf`;
+}
+
+export function armarCorreoDocumento(d: DocumentoCorreo, sitio: string): { asunto: string; html: string; texto: string } {
+  const base = String(sitio || "").replace(/\/+$/, "");
+  const nombre = primerNombre(d.contacto_nombre);
+  const doc = etiquetaDoc(String(d.tipo));
+  const genero = d.tipo === "factura" ? "tu factura" : "tu boleta";
+  const asunto = `Befine: ${genero} N° ${d.folio} del pedido #${d.numero}`;
+  const aNombre = d.tipo === "factura" && d.razon_social ? ` a nombre de <b>${esc(d.razon_social)}</b>` : "";
+  const cuentaHtml = d.con_cuenta
+    ? `<p style="margin:12px 0 0;font-size:14px">También queda guardada en <a href="${esc(base)}/cuenta.html" style="color:#0B7FC2">Mi cuenta → Mis pedidos</a>.</p>`
+    : `<p style="margin:12px 0 0;font-size:14px">Guarda este correo: es tu respaldo de la compra.</p>`;
+
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#F3F7FA;font-family:Arial,Helvetica,sans-serif;color:#13293A">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F7FA;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;padding:24px">
+<tr><td>
+  <p style="margin:0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#0B7FC2;font-weight:700">Agua Purificada Befine</p>
+  <h1 style="margin:6px 0 4px;font-size:22px">${nombre ? "Hola " + esc(nombre) + ", aquí" : "Aquí"} está ${genero}</h1>
+  <p style="margin:0;font-size:14px">Adjuntamos la <b>${doc.toLowerCase()} electrónica N° ${esc(d.folio)}</b>${aNombre} de tu pedido <b>#${esc(d.numero)}</b>
+  por <b>${clp(d.total)}</b> (IVA incluido). Es un documento válido ante el SII.</p>
+  ${cuentaHtml}
+  <p style="margin:18px 0 0;font-size:14px">¿Algún dato no corresponde? Responde este correo o escríbenos por
+  <a href="https://wa.me/${PROVEEDOR.whatsapp}?text=${encodeURIComponent("Hola Befine, consulta por la " + doc.toLowerCase() + " de mi pedido #" + d.numero)}" style="color:#0B7FC2">WhatsApp</a>.</p>
+  <hr style="border:0;border-top:1px solid #E1E8ED;margin:20px 0 10px">
+  <p style="margin:0;font-size:11.5px;color:#5F7484;line-height:1.5">${esc(PROVEEDOR.nombre_fantasia)} · ${esc(PROVEEDOR.razon_social)} · RUT ${esc(PROVEEDOR.rut)} · ${esc(PROVEEDOR.domicilio)} · ${esc(PROVEEDOR.correo)}</p>
+</td></tr></table></td></tr></table></body></html>`;
+
+  const texto = [
+    `${nombre ? "Hola " + nombre + ", aquí" : "Aquí"} está ${genero}.`,
+    `Adjuntamos la ${doc.toLowerCase()} electrónica N° ${d.folio}${d.tipo === "factura" && d.razon_social ? " a nombre de " + d.razon_social : ""} de tu pedido #${d.numero} por ${clp(d.total)} (IVA incluido). Es un documento válido ante el SII.`,
+    d.con_cuenta ? `También queda guardada en Mi cuenta → Mis pedidos: ${base}/cuenta.html` : "Guarda este correo: es tu respaldo de la compra.",
+    "", `¿Algún dato no corresponde? Responde este correo o escríbenos por WhatsApp: https://wa.me/${PROVEEDOR.whatsapp}`,
     "", `${PROVEEDOR.nombre_fantasia} · ${PROVEEDOR.razon_social} · RUT ${PROVEEDOR.rut} · ${PROVEEDOR.domicilio} · ${PROVEEDOR.correo}`,
   ].join("\n");
 
