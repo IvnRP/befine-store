@@ -47,6 +47,16 @@ test("CP-U41d tipo y folio desde el nombre del PDF de Haulmer", () => {
   assert.equal(JSON.stringify(L.leerNombreDTE("boleta_DTE_39-_Empresa_77861415_-_Folio_N__11298.pdf")), JSON.stringify({ tipo: "boleta", folio: 11298 }));
   assert.equal(JSON.stringify(L.leerNombreDTE("DTE_33-_Empresa_77861415_-_Folio_N__496.pdf")), JSON.stringify({ tipo: "factura", folio: 496 }));
   assert.equal(L.leerNombreDTE("foto.pdf"), null);
+  // Nombres reales de Haulmer (22-nov-2026): la boleta viene SIN código de tipo; la factura con 33
+  assert.equal(JSON.stringify(L.leerNombreDTE("DTE_-_Empresa_77861415_-_Folio_N__11300.pdf")), JSON.stringify({ tipo: null, folio: 11300 }));
+  assert.equal(JSON.stringify(L.leerNombreDTE("DTE_33-_Empresa_77861415_-_Folio_N__496.pdf")), JSON.stringify({ tipo: "factura", folio: 496 }));
+  assert.match(L.validarDocumento({ name: "DTE_33-_Empresa_77861415_-_Folio_N__496.pdf", type: "application/pdf", size: 9e4 }, "boleta", 496), /es una factura/);
+  // Mismo nombre visto con espacios y N° (así lo muestra el navegador), con y sin código de tipo
+  assert.equal(JSON.stringify(L.leerNombreDTE("DTE 39 - Empresa 77861415 - Folio N° 11300.pdf")), JSON.stringify({ tipo: "boleta", folio: 11300 }));
+  assert.equal(JSON.stringify(L.leerNombreDTE("DTE - Empresa 77861415 - Folio N° 11300.pdf")), JSON.stringify({ tipo: null, folio: 11300 }));
+  assert.equal(JSON.stringify(L.leerNombreDTE("DTE 33 - Empresa 77861415 - Folio Nº 497.pdf")), JSON.stringify({ tipo: "factura", folio: 497 }));
+  assert.equal(L.leerNombreDTE("Folio N° 12.pdf"), null);                       // sin "DTE" no se adivina
+  assert.equal(L.validarDocumento({ name: "DTE - Empresa 77861415 - Folio N° 11300.pdf", type: "application/pdf", size: 9e4 }, "boleta", 11300), "");
 });
 
 test("CP-U41e validación antes de subir (casos de error)", () => {

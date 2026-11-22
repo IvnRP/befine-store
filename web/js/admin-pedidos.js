@@ -93,7 +93,7 @@
       const f = e.target.files && e.target.files[0], leido = f && L.leerNombreDTE(f.name);
       const folio = drawer.querySelector("#dteFolio"), aviso = drawer.querySelector("#dteAviso");
       if (leido && folio) folio.value = leido.folio;   // Haulmer pone el folio en el nombre del PDF
-      aviso.textContent = leido ? `Detectado: ${leido.tipo} N° ${leido.folio}` : (f ? "Escribe el folio del documento." : "");
+      aviso.textContent = leido ? `Detectado: ${leido.tipo || "folio"} N° ${leido.folio}` : (f ? "Escribe el folio del documento." : "");
     });
     drawer.addEventListener("submit", (e) => {
       if (e.target.id !== "dteForm") return;
