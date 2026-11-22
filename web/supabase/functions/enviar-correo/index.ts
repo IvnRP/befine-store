@@ -132,9 +132,12 @@ Deno.serve(async (req) => {
 //    no envían dos correos. "reenviar" vuelve a enviarlo (p. ej. el cliente lo perdió), como máximo
 //    una vez cada 2 minutos. Si Resend falla, se deja como estaba y se guarda el motivo (correo_error).
 //  - El PDF se lee del bucket privado "documentos" con la clave de servicio y va ADJUNTO, así le llega
-//    también a quien compró como invitado.
+//    también a quien compró como invitado. Va con copia oculta a befine.cl@gmail.com (respaldo).
 // =====================================================================
 const MAX_ADJUNTO = 3 * 1024 * 1024;   // igual que el límite del bucket
+// Copia oculta (CCO) de cada boleta/factura enviada, para el respaldo del negocio (decisión del dueño 22-nov-2026).
+// Se puede cambiar con el secreto CORREO_COPIA_DOCUMENTOS; vacío = sin copia.
+const COPIA_DOCUMENTOS = (Deno.env.get("CORREO_COPIA_DOCUMENTOS") ?? PROVEEDOR.correo).trim();
 
 function aBase64(bytes: Uint8Array): string {
   let bin = "";
@@ -205,6 +208,8 @@ async function enviarDocumento(srv: any, token: string, pedidoId: string, reenvi
     headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json",
                "Idempotency-Key": reenviar ? `dte-${d0.id}-${d0.folio}-${ahora.getTime()}` : `dte-${d0.id}-${d0.tipo}-${d0.folio}` },
     body: JSON.stringify({ from: REMITENTE, to: [p.contacto_email], reply_to: PROVEEDOR.correo,
+                           ...(COPIA_DOCUMENTOS && COPIA_DOCUMENTOS.toLowerCase() !== String(p.contacto_email).toLowerCase()
+                             ? { bcc: [COPIA_DOCUMENTOS] } : {}),
                            subject: correo.asunto, html: correo.html, text: correo.texto,
                            attachments: [{ filename: nombreAdjunto(d0.tipo, d0.folio), content: aBase64(bytes) }] }),
   });

@@ -56,6 +56,8 @@ test("CP-U42d la Edge Function exige permiso, adjunta el PDF y no duplica; la mi
   assert.match(idx, /attachments: \[\{ filename: nombreAdjunto/);
   assert.match(idx, /\.is\("correo_enviado_at", null\)/);                          // reserva condicional
   assert.match(idx, /Idempotency-Key/);
+  assert.match(idx, /CORREO_COPIA_DOCUMENTOS"\) \?\? PROVEEDOR\.correo/);        // copia oculta a befine.cl@gmail.com
+  assert.match(idx, /\{ bcc: \[COPIA_DOCUMENTOS\] \}/);
   assert.match(idx, /storage\.from\("documentos"\)\.download/);                     // PDF del bucket privado
   const m = fs.readFileSync(path.join(RAIZ, "supabase", "migrations", "20261122_20_correo_documento.sql"), "utf8");
   assert.match(m, /add column if not exists correo_enviado_at timestamptz/);
