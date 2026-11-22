@@ -285,6 +285,8 @@
       if (rep) repetirPedido(rep);
       const ru = e.target.closest("[data-repetir-ult]");
       if (ru) repetirUltimo(ru);
+      const doc = e.target.closest("[data-doc]");
+      if (doc) descargarDocumento(doc);
     };
   }
 
@@ -307,8 +309,12 @@
     // Documento tributario (decisión del dueño, 12-nov-2026): por ahora sin boleta automática, como en la
     // tienda anterior. Solo se muestra si el cliente pidió factura o si ya hay un documento emitido (descarga).
     const descargable = Befine.estadoDocumento(d) === "descargar";
+    // PDF con enlace https (emisión externa) o en el bucket privado: se pide un enlace temporal al tocar
+    const docNombre = d.boleta && d.boleta.tipo === "factura" ? "Factura" : "Boleta";
     const docTxt = descargable
-      ? `${d.documento === "factura" ? "Factura" : "Boleta"} · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
+      ? (d.boleta.url
+          ? `${docNombre} · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
+          : `${docNombre} · <button type="button" class="link-doc" data-doc="${esc(d.boleta.archivo)}">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</button>`)
       : d.documento === "factura" ? "Factura solicitada · te la enviamos por correo" : "";
     return `
       <ul class="pd-items">${d.items.map((i) => `
@@ -330,6 +336,17 @@
         <button type="button" class="btn btn-primary" data-repetir="${esc(d.id)}">Volver a pedir</button>
         <div class="pd-msg" role="status" aria-live="polite"></div>
       </div>`;
+  }
+
+  // Boleta o factura (migración 19): enlace temporal de 10 minutos. La ventana se abre al tocar
+  // (si se abre después de esperar la respuesta, el navegador la bloquea como pop-up).
+  async function descargarDocumento(btn) {
+    const w = window.open("", "_blank");
+    cargando(btn, true, "Abriendo…");
+    const url = await Befine.urlDocumento(btn.dataset.doc);
+    cargando(btn, false);
+    if (!url) { if (w) w.close(); window.toast("No pudimos abrir el documento. Inténtalo de nuevo."); return; }
+    if (w) w.location.href = url; else location.href = url;
   }
 
   // "Repetir mi último pedido": carga sus productos con el precio de hoy y va directo a pagar

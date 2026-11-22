@@ -463,3 +463,23 @@ button.pn-kpi[aria-pressed="true"] { border-color: var(--pn-brand); box-shadow: 
 .pn-campana[aria-pressed="false"] { opacity: .6; }
 .pn-campana .n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #1F9D55; color: #fff; font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
 @media (max-width: 640px) { .pn-campana .txt { display: none; } }
+
+/* ---------- Boleta o factura (migración 19: emisión en Haulmer + PDF en la tienda) ---------- */
+.pn-doc-pend { display: block; margin-top: 4px; font-size: 11.5px; font-weight: 700; color: var(--pn-warn); }
+.pn-det h4 { margin: 12px 0 6px; font-size: 13px; font-family: var(--font-body); font-weight: 800; }
+.pn-dte-pasos { margin: 6px 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.pn-dte-pasos .pn-btn { vertical-align: middle; }
+.pn-dte-datos { margin: 0; display: grid; gap: 4px; }
+.pn-dte-datos > div { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--pn-line); }
+.pn-dte-datos dt { color: var(--pn-muted); font-size: 13px; }
+.pn-dte-datos dd { margin: 0; text-align: right; font-weight: 600; word-break: break-word; }
+.pn-dte-tot > div:last-child { border-bottom: 0; }
+.pn-dte-lineas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pn-dte-lineas li { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--pn-line); border-radius: 10px; }
+.pn-dte-lineas .n small { display: block; color: var(--pn-muted); font-size: 12.5px; }
+.pn-dte-lineas .b { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pn-copiar { border: 1px solid var(--pn-line-2); background: #fff; color: var(--pn-brand); border-radius: 8px; padding: 4px 8px; font: 700 12px var(--font-body); cursor: pointer; }
+.pn-copiar:active { background: var(--pn-brand-soft); }
+.pn-dte-form { display: grid; gap: 10px; margin-top: 10px; padding: 12px; border: 1px solid var(--pn-line); border-radius: 12px; background: #F9FBFC; }
+.pn-dte-form label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; }
+.pn-dte-ok { color: var(--pn-ok); }

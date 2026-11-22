@@ -62,7 +62,8 @@
       const { data, error } = await sb.from("pedidos")
         .select("id,numero,estado,total,subtotal,costo_despacho,descuento_cupon,created_at,fecha_entrega," +
                 "contacto_nombre,contacto_telefono,contacto_email,tipo_documento," +
-                "direccion:direcciones(calle,numero,depto,comuna,referencia),detalle_pedido(cantidad)")
+                "direccion:direcciones(calle,numero,depto,comuna,referencia),detalle_pedido(cantidad)," +
+                "documentos_tributarios(tipo,folio,estado)")   // "boleta pendiente" (migración 19)
         .gte("created_at", desde)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -71,6 +72,30 @@
         ...p,
         unidades: (p.detalle_pedido || []).reduce((n, d) => n + (d.cantidad || 0), 0),
       }));
+    },
+
+    /* Boleta o factura emitida en Haulmer (migración 19): sube el PDF al bucket privado y la registra.
+       archivoActual = ruta del documento que ya tenía el pedido (para reemplazarlo). → { ok, … } o { ok:false, mensaje } */
+    async subirDocumento(pedidoId, archivo, tipo, folio, archivoActual) {
+      const ruta = `${pedidoId}/${tipo}-${folio}.pdf`;
+      const up = await sb.storage.from("documentos").upload(ruta, archivo, { upsert: true, contentType: "application/pdf" });
+      if (up.error) throw up.error;
+      const { data, error } = await sb.rpc("registrar_documento", { p_pedido: pedidoId, p_tipo: tipo, p_folio: folio });
+      if (error || !data || !data.ok) {
+        // No quedó registrado: se quita el PDF recién subido (salvo que sea el documento vigente)
+        if (ruta !== archivoActual) await sb.storage.from("documentos").remove([ruta]).catch(() => {});
+        if (error) throw error;
+        return data || { ok: false, mensaje: "No pudimos registrar el documento." };
+      }
+      if (data.archivo_anterior) await sb.storage.from("documentos").remove([data.archivo_anterior]).catch(() => {});
+      return data;
+    },
+
+    /* Enlace temporal (10 min) para ver el PDF de un documento */
+    async urlDocumento(ruta) {
+      const { data, error } = await sb.storage.from("documentos").createSignedUrl(ruta, 600);
+      if (error) throw error;
+      return data.signedUrl;
     },
 
     /* Avisos del panel: pedidos PAGADOS de los últimos días (solo lo necesario para avisar) */
@@ -92,7 +117,8 @@
         .select("*,direccion:direcciones(calle,numero,depto,comuna,referencia)," +
                 "zona:zonas_despacho(nombre),cupon:cupones(codigo)," +
                 "detalle_pedido(cantidad,precio_unitario,subtotal,variante:variantes_producto(sku,nombre,producto:productos(nombre)))," +
-                "historial_pedido(estado_anterior,estado_nuevo,nota,created_at)")
+                "historial_pedido(estado_anterior,estado_nuevo,nota,created_at)," +
+                "documentos_tributarios(tipo,folio,estado,archivo,fecha_emision)")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;

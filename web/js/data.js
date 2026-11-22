@@ -945,12 +945,15 @@ Befine.pedidoReutilizable = function (pedido, ahora = Date.now()) {
    y OpenFactura aún no la emite, y "ninguno" si el pedido no está pagado (pendiente o cancelado). */
 Befine.estadoDocumento = function (detalle) {
   if (!detalle) return "ninguno";
-  if (detalle.boleta && detalle.boleta.url) return "descargar";
+  if (detalle.boleta && (detalle.boleta.url || detalle.boleta.archivo)) return "descargar";
   return Befine.pedidoPagado(detalle.estado) ? "en_proceso" : "ninguno";
 };
 
 Befine.armarDetalle = function (p) {
-  const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" && /^https:\/\//i.test(d.url_pdf || ""));
+  // Documento emitido con enlace https (emisión externa) o con PDF en el bucket privado "documentos" (migración 19)
+  const RUTA_DTE = /^[0-9a-f-]{36}\/(boleta|factura)-\d+\.pdf$/i;
+  const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" &&
+    (/^https:\/\//i.test(d.url_pdf || "") || RUTA_DTE.test(d.archivo || "")));
   return {
     id: p.id, numero: p.numero, estado: p.estado, creado: p.created_at, fecha_entrega: p.fecha_entrega || null,
     subtotal: p.subtotal || 0, despacho: p.costo_despacho || 0, descuento: p.descuento_cupon || 0, total: p.total || 0,
@@ -961,8 +964,19 @@ Befine.armarDetalle = function (p) {
       return { variante_id: d.variante_id, nombre: (prod && prod.nombre) || "Producto no disponible", variante: (v && v.nombre) || "",
         cantidad: d.cantidad, precio_unitario: d.precio_unitario, subtotal: d.subtotal };
     }),
-    boleta: dte ? { tipo: dte.tipo, folio: dte.folio, url: dte.url_pdf } : null,
+    boleta: dte ? (/^https:\/\//i.test(dte.url_pdf || "") ? { tipo: dte.tipo, folio: dte.folio, url: dte.url_pdf }
+                                                          : { tipo: dte.tipo, folio: dte.folio, url: null, archivo: dte.archivo }) : null,
   };
+};
+
+/* Enlace temporal (10 min) para descargar una boleta o factura del bucket privado "documentos".
+   Solo funciona para el dueño del pedido o el equipo (políticas de la migración 19). Devuelve la URL o null. */
+Befine.urlDocumento = async function (ruta) {
+  if (!/^[0-9a-f-]{36}\/(boleta|factura)-\d+\.pdf$/i.test(String(ruta || ""))) return null;
+  try {
+    const { data, error } = await sb.storage.from("documentos").createSignedUrl(ruta, 600);
+    return error || !data ? null : data.signedUrl;
+  } catch (e) { return null; }
 };
 
 /* Detalle de un pedido propio (RLS: el cliente solo obtiene SUS pedidos). Devuelve el detalle o null. */
@@ -974,7 +988,7 @@ Befine.detallePedido = async function (id) {
       .select("id,numero,estado,created_at,fecha_entrega,subtotal,costo_despacho,descuento_cupon,total,tipo_documento," +
               "direccion:direcciones(calle,numero,depto,comuna,referencia)," +
               "detalle_pedido(variante_id,cantidad,precio_unitario,subtotal,variante:variantes_producto(nombre,producto:productos(nombre)))," +
-              "documentos_tributarios(tipo,estado,folio,url_pdf)")
+              "documentos_tributarios(tipo,estado,folio,url_pdf,archivo)")
       .eq("id", id)
       .maybeSingle();
     if (error) { console.error("detallePedido:", error.message); return null; }
