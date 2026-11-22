@@ -4,6 +4,7 @@
    Parámetros de URL:
      ?modo=registro|recuperar|nueva   abre esa vista
      ?volver=checkout.html            al ingresar, vuelve a esa página
+     ?repetir=<id del pedido>         "Repetir este pedido" (enlace del correo): lo carga y va a pagar
    ===================================================================== */
 (function () {
   const { Val, setError, clearError, autoLimpiar, cargando, GOOGLE_SVG } = window.BefineForms;
@@ -13,6 +14,8 @@
   const url = new URLSearchParams(location.search);
   // Solo se permite volver a páginas propias (evita redirecciones a otros sitios)
   const volver = /^[\w-]+\.html$/.test(url.get("volver") || "") ? url.get("volver") : null;
+  const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const repetirId = RE_UUID.test(url.get("repetir") || "") ? url.get("repetir") : null;
   const VISTAS = ["fIngresar", "fRegistro", "fRecuperar", "fNueva", "vRevisa"];
   // Estado del pedido como lo ve el cliente (mismo enum estado_pedido de la base)
   const ESTADO_TXT = { pendiente_pago: "Pendiente de pago", pagado: "Pagado", en_preparacion: "En preparación",
@@ -26,6 +29,21 @@
     Befine.auth.onCambio((ev) => { if (ev === "PASSWORD_RECOVERY") mostrarAuth("fNueva"); });
 
     const sesion = await Befine.auth.sesion();
+    // "Repetir este pedido" desde el correo: si este navegador puede leer el pedido (su cuenta, o la
+    // sesión de invitado con que compró), se carga y va a pagar. Si no, se pide ingresar.
+    if (repetirId) {
+      const d = await Befine.detallePedido(repetirId);
+      if (d) {
+        const r = await window.repetirPedido(d.items);
+        if (r.ok) return;                       // ya va camino al checkout
+        window.toast(r.error);
+      } else if (!sesion) {
+        $("vCarga").hidden = true;
+        mostrarAuth("fIngresar");
+        msg($("inMsg"), "Ingresa con el correo de tu compra para repetir tu pedido.", "");
+        return;
+      } else window.toast("No encontramos ese pedido en tu cuenta.");
+    }
     $("vCarga").hidden = true;
     const modo = url.get("modo");
     if (modo === "nueva") return mostrarAuth("fNueva");
@@ -52,11 +70,12 @@
     if (a.dataset.ir === "recuperar" && $("inEmail").value) $("recEmail").value = $("inEmail").value;
   });
   document.querySelectorAll("[data-google]").forEach((b) => b.addEventListener("click", async () => {
-    const r = await Befine.auth.google(volver || "cuenta.html");
+    const r = await Befine.auth.google(repetirId ? "cuenta.html?repetir=" + repetirId : (volver || "cuenta.html"));
     if (!r.ok) window.toast(r.error);
   }));
   const msg = (el, texto, tipo) => { el.className = "aviso " + (tipo || ""); el.textContent = texto; el.hidden = !texto; };
   const alEntrar = async () => {
+    if (repetirId) return location.replace("cuenta.html?repetir=" + repetirId);   // ahora con sesión: repetir
     if (volver) return location.replace(volver);
     const s = await Befine.auth.sesion();
     if (s) { pintarPanel(s); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -241,7 +260,14 @@
       box.innerHTML = `<div class="vacio-p">Aún no tienes pedidos.<br><a class="btn btn-primary" href="catalogo.html">Hacer mi primer pedido</a></div>`;
       return;
     }
-    box.innerHTML = peds.map((p) => `
+    // Recompra en 1 toque: el último pedido pagado arriba de la lista
+    const ult = peds.find((p) => Befine.pedidoPagado(p.estado));
+    box.innerHTML = (ult ? `
+      <div class="repetir-ult">
+        <div><b>¿Lo mismo de siempre?</b><small>Tu último pedido #${ult.numero} · ${fmtFecha(ult.created_at)}</small></div>
+        <button type="button" class="btn btn-primary" data-repetir-ult="${esc(ult.id)}">Repetir mi último pedido</button>
+        <div class="pd-msg" role="status" aria-live="polite"></div>
+      </div>` : "") + peds.map((p) => `
       <div class="ped">
         <button type="button" class="ped-cab" data-ped="${esc(p.id)}" aria-expanded="false" aria-controls="pd-${esc(p.id)}">
           <span class="num">#${p.numero}</span>
@@ -257,6 +283,10 @@
       if (cab) return alternarPedido(cab);
       const rep = e.target.closest("[data-repetir]");
       if (rep) repetirPedido(rep);
+      const ru = e.target.closest("[data-repetir-ult]");
+      if (ru) repetirUltimo(ru);
+      const doc = e.target.closest("[data-doc]");
+      if (doc) descargarDocumento(doc);
     };
   }
 
@@ -279,8 +309,12 @@
     // Documento tributario (decisión del dueño, 12-nov-2026): por ahora sin boleta automática, como en la
     // tienda anterior. Solo se muestra si el cliente pidió factura o si ya hay un documento emitido (descarga).
     const descargable = Befine.estadoDocumento(d) === "descargar";
+    // PDF con enlace https (emisión externa) o en el bucket privado: se pide un enlace temporal al tocar
+    const docNombre = d.boleta && d.boleta.tipo === "factura" ? "Factura" : "Boleta";
     const docTxt = descargable
-      ? `${d.documento === "factura" ? "Factura" : "Boleta"} · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
+      ? (d.boleta.url
+          ? `${docNombre} · <a href="${esc(d.boleta.url)}" target="_blank" rel="noopener">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</a>`
+          : `${docNombre} · <button type="button" class="link-doc" data-doc="${esc(d.boleta.archivo)}">Descargar${d.boleta.folio ? " N° " + esc(d.boleta.folio) : ""}</button>`)
       : d.documento === "factura" ? "Factura solicitada · te la enviamos por correo" : "";
     return `
       <ul class="pd-items">${d.items.map((i) => `
@@ -302,6 +336,28 @@
         <button type="button" class="btn btn-primary" data-repetir="${esc(d.id)}">Volver a pedir</button>
         <div class="pd-msg" role="status" aria-live="polite"></div>
       </div>`;
+  }
+
+  // Boleta o factura (migración 19): enlace temporal de 10 minutos. La ventana se abre al tocar
+  // (si se abre después de esperar la respuesta, el navegador la bloquea como pop-up).
+  async function descargarDocumento(btn) {
+    const w = window.open("", "_blank");
+    cargando(btn, true, "Abriendo…");
+    const url = await Befine.urlDocumento(btn.dataset.doc);
+    cargando(btn, false);
+    if (!url) { if (w) w.close(); window.toast("No pudimos abrir el documento. Inténtalo de nuevo."); return; }
+    if (w) w.location.href = url; else location.href = url;
+  }
+
+  // "Repetir mi último pedido": carga sus productos con el precio de hoy y va directo a pagar
+  async function repetirUltimo(btn) {
+    const id = btn.dataset.repetirUlt, msgBox = btn.parentElement.querySelector(".pd-msg");
+    cargando(btn, true, "Cargando tu pedido…");
+    const d = detalles.get(id) || await Befine.detallePedido(id);
+    const r = d ? await window.repetirPedido(d.items) : { ok: false, error: "No pudimos cargar tu último pedido. Inténtalo de nuevo." };
+    if (r.ok) return;
+    cargando(btn, false);
+    msgBox.innerHTML = `<div class="aviso mal">${esc(r.error)}</div>`;
   }
 
   async function repetirPedido(btn) {

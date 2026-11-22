@@ -945,12 +945,15 @@ Befine.pedidoReutilizable = function (pedido, ahora = Date.now()) {
    y OpenFactura aún no la emite, y "ninguno" si el pedido no está pagado (pendiente o cancelado). */
 Befine.estadoDocumento = function (detalle) {
   if (!detalle) return "ninguno";
-  if (detalle.boleta && detalle.boleta.url) return "descargar";
+  if (detalle.boleta && (detalle.boleta.url || detalle.boleta.archivo)) return "descargar";
   return Befine.pedidoPagado(detalle.estado) ? "en_proceso" : "ninguno";
 };
 
 Befine.armarDetalle = function (p) {
-  const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" && /^https:\/\//i.test(d.url_pdf || ""));
+  // Documento emitido con enlace https (emisión externa) o con PDF en el bucket privado "documentos" (migración 19)
+  const RUTA_DTE = /^[0-9a-f-]{36}\/(boleta|factura)-\d+\.pdf$/i;
+  const dte = (p.documentos_tributarios || []).find((d) => d.estado === "emitido" &&
+    (/^https:\/\//i.test(d.url_pdf || "") || RUTA_DTE.test(d.archivo || "")));
   return {
     id: p.id, numero: p.numero, estado: p.estado, creado: p.created_at, fecha_entrega: p.fecha_entrega || null,
     subtotal: p.subtotal || 0, despacho: p.costo_despacho || 0, descuento: p.descuento_cupon || 0, total: p.total || 0,
@@ -961,19 +964,31 @@ Befine.armarDetalle = function (p) {
       return { variante_id: d.variante_id, nombre: (prod && prod.nombre) || "Producto no disponible", variante: (v && v.nombre) || "",
         cantidad: d.cantidad, precio_unitario: d.precio_unitario, subtotal: d.subtotal };
     }),
-    boleta: dte ? { tipo: dte.tipo, folio: dte.folio, url: dte.url_pdf } : null,
+    boleta: dte ? (/^https:\/\//i.test(dte.url_pdf || "") ? { tipo: dte.tipo, folio: dte.folio, url: dte.url_pdf }
+                                                          : { tipo: dte.tipo, folio: dte.folio, url: null, archivo: dte.archivo }) : null,
   };
+};
+
+/* Enlace temporal (10 min) para descargar una boleta o factura del bucket privado "documentos".
+   Solo funciona para el dueño del pedido o el equipo (políticas de la migración 19). Devuelve la URL o null. */
+Befine.urlDocumento = async function (ruta) {
+  if (!/^[0-9a-f-]{36}\/(boleta|factura)-\d+\.pdf$/i.test(String(ruta || ""))) return null;
+  try {
+    const { data, error } = await sb.storage.from("documentos").createSignedUrl(ruta, 600);
+    return error || !data ? null : data.signedUrl;
+  } catch (e) { return null; }
 };
 
 /* Detalle de un pedido propio (RLS: el cliente solo obtiene SUS pedidos). Devuelve el detalle o null. */
 Befine.detallePedido = async function (id) {
   if (!UUID_RE.test(String(id || ""))) return null;
+  await _esperarReclamo();   // compras como invitado que recién pasaron a la cuenta (migración 17)
   try {
     const { data, error } = await sb.from("pedidos")
       .select("id,numero,estado,created_at,fecha_entrega,subtotal,costo_despacho,descuento_cupon,total,tipo_documento," +
               "direccion:direcciones(calle,numero,depto,comuna,referencia)," +
               "detalle_pedido(variante_id,cantidad,precio_unitario,subtotal,variante:variantes_producto(nombre,producto:productos(nombre)))," +
-              "documentos_tributarios(tipo,estado,folio,url_pdf)")
+              "documentos_tributarios(tipo,estado,folio,url_pdf,archivo)")
       .eq("id", id)
       .maybeSingle();
     if (error) { console.error("detallePedido:", error.message); return null; }
@@ -1020,6 +1035,53 @@ Befine.volverAPedir = async function (items) {
     console.error("volverAPedir:", e);
     return { ok: false, error: "Sin conexión. Revisa tu internet e inténtalo de nuevo." };
   }
+};
+
+/* ---------- Repetir mi último pedido (recompra en 1 toque) ----------
+   El agua se compra una y otra vez: el inicio, Mi cuenta y el correo de confirmación ofrecen
+   repetir el último pedido. Se cargan los MISMOS productos y cantidades al carrito con el precio de
+   HOY (volverAPedir) y crear_pedido() vuelve a calcular todo en el servidor al pagar. */
+
+/* Último pedido pagado de la sesión actual (cuenta o invitado en este navegador), con sus productos.
+   Devuelve { id, numero, created_at, items:[{ variante_id, cantidad, nombre, variante }] } o null. */
+Befine.ultimoPedido = async function () {
+  try {
+    await _esperarReclamo();
+    const { data: ses } = await sb.auth.getSession();
+    const uid = ses && ses.session && ses.session.user && ses.session.user.id;
+    if (!uid) return null;                                   // sin sesión no hay pedidos que buscar
+    const { data, error } = await sb.from("pedidos")
+      .select("id,numero,created_at,detalle_pedido(variante_id,cantidad,variante:variantes_producto(nombre,producto:productos(nombre)))")
+      .eq("perfil_id", uid)
+      .in("estado", ESTADOS_PAGADOS)                          // ni pendientes de pago ni cancelados
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const items = (data.detalle_pedido || []).map((d) => ({
+      variante_id: d.variante_id, cantidad: d.cantidad,
+      nombre: (d.variante && d.variante.producto && d.variante.producto.nombre) || "Producto",
+      variante: (d.variante && d.variante.nombre) || "",
+    }));
+    return items.length ? { id: data.id, numero: data.numero, created_at: data.created_at, items } : null;
+  } catch (e) { return null; }
+};
+
+/* Resumen corto de un pedido para mostrar en un botón: "3 × Recarga Bidón 20 L y 1 producto más". */
+Befine.resumenItems = function (items, max = 1) {
+  const l = (items || []).filter((i) => i && Number(i.cantidad) > 0);
+  if (!l.length) return "";
+  const txt = l.slice(0, max).map((i) => `${i.cantidad} × ${i.nombre || "Producto"}`).join(", ");
+  const resto = l.length - max;
+  return resto > 0 ? `${txt} y ${resto} producto${resto === 1 ? "" : "s"} más` : txt;
+};
+
+/* Mensaje que ve el cliente al llegar al checkout con un pedido repetido. */
+Befine.avisoRepeticion = function (antes, noDisponibles) {
+  const partes = ["Cargamos tu pedido con los precios de hoy. Revisa y paga."];
+  if (antes > 0) partes.push(`Se sumó a lo que ya tenías en el carrito (${antes} producto${antes === 1 ? "" : "s"}).`);
+  if (noDisponibles && noDisponibles.length) partes.push("No disponibles: " + noDisponibles.join(", ") + ".");
+  return partes.join(" ");
 };
 
 // Exponer en window para que las páginas lo usen sin bundler (igual que antes).

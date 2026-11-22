@@ -25,6 +25,7 @@ export const HORARIO_REPARTO = "9:00 a 17:00";
 
 export type Linea = { cantidad: number; producto: string; variante?: string | null; precio_unitario: number; subtotal: number };
 export type PedidoCorreo = {
+  id?: string | null;                     // uuid del pedido: enlace "Repetir este pedido"
   numero: number;
   contacto_nombre?: string | null;
   contacto_email: string;
@@ -63,10 +64,10 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
   const base = String(sitio || "").replace(/\/+$/, "");
   const nombre = primerNombre(p.contacto_nombre);
   const dir = textoDireccion(p.direccion);
-  // Sin boleta automática por ahora (decisión del dueño, 12-nov-2026): el cliente la pide si la necesita.
+  // El documento se emite en Haulmer y llega en otro correo, con el PDF adjunto, al subirlo al panel (migración 20).
   const docHtml = p.tipo_documento === "factura"
-    ? "Pediste <b>factura</b>: te la enviaremos a este correo."
-    : "¿Necesitas boleta o factura? Responde este correo y te la enviamos.";
+    ? "Pediste <b>factura</b>: te la enviaremos a este correo apenas la emitamos."
+    : "Te enviaremos tu <b>boleta electrónica</b> a este correo apenas la emitamos.";
   const docTexto = docHtml.replace(/<[^>]+>/g, "");
   const asunto = `Befine: confirmación de tu pedido #${p.numero}`;
   const filas = (p.lineas || []).map((l) =>
@@ -75,6 +76,9 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
   const fila = (k: string, v: string, fuerte = false) =>
     `<tr><td style="padding:4px 0;color:#5F7484">${k}</td><td style="padding:4px 0;text-align:right;${fuerte ? "font-weight:700;font-size:16px" : ""}">${v}</td></tr>`;
   const retracto = `Tienes derecho a retracto dentro de 10 días desde la entrega. En bidones, recargas y packs con agua, solo si el sello de seguridad está intacto (agua para consumo humano).`;
+  // Recompra en 1 toque: abre la tienda con este pedido cargado (Mi cuenta → checkout). Solo con un uuid válido.
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const urlRepetir = p.id && UUID.test(String(p.id)) && !p.es_canje ? `${base}/cuenta.html?repetir=${p.id}` : "";
   const aceptacion = p.terminos_version
     ? `Aceptaste los Términos y la Política de privacidad (versión ${esc(p.terminos_version)}) al comprar.`
     : `Al comprar aceptaste los Términos y la Política de privacidad.`;
@@ -96,6 +100,8 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
     ${fila(p.es_canje ? "Total" : "Total pagado", clp(p.total), true)}
   </table>
   ${p.puntos_ganados ? `<p style="margin:10px 0 0;font-size:13px;color:#A3610B">Con esta compra sumas <b>${esc(p.puntos_ganados)} puntos</b> del Club Befine.</p>` : ""}
+  ${urlRepetir ? `<p style="margin:16px 0 0"><a href="${esc(urlRepetir)}" style="display:inline-block;background:#F5A623;color:#13293A;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:10px">Repetir este pedido</a></p>
+  <p style="margin:6px 0 0;font-size:12px;color:#5F7484">La próxima vez, pídelo en 1 toque con los precios del día.</p>` : ""}
 
   <h2 style="font-size:15px;margin:18px 0 6px">Entrega</h2>
   <p style="margin:0;font-size:14px">${dir ? esc(dir) + "<br>" : ""}Fecha: <b>${esc(fechaLarga(p.fecha_entrega))}</b>, de ${HORARIO_REPARTO} h (sin hora exacta).
@@ -126,6 +132,7 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
     `Despacho: ${p.costo_despacho ? clp(p.costo_despacho) : "Gratis"}`,
     `${p.es_canje ? "Total" : "Total pagado"}: ${clp(p.total)}`,
     ...(p.puntos_ganados ? [`Sumas ${p.puntos_ganados} puntos del Club Befine.`] : []),
+    ...(urlRepetir ? [`Repetir este pedido en 1 toque: ${urlRepetir}`] : []),
     "", "ENTREGA",
     ...(dir ? [dir] : []),
     `Fecha: ${fechaLarga(p.fecha_entrega)}, de ${HORARIO_REPARTO} h (sin hora exacta). En la entrega estándar puede llegar hasta el día hábil siguiente.`,
@@ -133,6 +140,64 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
     "", "TUS DERECHOS", retracto, `Condiciones: ${base}/cambios.html#retracto`,
     `Garantía legal: 6 meses. ${aceptacion.replace(/<[^>]+>/g, "")} Términos: ${base}/terminos.html`,
     "", `¿Dudas? Responde este correo o escríbenos por WhatsApp: https://wa.me/${PROVEEDOR.whatsapp}`,
+    "", `${PROVEEDOR.nombre_fantasia} · ${PROVEEDOR.razon_social} · RUT ${PROVEEDOR.rut} · ${PROVEEDOR.domicilio} · ${PROVEEDOR.correo}`,
+  ].join("\n");
+
+  return { asunto, html, texto };
+}
+
+// =====================================================================
+// Correo con la boleta o factura (migración 20): se envía al subir el PDF en el panel, con el
+// documento ADJUNTO, a clientes con cuenta y a invitados. Funciones puras (tests/unit/correo-documento.test.js).
+// =====================================================================
+export type DocumentoCorreo = {
+  numero: number;                    // n° del pedido
+  contacto_nombre?: string | null;
+  tipo: "boleta" | "factura" | string;
+  folio: number | string;
+  total: number;
+  razon_social?: string | null;      // factura: a nombre de quién
+  con_cuenta?: boolean;              // true: también la ve en Mi cuenta → Mis pedidos
+};
+
+const etiquetaDoc = (t: string) => (t === "factura" ? "Factura" : "Boleta");
+
+/* Nombre del PDF adjunto: Boleta_Befine_N11298.pdf (solo letras y números: seguro para cualquier correo) */
+export function nombreAdjunto(tipo: string, folio: number | string): string {
+  return `${etiquetaDoc(tipo)}_Befine_N${String(folio).replace(/\D/g, "") || "0"}.pdf`;
+}
+
+export function armarCorreoDocumento(d: DocumentoCorreo, sitio: string): { asunto: string; html: string; texto: string } {
+  const base = String(sitio || "").replace(/\/+$/, "");
+  const nombre = primerNombre(d.contacto_nombre);
+  const doc = etiquetaDoc(String(d.tipo));
+  const genero = d.tipo === "factura" ? "tu factura" : "tu boleta";
+  const asunto = `Befine: ${genero} N° ${d.folio} del pedido #${d.numero}`;
+  const aNombre = d.tipo === "factura" && d.razon_social ? ` a nombre de <b>${esc(d.razon_social)}</b>` : "";
+  const cuentaHtml = d.con_cuenta
+    ? `<p style="margin:12px 0 0;font-size:14px">También queda guardada en <a href="${esc(base)}/cuenta.html" style="color:#0B7FC2">Mi cuenta → Mis pedidos</a>.</p>`
+    : `<p style="margin:12px 0 0;font-size:14px">Guarda este correo: es tu respaldo de la compra.</p>`;
+
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#F3F7FA;font-family:Arial,Helvetica,sans-serif;color:#13293A">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F7FA;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;padding:24px">
+<tr><td>
+  <p style="margin:0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#0B7FC2;font-weight:700">Agua Purificada Befine</p>
+  <h1 style="margin:6px 0 4px;font-size:22px">${nombre ? "Hola " + esc(nombre) + ", aquí" : "Aquí"} está ${genero}</h1>
+  <p style="margin:0;font-size:14px">Adjuntamos la <b>${doc.toLowerCase()} electrónica N° ${esc(d.folio)}</b>${aNombre} de tu pedido <b>#${esc(d.numero)}</b>
+  por <b>${clp(d.total)}</b> (IVA incluido). Es un documento válido ante el SII.</p>
+  ${cuentaHtml}
+  <p style="margin:18px 0 0;font-size:14px">¿Algún dato no corresponde? Responde este correo o escríbenos por
+  <a href="https://wa.me/${PROVEEDOR.whatsapp}?text=${encodeURIComponent("Hola Befine, consulta por la " + doc.toLowerCase() + " de mi pedido #" + d.numero)}" style="color:#0B7FC2">WhatsApp</a>.</p>
+  <hr style="border:0;border-top:1px solid #E1E8ED;margin:20px 0 10px">
+  <p style="margin:0;font-size:11.5px;color:#5F7484;line-height:1.5">${esc(PROVEEDOR.nombre_fantasia)} · ${esc(PROVEEDOR.razon_social)} · RUT ${esc(PROVEEDOR.rut)} · ${esc(PROVEEDOR.domicilio)} · ${esc(PROVEEDOR.correo)}</p>
+</td></tr></table></td></tr></table></body></html>`;
+
+  const texto = [
+    `${nombre ? "Hola " + nombre + ", aquí" : "Aquí"} está ${genero}.`,
+    `Adjuntamos la ${doc.toLowerCase()} electrónica N° ${d.folio}${d.tipo === "factura" && d.razon_social ? " a nombre de " + d.razon_social : ""} de tu pedido #${d.numero} por ${clp(d.total)} (IVA incluido). Es un documento válido ante el SII.`,
+    d.con_cuenta ? `También queda guardada en Mi cuenta → Mis pedidos: ${base}/cuenta.html` : "Guarda este correo: es tu respaldo de la compra.",
+    "", `¿Algún dato no corresponde? Responde este correo o escríbenos por WhatsApp: https://wa.me/${PROVEEDOR.whatsapp}`,
     "", `${PROVEEDOR.nombre_fantasia} · ${PROVEEDOR.razon_social} · RUT ${PROVEEDOR.rut} · ${PROVEEDOR.domicilio} · ${PROVEEDOR.correo}`,
   ].join("\n");
 

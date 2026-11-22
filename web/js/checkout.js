@@ -36,6 +36,10 @@
     pintarEntrega();
     precargar();
     const vuelta = Befine.vueltaPago(location.search);
+    if (!vuelta) {                              // llegó con "Repetir mi último pedido": se le explica qué se cargó
+      let aviso = null; try { aviso = sessionStorage.getItem("befine_aviso_checkout"); sessionStorage.removeItem("befine_aviso_checkout"); } catch (e) {}
+      if (aviso) window.toast(aviso);
+    }
     if (vuelta) mostrarVuelta(vuelta);          // volvió desde Mercado Pago: se muestra el resultado del pago
     else revisarPagoSinVuelta();                // ¿ya pagó ese pedido y volvió sin pasar por la página de vuelta?
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") revisarPagoSinVuelta(); });

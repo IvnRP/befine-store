@@ -81,7 +81,7 @@
     cancelado: "Cancelar pedido",
   };
 
-  /* Filtro de la lista: estado ("todos" | "activos" | un estado) y búsqueda por
+  /* Filtro de la lista: estado ("todos" | "activos" | "sin_documento" | un estado) y búsqueda por
      número (#123 o 123), nombre, teléfono o comuna. */
   const ACTIVOS = ["pagado", "en_preparacion", "en_ruta"];
   function filtrarPedidos(lista, { estado = "todos", q = "", entrega = null } = {}) {
@@ -90,7 +90,8 @@
     return (lista || []).filter((p) => {
       if (!enRangoEntrega(p, entrega)) return false;
       if (estado === "activos" && !ACTIVOS.includes(p.estado)) return false;
-      if (estado !== "todos" && estado !== "activos" && p.estado !== estado) return false;
+      if (estado === "sin_documento" && !pendienteDocumento(p)) return false;
+      if (!["todos", "activos", "sin_documento"].includes(estado) && p.estado !== estado) return false;
       if (!t) return true;
       if (/^\d+$/.test(t) && String(p.numero) === t) return true;
       const dir = p.direccion || {};
@@ -101,11 +102,12 @@
 
   /* Cantidad de pedidos por estado (para los filtros) */
   function contarPorEstado(lista) {
-    const c = { todos: 0, activos: 0 };
+    const c = { todos: 0, activos: 0, sin_documento: 0 };
     ORDEN_ESTADOS.forEach((e) => { c[e] = 0; });
     (lista || []).forEach((p) => {
       c.todos++; if (c[p.estado] != null) c[p.estado]++;
       if (ACTIVOS.includes(p.estado)) c.activos++;
+      if (pendienteDocumento(p)) c.sin_documento++;
     });
     return c;
   }
@@ -574,6 +576,80 @@
     return e;
   }
 
+  /* ---------- Boletas y facturas (opción A: se emiten en Haulmer, la tienda guarda el PDF) ----------
+     Mismas reglas que los documentos de Haulmer: precio con IVA en la boleta, neto con 2 decimales
+     en la factura, y neto = total / 1,19 redondeado (ej. $10.000 → neto $8.403 + IVA $1.597). */
+  const PAGADOS_DTE = ["pagado", "en_preparacion", "en_ruta", "entregado"];
+  const montosDTE = (total) => {
+    const t = Math.round(Number(total) || 0), neto = Math.round(t / 1.19);
+    return { neto, iva: t - neto, total: t };
+  };
+  const netoUnitario = (bruto) => Math.round((Number(bruto) || 0) / 1.19 * 100) / 100;   // 2500 → 2100.84
+  const fmtCLP = (n, dec = 0) => "$" + Number(n || 0).toLocaleString("es-CL", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  // Valor para pegar en Haulmer (sin "$" ni separador de miles; decimales con coma)
+  const valorPegar = (n, dec = 0) => Number(n || 0).toFixed(dec).replace(".", ",");
+
+  // Documento emitido del pedido (o null)
+  const documentoDe = (p) => ((p && p.documentos_tributarios) || []).find((d) => d.estado === "emitido") || null;
+  // ¿Falta emitir la boleta/factura? Solo pedidos pagados con monto (un canje de $0 no lleva documento)
+  /* Envío por correo del documento (migración 20) → { estado: "enviado" | "error" | "pendiente", texto } */
+  function estadoCorreoDoc(doc) {
+    if (!doc) return { estado: "pendiente", texto: "" };
+    if (doc.correo_enviado_at) {
+      const f = new Date(doc.correo_enviado_at).toLocaleString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      return { estado: "enviado", texto: `Enviada por correo${doc.correo_destino ? " a " + doc.correo_destino : ""} el ${f}` +
+               (doc.correo_error ? ` · El último reenvío falló (${doc.correo_error}).` : "") };
+    }
+    if (doc.correo_error) return { estado: "error", texto: `No se pudo enviar por correo (${doc.correo_error}).` };
+    return { estado: "pendiente", texto: "Aún no se envía por correo al cliente." };
+  }
+
+  const pendienteDocumento = (p) => !!p && PAGADOS_DTE.includes(p.estado) && (Number(p.total) || 0) > 0 && !documentoDe(p);
+
+  /* Datos para copiar en el formulario de Haulmer, en su mismo orden. p = pedido como lo trae getPedido(). */
+  function datosHaulmer(p) {
+    const tipo = p.tipo_documento === "factura" ? "factura" : "boleta", factura = tipo === "factura";
+    const lineas = (p.detalle_pedido || []).map((d) => {
+      const v = d.variante || {}, pr = v.producto || {};
+      const nombre = (pr.nombre || "Producto") + (v.nombre && v.nombre !== "Estándar" ? " (" + v.nombre + ")" : "");
+      const precio = factura ? netoUnitario(d.precio_unitario) : Math.round(Number(d.precio_unitario) || 0);
+      return { codigo: v.sku || "", nombre, cantidad: Number(d.cantidad) || 0, precio, dec: factura ? 2 : 0 };
+    });
+    if ((Number(p.costo_despacho) || 0) > 0) {
+      const precio = factura ? netoUnitario(p.costo_despacho) : Number(p.costo_despacho);
+      lineas.push({ codigo: "DESPACHO", nombre: "Despacho a domicilio", cantidad: 1, precio, dec: factura ? 2 : 0 });
+    }
+    const dir = p.direccion || {};
+    return {
+      tipo, codigoSII: factura ? 33 : 39, lineas,
+      descuento: Number(p.descuento_cupon) || 0,
+      formaPago: "Contado",
+      receptor: factura ? {
+        rut: formatoRut(p.doc_rut), razon_social: p.doc_razon_social || "", giro: p.doc_giro || "",
+        direccion: [dir.calle, dir.numero].filter(Boolean).join(" ") + (dir.depto ? ", " + dir.depto : ""),
+        comuna: dir.comuna || "", email: p.contacto_email || "",
+      } : null,
+      montos: montosDTE(p.total),
+    };
+  }
+
+  /* Tipo y folio desde el nombre del PDF que descarga Haulmer:
+     "DTE_39-_Empresa_77861415_-_Folio_N__11298.pdf" → { tipo: "boleta", folio: 11298 } */
+  function leerNombreDTE(nombre) {
+    const m = String(nombre || "").match(/DTE_(33|39)\D[\s\S]*?Folio_N_+(\d+)/i);
+    return m ? { tipo: m[1] === "33" ? "factura" : "boleta", folio: Number(m[2]) } : null;
+  }
+  /* Valida lo que se va a subir. archivo = { name, type, size }. Devuelve un mensaje de error o "". */
+  function validarDocumento(archivo, tipoPedido, folio) {
+    if (!archivo) return "Elige el PDF del documento.";
+    if (archivo.type !== "application/pdf" && !/\.pdf$/i.test(archivo.name || "")) return "El archivo debe ser un PDF.";
+    if ((archivo.size || 0) > 3 * 1024 * 1024) return "El PDF pesa más de 3 MB.";
+    if (!Number.isInteger(folio) || folio <= 0) return "Escribe el número de folio.";
+    const leido = leerNombreDTE(archivo.name);
+    if (leido && leido.tipo !== tipoPedido) return `Ese PDF es una ${leido.tipo} y el cliente pidió ${tipoPedido}.`;
+    return "";
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
@@ -586,5 +662,6 @@
     ROLES_ASIGNABLES, validarAsignacion, matrizPermisos,
     CLIENTES, SEGMENTOS_CLIENTE, diasDesde, segmentosDe, contarSegmentos, filtrarClientes, resumenClientes,
     normalizarTelefono, rutValido, formatoRut, validarCliente,
+    montosDTE, netoUnitario, fmtCLP, valorPegar, documentoDe, pendienteDocumento, estadoCorreoDoc, datosHaulmer, leerNombreDTE, validarDocumento,
   };
 })(typeof window !== "undefined" ? window : globalThis);

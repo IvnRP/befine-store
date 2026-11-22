@@ -50,10 +50,10 @@ test("CP-U30c canje de $0, descuento, despacho y documento se informan bien; mon
   const despacho = T.armarCorreo(pedido({ costo_despacho: 2500, total: 22500 }), SITIO);
   assert.match(despacho.texto, /Despacho: \$2\.500/);
   assert.equal(T.clp(1234567), "$1.234.567");
-  // Sin boleta automática (decisión del 12-nov): el correo no promete descargas; la factura se envía por correo
-  assert.match(T.armarCorreo(pedido(), SITIO).texto, /¿Necesitas boleta o factura\? Responde este correo/);
+  // Documento (migración 20): se emite en Haulmer y llega en otro correo con el PDF adjunto al subirlo al panel
+  assert.match(T.armarCorreo(pedido(), SITIO).texto, /Te enviaremos tu boleta electrónica a este correo apenas la emitamos/);
   assert.ok(!/Mis pedidos\) apenas se emita|Podrás descargarla/.test(T.armarCorreo(pedido(), SITIO).html));
-  assert.match(T.armarCorreo(pedido({ tipo_documento: "factura" }), SITIO).texto, /Pediste factura: te la enviaremos a este correo/);
+  assert.match(T.armarCorreo(pedido({ tipo_documento: "factura" }), SITIO).texto, /Pediste factura: te la enviaremos a este correo apenas la emitamos/);
   assert.equal(T.fechaLarga(null), "por confirmar");
 });
 

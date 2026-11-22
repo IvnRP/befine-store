@@ -136,3 +136,14 @@ body.tema-claro .pd-items { background: #f7fbfe; }
 .club-mov li { display: flex; justify-content: space-between; gap: 10px; }
 .club-mov li small { display: block; color: var(--muted); font-size: 11px; }
 .club-mov li b { color: #1a8a4a; } .club-mov li b.neg { color: #c0392b; }
+
+/* ---------- Repetir mi último pedido (recompra en 1 toque) ---------- */
+.repetir-ult { display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; align-items: center; padding: 14px 16px; margin-bottom: 14px;
+  border-radius: 14px; border: 1px solid var(--line); background: var(--glass-2, rgba(255,255,255,.06)); }
+.repetir-ult b { display: block; font-size: 15px; }
+.repetir-ult small { color: var(--muted); font-size: 13px; }
+.repetir-ult .pd-msg { grid-column: 1 / -1; }
+@media (max-width: 520px) { .repetir-ult { grid-template-columns: 1fr; } .repetir-ult .btn { width: 100%; } }
+
+/* Botón con aspecto de enlace (descargar boleta o factura, migración 19) */
+.link-doc { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }

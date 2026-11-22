@@ -4,6 +4,18 @@ Estas migraciones **ya están escritas** pero **no aplicadas**. Cuando se cumpla
 
 Estado al 20-nov-2026: **todas las migraciones escritas están aplicadas en producción** (orden de aplicación: 01, 01b, 04, 03, 05, 06, 07, 08, 02, 09, 10, 11, 14, 15, 16 y 17). Esta carpeta queda vacía de migraciones. Números reservados: **12** (tareas programadas con pg_cron) y **13** (formulario de contacto).
 
+## 20 · La boleta o factura llega por correo al subirla — `../20261122_20_correo_documento.sql` (escrita el 22-nov-2026; prueba en seco T01..T08 OK en Postgres local)
+
+Decisión del dueño: al subir el PDF en el panel, el cliente lo recibe **adjunto** en su correo (con o sin cuenta). Columnas `correo_enviado_at`, `correo_destino`, `correo_id` y `correo_error` en `documentos_tributarios`; la Edge Function `enviar-correo` con `{ tipo: "documento" }` (solo con `documentos.gestionar`) reserva el envío con un UPDATE condicional (sin duplicados), adjunta el PDF del bucket privado y, si Resend falla, lo deja pendiente con el motivo para reintentar desde el panel. Si el documento se reemplaza por otro folio, el trigger `trg_dte_reiniciar_correo` deja el envío pendiente y guarda el anterior en `raw_response->'correo_anterior'`. **Orden:** (1) aplicar 20, (2) desplegar `enviar-correo` (index.ts + plantilla.ts), (3) publicar el panel. Prueba en seco `../20261122_20_prueba_en_seco.sql` (T01..T08). Reversa `../20261122_20_correo_documento_reversa.sql`.
+
+---
+
+## 19 · Boletas y facturas en la tienda (opción A) — `../20261122_19_documentos_tributarios.sql` (escrita el 22-nov-2026; prueba en seco T01..T12 OK en Postgres local) — aplicada el 22-nov-2026
+
+Decisión del dueño: los documentos se siguen emitiendo en Haulmer y la tienda guarda el PDF y el folio de cada pedido. Bucket **privado** `documentos` (solo PDF, 3 MB; sube el equipo con `documentos.gestionar`, lee el dueño del pedido con enlace temporal), columnas `archivo` y `registrado_por` en `documentos_tributarios`, un documento emitido por pedido y `registrar_documento(pedido, tipo, folio)` (pedido pagado, tipo pedido por el cliente, folio no repetido, PDF ya subido; neto = total/1,19 como Haulmer; reemplazo auditado). Deja lista la tabla para la emisión automática propia (opción B). **Aplicar ANTES de publicar** el panel con "Subir documento". Prueba en seco `../20261122_19_prueba_en_seco.sql` (T01..T12). Reversa `../20261122_19_documentos_tributarios_reversa.sql`.
+
+---
+
 ## 18 · Trae un amigo a prueba de abusos — `../20261121_18_referidos_seguros.sql` (escrita el 21-nov-2026; prueba en seco T01..T09 OK en Postgres local)
 
 Decisión del dueño: los 10 puntos de Trae un amigo se dan cuando el primer pedido del amigo se **entrega** (ya no al pagar); si ese pedido se cancela, se descuentan a los dos (sin saldos negativos) y la invitación queda pendiente; tope de `club_referido_tope_mes` = 10 amigos premiados al mes para quien invita (el amigo igual recibe su bienvenida). Nueva versión de Términos `2026-11-21`. **Aplicar junto con** la versión del sitio que trae los textos nuevos (`terminos.html`, `cuenta.js`, `Befine.legalVersion`). Prueba en seco `../20261121_18_prueba_en_seco.sql` (T01..T09). Reversa `../20261121_18_referidos_seguros_reversa.sql`.

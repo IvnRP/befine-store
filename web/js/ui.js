@@ -29,6 +29,21 @@
       : `background:${(i && i.grad) || window.catGrad()}`;
   };
 
+  /* ---------- Repetir un pedido (recompra en 1 toque) ----------
+     Agrega los productos de un pedido anterior al carrito con el precio de HOY y lleva al checkout.
+     La usan el inicio (último pedido), Mi cuenta y el enlace "Repetir este pedido" del correo.
+     items = [{ variante_id, cantidad, nombre }]. Devuelve { ok:false, error } si no se pudo. */
+  window.repetirPedido = async function (items) {
+    const r = await Befine.volverAPedir(items);
+    if (!r.ok) return r;
+    if (!r.agregar.length) return { ok: false, error: "Los productos de ese pedido ya no están disponibles." };
+    const antes = Store.count();   // suma al carrito actual (no borra lo que el cliente ya eligió)
+    r.agregar.forEach((a) => Store.add({ ...a.item, grad: window.catGrad(a.categoria_slug) }, a.cantidad));
+    try { sessionStorage.setItem("befine_aviso_checkout", Befine.avisoRepeticion(antes, r.noDisponibles)); } catch (e) {}
+    location.href = "checkout.html";
+    return { ok: true };
+  };
+
   /* ---------- Toast ---------- */
   let toastT;
   window.toast = function (msg) {
