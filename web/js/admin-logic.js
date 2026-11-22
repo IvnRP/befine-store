@@ -636,8 +636,13 @@
   /* Tipo y folio desde el nombre del PDF que descarga Haulmer:
      "DTE_39-_Empresa_77861415_-_Folio_N__11298.pdf" → { tipo: "boleta", folio: 11298 } */
   function leerNombreDTE(nombre) {
-    const m = String(nombre || "").match(/DTE_(33|39)\D[\s\S]*?Folio_N_+(\d+)/i);
-    return m ? { tipo: m[1] === "33" ? "factura" : "boleta", folio: Number(m[2]) } : null;
+    // Haulmer usa dos formatos: "DTE_39-_Empresa_…_-_Folio_N__11298.pdf" y "DTE 39 - Empresa … - Folio N° 11300.pdf"
+    // (a veces sin el código del tipo: entonces tipo = null y se usa el que pidió el cliente)
+    const n = String(nombre || "");
+    const f = n.match(/Folio[\s_]*N(?:°|º|o|_|\.|\s)*(\d+)/i);
+    if (!f || !/DTE/i.test(n)) return null;
+    const t = n.match(/DTE[\s_-]*(33|39)(?!\d)/i);
+    return { tipo: t ? (t[1] === "33" ? "factura" : "boleta") : null, folio: Number(f[1]) };
   }
   /* Valida lo que se va a subir. archivo = { name, type, size }. Devuelve un mensaje de error o "". */
   function validarDocumento(archivo, tipoPedido, folio) {
@@ -646,7 +651,7 @@
     if ((archivo.size || 0) > 3 * 1024 * 1024) return "El PDF pesa más de 3 MB.";
     if (!Number.isInteger(folio) || folio <= 0) return "Escribe el número de folio.";
     const leido = leerNombreDTE(archivo.name);
-    if (leido && leido.tipo !== tipoPedido) return `Ese PDF es una ${leido.tipo} y el cliente pidió ${tipoPedido}.`;
+    if (leido && leido.tipo && leido.tipo !== tipoPedido) return `Ese PDF es una ${leido.tipo} y el cliente pidió ${tipoPedido}.`;
     return "";
   }
 
