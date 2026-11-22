@@ -25,6 +25,7 @@ export const HORARIO_REPARTO = "9:00 a 17:00";
 
 export type Linea = { cantidad: number; producto: string; variante?: string | null; precio_unitario: number; subtotal: number };
 export type PedidoCorreo = {
+  id?: string | null;                     // uuid del pedido: enlace "Repetir este pedido"
   numero: number;
   contacto_nombre?: string | null;
   contacto_email: string;
@@ -75,6 +76,9 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
   const fila = (k: string, v: string, fuerte = false) =>
     `<tr><td style="padding:4px 0;color:#5F7484">${k}</td><td style="padding:4px 0;text-align:right;${fuerte ? "font-weight:700;font-size:16px" : ""}">${v}</td></tr>`;
   const retracto = `Tienes derecho a retracto dentro de 10 días desde la entrega. En bidones, recargas y packs con agua, solo si el sello de seguridad está intacto (agua para consumo humano).`;
+  // Recompra en 1 toque: abre la tienda con este pedido cargado (Mi cuenta → checkout). Solo con un uuid válido.
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const urlRepetir = p.id && UUID.test(String(p.id)) && !p.es_canje ? `${base}/cuenta.html?repetir=${p.id}` : "";
   const aceptacion = p.terminos_version
     ? `Aceptaste los Términos y la Política de privacidad (versión ${esc(p.terminos_version)}) al comprar.`
     : `Al comprar aceptaste los Términos y la Política de privacidad.`;
@@ -96,6 +100,8 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
     ${fila(p.es_canje ? "Total" : "Total pagado", clp(p.total), true)}
   </table>
   ${p.puntos_ganados ? `<p style="margin:10px 0 0;font-size:13px;color:#A3610B">Con esta compra sumas <b>${esc(p.puntos_ganados)} puntos</b> del Club Befine.</p>` : ""}
+  ${urlRepetir ? `<p style="margin:16px 0 0"><a href="${esc(urlRepetir)}" style="display:inline-block;background:#F5A623;color:#13293A;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:10px">Repetir este pedido</a></p>
+  <p style="margin:6px 0 0;font-size:12px;color:#5F7484">La próxima vez, pídelo en 1 toque con los precios del día.</p>` : ""}
 
   <h2 style="font-size:15px;margin:18px 0 6px">Entrega</h2>
   <p style="margin:0;font-size:14px">${dir ? esc(dir) + "<br>" : ""}Fecha: <b>${esc(fechaLarga(p.fecha_entrega))}</b>, de ${HORARIO_REPARTO} h (sin hora exacta).
@@ -126,6 +132,7 @@ export function armarCorreo(p: PedidoCorreo, sitio: string): { asunto: string; h
     `Despacho: ${p.costo_despacho ? clp(p.costo_despacho) : "Gratis"}`,
     `${p.es_canje ? "Total" : "Total pagado"}: ${clp(p.total)}`,
     ...(p.puntos_ganados ? [`Sumas ${p.puntos_ganados} puntos del Club Befine.`] : []),
+    ...(urlRepetir ? [`Repetir este pedido en 1 toque: ${urlRepetir}`] : []),
     "", "ENTREGA",
     ...(dir ? [dir] : []),
     `Fecha: ${fechaLarga(p.fecha_entrega)}, de ${HORARIO_REPARTO} h (sin hora exacta). En la entrega estándar puede llegar hasta el día hábil siguiente.`,

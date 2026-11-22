@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
 
   const pedido: PedidoCorreo = {
     ...(p as any),
+    id: pedidoId,                                   // enlace "Repetir este pedido" del correo
     lineas: ((p as any).detalle_pedido || []).map((d: any) => ({
       cantidad: d.cantidad, precio_unitario: d.precio_unitario, subtotal: d.subtotal,
       producto: d.variante?.producto?.nombre ?? "Producto", variante: d.variante?.nombre ?? null,

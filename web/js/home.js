@@ -150,6 +150,22 @@
       const itemDe = () => ({ variante_id: vSel.id, producto_id: prod.id, nombre: prod.nombre, variante: vSel.nombre, precio: vSel.precio, grad, foto, suma_puntos: !!vSel.suma_puntos });
       qbox.querySelector("#qAdd").onclick = () => { Store.add(itemDe(), +qCant.value); window.toast("Agregado al carrito: " + prod.nombre); };
       qbox.querySelector("#qBuy").onclick = () => { Store.add(itemDe(), +qCant.value); window.openCheckout(); };
+
+      // Recompra en 1 toque: si este cliente ya compró (con cuenta o como invitado en este navegador),
+      // se ofrece repetir su último pedido. Sin sesión no se consulta nada.
+      Befine.ultimoPedido().then((u) => {
+        if (!u) return;
+        const box = document.createElement("div"); box.className = "q-repetir";
+        box.innerHTML = `<button type="button" class="btn btn-ghost btn-block" id="qRepetir"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>Repetir mi último pedido</button><small></small>`;
+        box.querySelector("small").textContent = Befine.resumenItems(u.items);
+        qbox.appendChild(box);
+        const b = box.querySelector("#qRepetir");
+        b.onclick = async () => {
+          const txt = b.innerHTML; b.disabled = true; b.textContent = "Cargando tu pedido…";
+          const r = await window.repetirPedido(u.items);
+          if (!r.ok) { b.disabled = false; b.innerHTML = txt; window.toast(r.error); }
+        };
+      }).catch(() => {});
     }
 
     /* ---------- Destacados: carrusel con brillo + parallax de la vasija ---------- */
