@@ -29,6 +29,18 @@
   };
   const fmtDia = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
   const hoyIso = () => L.diaLocal(new Date());
+  /* Qué pedidos muestra cada filtro (los de las tarjetas usan las mismas reglas que sus contadores) */
+  const VER_KPI = { por_salir: "Por salir", en_ruta: "En camino", atrasados: "Atrasados" };
+  function verPedido(p, v) {
+    switch (v) {
+      case "entregados": return p.estado === "entregado";
+      case "pendientes": return p.estado !== "entregado";
+      case "por_salir": return p.estado === "en_preparacion";
+      case "en_ruta": return p.estado === "en_ruta";
+      case "atrasados": return !!p.atrasado && p.estado !== "entregado";
+      default: return true;
+    }
+  }
 
   function montar(seccion, appCtx) {
     el = seccion; app = appCtx;
@@ -48,11 +60,7 @@
           <button type="button" role="tab" data-dia="otro" aria-selected="false">Otro día</button>
         </div>
         <input class="pn-inp rp-otro" type="date" id="rpOtro" aria-label="Elegir día de reparto" hidden>
-        <div class="pn-chips sm" role="tablist" aria-label="Qué mostrar" id="rpVer">
-          <button type="button" role="tab" data-ver="todos" aria-selected="true">Todos</button>
-          <button type="button" role="tab" data-ver="pendientes" aria-selected="false">Por entregar</button>
-          <button type="button" role="tab" data-ver="entregados" aria-selected="false">Entregados</button>
-        </div>
+        <div class="pn-chips sm" role="tablist" aria-label="Qué mostrar" id="rpVer"></div>
       </div>
       <div class="pn-kpis rp-kpis" id="rpKpis"></div>
       <div id="rpResumen"></div>
@@ -72,8 +80,14 @@
     el.querySelector("#rpVer").addEventListener("click", (e) => {
       const b = e.target.closest("[data-ver]"); if (!b) return;
       ver = b.dataset.ver;
-      el.querySelectorAll("#rpVer [data-ver]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
       pintar();
+    });
+    // Tarjetas clicables: muestran esos pedidos (otro toque vuelve a "Todos")
+    el.querySelector("#rpKpis").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-kpi-ver]"); if (!b) return;
+      ver = ver === b.dataset.kpiVer ? "todos" : b.dataset.kpiVer;
+      pintar();
+      if (ver !== "todos") el.querySelector("#rpLista").scrollIntoView({ behavior: "smooth", block: "start" });
     });
     el.querySelector("#rpRecargar").addEventListener("click", (e) => UI.conCarga(e.currentTarget, cargar));
     const nuevo = el.querySelector("#rpNuevo");
@@ -109,19 +123,24 @@
 
   function pintar() {
     const r = L.resumenReparto(lista);
-    const kpi = (txt, val, tono) => `<div class="pn-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b></div>`;
+    const kpi = (v, txt, val, tono) =>
+      `<button type="button" class="pn-kpi ${tono || ""}" data-kpi-ver="${v}" aria-pressed="${ver === v}" title="Ver estos pedidos"><span>${txt}</span><b>${val}</b></button>`;
     el.querySelector("#rpKpis").innerHTML =
-      kpi("Por salir", r.porSalir, r.porSalir ? "alerta" : "") + kpi("En camino", r.enRuta) +
-      kpi("Entregados", r.entregados) + (r.atrasados ? kpi("Atrasados", r.atrasados, "alerta") : "");
+      kpi("por_salir", "Por salir", r.porSalir, r.porSalir ? "alerta" : "") + kpi("en_ruta", "En camino", r.enRuta) +
+      kpi("entregados", "Entregados", r.entregados) + (r.atrasados ? kpi("atrasados", "Atrasados", r.atrasados, "alerta") : "");
+    const chips = [["todos", "Todos"], ["pendientes", "Por entregar"], ["entregados", "Entregados"]];
+    if (VER_KPI[ver]) chips.unshift([ver, VER_KPI[ver]]);   // abierto desde una tarjeta
+    el.querySelector("#rpVer").innerHTML = chips.map(([k, t]) =>
+      `<button type="button" role="tab" data-ver="${k}" aria-selected="${ver === k}">${esc(t)}</button>`).join("");
     const cnt = document.getElementById("cnt-reparto");
     if (cnt && fechaDe(dia) === hoyIso()) { cnt.textContent = r.porSalir + r.enRuta; cnt.hidden = !(r.porSalir + r.enRuta); }
 
     el.querySelector("#rpResumen").innerHTML = htmlResumen(L.resumenEntregas(lista));
 
-    const visibles = lista.filter((p) => ver === "todos" || (ver === "entregados" ? p.estado === "entregado" : p.estado !== "entregado"));
+    const visibles = lista.filter((p) => verPedido(p, ver));
     const box = el.querySelector("#rpLista");
     if (!visibles.length) {
-      const que = ver === "entregados" ? "entregados" : ver === "pendientes" ? "por entregar" : "para entregar";
+      const que = { entregados: "entregados", pendientes: "por entregar", por_salir: "por salir", en_ruta: "en camino", atrasados: "atrasados" }[ver] || "para entregar";
       box.innerHTML = `<div class="pn-vacio pn-card">No hay pedidos ${que} el ${esc(fmtDia(fechaDe(dia)))}.</div>`;
       return;
     }

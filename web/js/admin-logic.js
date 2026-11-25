@@ -85,7 +85,19 @@
   /* Filtro de la lista: estado ("todos" | "activos" | "sin_documento" | un estado) y búsqueda por
      número (#123 o 123), nombre, teléfono o comuna. */
   const ACTIVOS = ["pagado", "en_preparacion", "en_ruta"];
-  function filtrarPedidos(lista, { estado = "todos", q = "", entrega = null } = {}) {
+
+  /* Filtros que se abren al tocar un indicador del panel (tarjetas clicables). Usan las MISMAS
+     reglas que resumenPedidos(), así la lista muestra exactamente lo que cuenta la tarjeta. */
+  const FILTROS_KPI_PEDIDOS = { creados_hoy: "Pedidos de hoy", por_preparar: "Por preparar", vendidos_mes: "Ventas del mes" };
+  function cumpleKpiPedido(p, estado, hoy = new Date()) {
+    const dia = p && p.created_at ? diaLocal(p.created_at) : "";
+    if (estado === "creados_hoy") return dia === diaLocal(hoy) && p.estado !== "cancelado";
+    if (estado === "por_preparar") return p.estado === "pagado" || p.estado === "en_preparacion";
+    if (estado === "vendidos_mes") return VENDIDOS.includes(p.estado) && dia.slice(0, 7) === diaLocal(hoy).slice(0, 7);
+    return true;
+  }
+
+  function filtrarPedidos(lista, { estado = "todos", q = "", entrega = null, hoy = new Date() } = {}) {
     const t = norm(q).replace(/^#/, "");
     const tel = t.replace(/\D/g, "");
     return (lista || []).filter((p) => {
@@ -93,7 +105,8 @@
       if (estado === "activos" && !ACTIVOS.includes(p.estado)) return false;
       if (estado === "sin_documento" && !pendienteDocumento(p)) return false;
       if (estado === "fuera_pagina" && !esFueraPagina(p)) return false;
-      if (!["todos", "activos", "sin_documento", "fuera_pagina"].includes(estado) && p.estado !== estado) return false;
+      if (FILTROS_KPI_PEDIDOS[estado] && !cumpleKpiPedido(p, estado, hoy)) return false;
+      if (!["todos", "activos", "sin_documento", "fuera_pagina"].includes(estado) && !FILTROS_KPI_PEDIDOS[estado] && p.estado !== estado) return false;
       if (!t) return true;
       if (/^\d+$/.test(t) && String(p.numero) === t) return true;
       const dir = p.direccion || {};
@@ -103,14 +116,15 @@
   }
 
   /* Cantidad de pedidos por estado (para los filtros) */
-  function contarPorEstado(lista) {
-    const c = { todos: 0, activos: 0, sin_documento: 0, fuera_pagina: 0 };
+  function contarPorEstado(lista, hoy = new Date()) {
+    const c = { todos: 0, activos: 0, sin_documento: 0, fuera_pagina: 0, creados_hoy: 0, por_preparar: 0, vendidos_mes: 0 };
     ORDEN_ESTADOS.forEach((e) => { c[e] = 0; });
     (lista || []).forEach((p) => {
       c.todos++; if (c[p.estado] != null) c[p.estado]++;
       if (ACTIVOS.includes(p.estado)) c.activos++;
       if (pendienteDocumento(p)) c.sin_documento++;
       if (esFueraPagina(p)) c.fuera_pagina++;
+      Object.keys(FILTROS_KPI_PEDIDOS).forEach((k) => { if (cumpleKpiPedido(p, k, hoy)) c[k]++; });
     });
     return c;
   }
@@ -518,10 +532,23 @@
     return n;
   }
   /* Búsqueda por nombre, correo, comuna o celular (con o sin +56 9, espacios o guiones) */
+  /* Segmentos que se abren al tocar un indicador de Clientes (mismas reglas que resumenClientes) */
+  const SEGMENTOS_KPI_CLIENTE = { compradores: "Con compras", nuevos_mes: "Nuevos este mes", recurrentes: "Vuelven a comprar" };
+  function cumpleKpiCliente(c, segmento, hoy = new Date()) {
+    const n = Number(c.pedidos) || 0;
+    if (segmento === "compradores") return n > 0;
+    if (segmento === "recurrentes") return n >= 2;
+    if (segmento === "nuevos_mes") {
+      if (!n || !c.primer_pedido) return false;
+      const d = new Date(c.primer_pedido);
+      return d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth();
+    }
+    return false;
+  }
   function filtrarClientes(lista, { segmento = "todos", q = "" } = {}, hoy = new Date()) {
     const t = norm(q), dig = String(q || "").replace(/\D/g, "");
     return (lista || []).filter((c) => {
-      if (!segmentosDe(c, hoy).includes(segmento)) return false;
+      if (SEGMENTOS_KPI_CLIENTE[segmento] ? !cumpleKpiCliente(c, segmento, hoy) : !segmentosDe(c, hoy).includes(segmento)) return false;
       if (!t) return true;
       if (norm([c.nombre, c.email, c.comuna].join(" ")).includes(t)) return true;
       return dig.length >= 4 && String(c.telefono || "").includes(dig);
@@ -744,6 +771,7 @@
 
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
+    FILTROS_KPI_PEDIDOS, cumpleKpiPedido, SEGMENTOS_KPI_CLIENTE, cumpleKpiCliente,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
     TRANSICIONES, siguientesEstados, puedeCambiar, ACCION_ESTADO,
     filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, OPCIONES_ENTREGA, rangoEntrega, enRangoEntrega, siguienteHabil, textoRango, linkWhatsApp, telefonoVisible,

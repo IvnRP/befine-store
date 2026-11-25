@@ -56,9 +56,17 @@
       filtro.estado = b.dataset.f; pintarChips(); pintarKpis(); pintarLista();
     });
     el.querySelector("#pqKpis").addEventListener("click", (e) => {
-      if (!e.target.closest("[data-kpi-doc]")) return;
-      filtro.estado = filtro.estado === "sin_documento" ? "activos" : "sin_documento";
+      const b = e.target.closest("[data-kpi-f]"); if (!b) return;
+      const f = b.dataset.kpiF;
+      if (filtro.estado === f) filtro.estado = "activos";
+      else {
+        // La lista debe mostrar lo mismo que cuenta la tarjeta: se quitan la búsqueda y el filtro de entrega
+        filtro.estado = f; filtro.q = ""; filtro.entrega = "todas"; filtro.desde = ""; filtro.hasta = "";
+        el.querySelector("#pqBuscar").value = "";
+        el.querySelector("#pqRango").hidden = true;
+      }
       pintarChips(); pintarKpis(); pintarLista();
+      if (filtro.estado === f) el.querySelector("#pqChips").scrollIntoView({ behavior: "smooth", block: "start" });
     });
     el.querySelector("#pqEntrega").addEventListener("click", (e) => {
       const b = e.target.closest("[data-e]"); if (!b) return;
@@ -126,18 +134,19 @@
 
   function pintarKpis() {
     const r = L.resumenPedidos(lista);
-    const kpi = (txt, val, sub, tono) => `<div class="pn-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+    // Cada tarjeta es un botón: al tocarla, la lista muestra exactamente esos pedidos (otro toque vuelve a "Para gestionar")
+    const kpi = (f, txt, val, sub, tono, extra) =>
+      `<button type="button" class="pn-kpi ${tono || ""}" data-kpi-f="${f}"${extra || ""} aria-pressed="${filtro.estado === f}" title="Ver estos pedidos"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</button>`;
     el.querySelector("#pqKpis").innerHTML =
-      kpi("Pedidos de hoy", r.hoy) +
-      kpi("Por preparar", r.porPreparar, r.entregaHoy ? `${r.entregaHoy} se entregan hoy` : "pagados sin despachar", r.porPreparar ? "alerta" : "") +
-      kpi("En camino", r.enRuta) +
-      kpi("Ventas del mes", clp(r.ventasMes), `${r.pedidosMes} pedido${r.pedidosMes === 1 ? "" : "s"} pagado${r.pedidosMes === 1 ? "" : "s"}` +
+      kpi("creados_hoy", "Pedidos de hoy", r.hoy) +
+      kpi("por_preparar", "Por preparar", r.porPreparar, r.entregaHoy ? `${r.entregaHoy} se entregan hoy` : "pagados sin despachar", r.porPreparar ? "alerta" : "") +
+      kpi("en_ruta", "En camino", r.enRuta) +
+      kpi("vendidos_mes", "Ventas del mes", clp(r.ventasMes), `${r.pedidosMes} pedido${r.pedidosMes === 1 ? "" : "s"} pagado${r.pedidosMes === 1 ? "" : "s"}` +
         (r.fueraPaginaMes ? ` · ${r.fueraPaginaMes} fuera de la página` : "")) +
-      kpi("Esperando pago", r.pendientesPago, "Mercado Pago confirma solo") +
+      kpi("pendiente_pago", "Esperando pago", r.pendientesPago, "Mercado Pago confirma solo") +
       (app.puede("documentos.gestionar") ? (() => {
         const n = lista.filter(L.pendienteDocumento).length;
-        // Tarjeta clicable: filtra la lista a los pedidos sin boleta/factura (y vuelve a "Para gestionar")
-        return `<button type="button" class="pn-kpi ${n ? "alerta" : ""}" data-kpi-doc aria-pressed="${filtro.estado === "sin_documento"}" title="Ver solo los pedidos sin boleta o factura"><span>Boletas por subir</span><b>${n}</b><small>${n ? "pagados sin documento · ver" : "todo al día"}</small></button>`;
+        return kpi("sin_documento", "Boletas por subir", n, n ? "pagados sin documento" : "todo al día", n ? "alerta" : "", " data-kpi-doc");
       })() : "");
     const cnt = document.getElementById("cnt-pedidos");
     if (cnt) { cnt.textContent = r.porPreparar; cnt.hidden = !r.porPreparar; }
@@ -149,7 +158,9 @@
     const r = rango();
     // Los contadores por estado consideran el filtro de entrega elegido
     const c = L.contarPorEstado(L.filtrarPedidos(lista, { entrega: r }));
-    const ops = [["activos", "Para gestionar"], ["todos", "Todos"],
+    const ops = [
+      ...(L.FILTROS_KPI_PEDIDOS[filtro.estado] ? [[filtro.estado, L.FILTROS_KPI_PEDIDOS[filtro.estado]]] : []),   // abierto desde una tarjeta
+      ["activos", "Para gestionar"], ["todos", "Todos"],
       ...(app.puede("documentos.gestionar") ? [["sin_documento", "Sin boleta/factura"]] : []),
       ["fuera_pagina", "Fuera de la página"],
       ...L.ORDEN_ESTADOS.map((e) => [e, L.etiquetaEstado(e)])];
