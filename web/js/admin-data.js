@@ -62,6 +62,7 @@
       const { data, error } = await sb.from("pedidos")
         .select("id,numero,estado,total,subtotal,costo_despacho,descuento_cupon,created_at,fecha_entrega," +
                 "contacto_nombre,contacto_telefono,contacto_email,tipo_documento," +
+                "canal,metodo_pago,cobro_estado," +   // pedidos fuera de la página (migración 21)
                 "direccion:direcciones(calle,numero,depto,comuna,referencia),detalle_pedido(cantidad)," +
                 "documentos_tributarios(tipo,folio,estado)")   // "boleta pendiente" (migración 19)
         .gte("created_at", desde)
@@ -169,6 +170,39 @@
     },
     async avisoReparto(id) {
       const { data, error } = await sb.rpc("aviso_reparto", { p_pedido: id });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+
+    /* ================= PEDIDOS FUERA DE LA PÁGINA (migración 21) =================
+       WhatsApp, llamada o presencial. El servidor pone precios y despacho, descuenta stock y
+       los deja "En preparación" en la ruta del día elegido (permiso pedidos.registrar). */
+    async opcionesPedidoManual() {
+      const { data, error } = await sb.rpc("opciones_pedido_manual");
+      if (error) throw error;
+      return data || { productos: [], comunas: [], envio_gratis_minimo: null };
+    },
+    /* d = datos del formulario (validados con AdminLogic.validarPedidoManual) → { ok, id, numero, total, fecha_entrega } */
+    async registrarPedidoManual(d) {
+      const { data, error } = await sb.rpc("registrar_pedido_manual", {
+        p_cliente: { canal: d.canal, nombre: d.nombre, telefono: d.telefono, email: d.email || null },
+        p_direccion: { calle: d.calle, numero: d.numero || null, depto: d.depto || null, comuna: d.comuna, referencia: d.referencia || null },
+        p_items: (d.lineas || []).filter((l) => Number(l.cantidad) > 0).map((l) => ({ variante_id: l.variante_id, cantidad: Number(l.cantidad) })),
+        p_pago: { metodo: d.metodo, estado: d.cobro },
+        p_entrega: { fecha: d.fecha },
+        p_ajuste: Number(d.descuento) > 0 ? { descuento: Number(d.descuento), motivo: d.motivo } : null,
+        p_documento: d.documento === "factura" ? { tipo: "factura", rut: d.rut, razon_social: d.razon_social, giro: d.giro } : { tipo: "boleta" },
+        p_notas: d.notas || null,
+      });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+    /* Cobro al entregar (chofer o admin). metodo opcional: si el cliente pagó con otro medio. */
+    async cobrarPedido(id, metodo) {
+      const { data, error } = await sb.rpc("cobrar_pedido", { p_pedido: id, p_metodo: metodo || null });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+    /* Solo admin: corrige el descuento de un pedido fuera de la página (queda en el historial) */
+    async ajustarPedidoManual(id, descuento, motivo) {
+      const { data, error } = await sb.rpc("ajustar_pedido_manual", { p_pedido: id, p_descuento: descuento, p_motivo: motivo });
       return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
     },
 

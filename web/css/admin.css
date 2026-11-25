@@ -486,3 +486,45 @@ button.pn-kpi[aria-pressed="true"] { border-color: var(--pn-brand); box-shadow: 
 .pn-dte-correo { font-size: 13px; color: var(--pn-muted); margin: -2px 0 8px; }
 .pn-dte-correo.enviado { color: var(--pn-ok); }
 .pn-dte-correo.error { color: var(--pn-warn); }
+
+/* ---------- Reparto: filtros, pedidos fuera de la página y resumen del día (migración 21) ---------- */
+.rp-filtros { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 12px; }
+.rp-filtros .pn-chips { margin: 0; padding: 0; }
+.rp-otro { width: auto; min-width: 160px; padding: 6px 10px; }
+.pn-est.rp-canal { background: #EEF0FF; color: #3F3DA8; }
+.rp-ped.por-cobrar { border-left-color: var(--pn-warn); }
+.rp-cobro { margin: 8px 0 0; padding: 6px 10px; border-radius: 8px; font-size: 14px; }
+.rp-cobro.por { background: var(--pn-warn-soft); color: var(--pn-warn); }
+.rp-cobro.ok { background: var(--pn-ok-soft); color: var(--pn-ok); }
+.rp-resumen { padding: 14px 16px; margin-bottom: 16px; }
+.rp-resumen h2 { font-size: 16px; font-weight: 800; margin: 0 0 8px; }
+.rp-resumen dl { margin: 0; display: grid; gap: 4px; }
+.rp-resumen dl div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.rp-resumen dt { color: var(--pn-muted); }
+.rp-resumen dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rp-resumen .alerta dd, .rp-resumen .alerta dt { color: var(--pn-warn); }
+.rp-resumen .t { border-top: 1px solid var(--pn-line); padding-top: 6px; margin-top: 2px; }
+.rp-resumen .t dt, .rp-resumen .t dd { color: var(--pn-text, inherit); font-weight: 800; font-size: 15px; }
+.rp-ops { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.rp-op { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--pn-line-2); border-radius: 999px;
+  font-size: 14px; font-weight: 600; cursor: pointer; min-height: 40px; }
+.rp-op input { accent-color: var(--pn-brand); width: 16px; height: 16px; margin: 0; }
+.rp-op:has(input:checked) { border-color: var(--pn-brand); background: var(--pn-brand-soft); }
+.rp-cobro-acc { flex-wrap: wrap; }
+.pm-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.pm-form legend { font-size: 13px; font-weight: 700; margin-bottom: 4px; padding: 0; }
+.pm-atajos { display: flex; gap: 6px; align-items: end; padding-bottom: 2px; }
+.pm-prods { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pm-prods li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--pn-line); border-radius: 10px; }
+.pm-prods .n { display: flex; flex-direction: column; font-size: 14px; font-weight: 600; min-width: 0; }
+.pm-prods .n small { font-weight: 500; color: var(--pn-muted); }
+.pm-cant { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.pm-cant .pn-inp { width: 56px; text-align: center; padding: 6px 4px; }
+.pm-cant .pn-btn { min-width: 36px; min-height: 36px; justify-content: center; font-size: 18px; padding: 0; }
+.pm-factura:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pm-factura label:last-child { grid-column: 1 / -1; }
+@media (max-width: 480px) { .pm-factura:not([hidden]) { grid-template-columns: 1fr; } }
+.pn-cobro { display: block; font-size: 12px; font-weight: 700; color: var(--pn-ok); margin-top: 3px; }
+.pn-cobro.por { color: var(--pn-warn); }
+p.pn-cobro { font-size: 14px; }
+.pn-form .rp-op { flex-direction: row; font-size: 14px; }   /* en el formulario: opción en una línea */
