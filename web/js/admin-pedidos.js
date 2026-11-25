@@ -56,9 +56,17 @@
       filtro.estado = b.dataset.f; pintarChips(); pintarKpis(); pintarLista();
     });
     el.querySelector("#pqKpis").addEventListener("click", (e) => {
-      if (!e.target.closest("[data-kpi-doc]")) return;
-      filtro.estado = filtro.estado === "sin_documento" ? "activos" : "sin_documento";
+      const b = e.target.closest("[data-kpi-f]"); if (!b) return;
+      const f = b.dataset.kpiF;
+      if (filtro.estado === f) filtro.estado = "activos";
+      else {
+        // La lista debe mostrar lo mismo que cuenta la tarjeta: se quitan la búsqueda y el filtro de entrega
+        filtro.estado = f; filtro.q = ""; filtro.entrega = "todas"; filtro.desde = ""; filtro.hasta = "";
+        el.querySelector("#pqBuscar").value = "";
+        el.querySelector("#pqRango").hidden = true;
+      }
       pintarChips(); pintarKpis(); pintarLista();
+      if (filtro.estado === f) el.querySelector("#pqChips").scrollIntoView({ behavior: "smooth", block: "start" });
     });
     el.querySelector("#pqEntrega").addEventListener("click", (e) => {
       const b = e.target.closest("[data-e]"); if (!b) return;
@@ -81,6 +89,10 @@
       if (cp) return copiar(cp.dataset.copiar);
       const ver = e.target.closest("[data-ver-doc]");
       if (ver) return verDocumento(ver);
+      const cob = e.target.closest("[data-cobrar]");
+      if (cob) return cobrarDesdeDetalle(cob);
+      const aju = e.target.closest("[data-ajustar]");
+      if (aju) return ajustarDesdeDetalle(aju);
       const env = e.target.closest("[data-enviar-doc]");
       if (env) return enviarCorreoDoc(env, env.dataset.enviarDoc, env.dataset.reenviar === "1");
       const rem = e.target.closest("[data-reemplazar]");
@@ -122,17 +134,19 @@
 
   function pintarKpis() {
     const r = L.resumenPedidos(lista);
-    const kpi = (txt, val, sub, tono) => `<div class="pn-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+    // Cada tarjeta es un botón: al tocarla, la lista muestra exactamente esos pedidos (otro toque vuelve a "Para gestionar")
+    const kpi = (f, txt, val, sub, tono, extra) =>
+      `<button type="button" class="pn-kpi ${tono || ""}" data-kpi-f="${f}"${extra || ""} aria-pressed="${filtro.estado === f}" title="Ver estos pedidos"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</button>`;
     el.querySelector("#pqKpis").innerHTML =
-      kpi("Pedidos de hoy", r.hoy) +
-      kpi("Por preparar", r.porPreparar, r.entregaHoy ? `${r.entregaHoy} se entregan hoy` : "pagados sin despachar", r.porPreparar ? "alerta" : "") +
-      kpi("En camino", r.enRuta) +
-      kpi("Ventas del mes", clp(r.ventasMes), `${r.pedidosMes} pedido${r.pedidosMes === 1 ? "" : "s"} pagado${r.pedidosMes === 1 ? "" : "s"}`) +
-      kpi("Esperando pago", r.pendientesPago, "Mercado Pago confirma solo") +
+      kpi("creados_hoy", "Pedidos de hoy", r.hoy) +
+      kpi("por_preparar", "Por preparar", r.porPreparar, r.entregaHoy ? `${r.entregaHoy} se entregan hoy` : "pagados sin despachar", r.porPreparar ? "alerta" : "") +
+      kpi("en_ruta", "En camino", r.enRuta) +
+      kpi("vendidos_mes", "Ventas del mes", clp(r.ventasMes), `${r.pedidosMes} pedido${r.pedidosMes === 1 ? "" : "s"} pagado${r.pedidosMes === 1 ? "" : "s"}` +
+        (r.fueraPaginaMes ? ` · ${r.fueraPaginaMes} fuera de la página` : "")) +
+      kpi("pendiente_pago", "Esperando pago", r.pendientesPago, "Mercado Pago confirma solo") +
       (app.puede("documentos.gestionar") ? (() => {
         const n = lista.filter(L.pendienteDocumento).length;
-        // Tarjeta clicable: filtra la lista a los pedidos sin boleta/factura (y vuelve a "Para gestionar")
-        return `<button type="button" class="pn-kpi ${n ? "alerta" : ""}" data-kpi-doc aria-pressed="${filtro.estado === "sin_documento"}" title="Ver solo los pedidos sin boleta o factura"><span>Boletas por subir</span><b>${n}</b><small>${n ? "pagados sin documento · ver" : "todo al día"}</small></button>`;
+        return kpi("sin_documento", "Boletas por subir", n, n ? "pagados sin documento" : "todo al día", n ? "alerta" : "", " data-kpi-doc");
       })() : "");
     const cnt = document.getElementById("cnt-pedidos");
     if (cnt) { cnt.textContent = r.porPreparar; cnt.hidden = !r.porPreparar; }
@@ -144,8 +158,11 @@
     const r = rango();
     // Los contadores por estado consideran el filtro de entrega elegido
     const c = L.contarPorEstado(L.filtrarPedidos(lista, { entrega: r }));
-    const ops = [["activos", "Para gestionar"], ["todos", "Todos"],
+    const ops = [
+      ...(L.FILTROS_KPI_PEDIDOS[filtro.estado] ? [[filtro.estado, L.FILTROS_KPI_PEDIDOS[filtro.estado]]] : []),   // abierto desde una tarjeta
+      ["activos", "Para gestionar"], ["todos", "Todos"],
       ...(app.puede("documentos.gestionar") ? [["sin_documento", "Sin boleta/factura"]] : []),
+      ["fuera_pagina", "Fuera de la página"],
       ...L.ORDEN_ESTADOS.map((e) => [e, L.etiquetaEstado(e)])];
     el.querySelector("#pqChips").innerHTML = ops.map(([k, t]) =>
       `<button type="button" role="tab" data-f="${k}" aria-selected="${filtro.estado === k}">${esc(t)} <span>${c[k] || 0}</span></button>`).join("");
@@ -171,11 +188,11 @@
           <tr data-id="${esc(p.id)}" tabindex="0">
             <td data-l="N°"><button type="button" class="pn-link">#${esc(p.numero)}</button></td>
             <td data-l="Fecha">${fecha(p.created_at, true)}</td>
-            <td data-l="Cliente"><b>${esc(p.contacto_nombre || "—")}</b><small>${p.unidades} producto${p.unidades === 1 ? "" : "s"}${p.tipo_documento === "factura" ? " · factura" : ""}</small></td>
+            <td data-l="Cliente"><b>${esc(p.contacto_nombre || "—")}</b><small>${p.unidades} producto${p.unidades === 1 ? "" : "s"}${p.tipo_documento === "factura" ? " · factura" : ""}${L.esFueraPagina(p) ? " · " + esc(L.etiquetaCanal(p.canal)) : ""}</small></td>
             <td data-l="Comuna">${esc((p.direccion && p.direccion.comuna) || "—")}</td>
             <td data-l="Entrega">${fecha(p.fecha_entrega)}</td>
             <td data-l="Total" class="num">${clp(p.total)}</td>
-            <td data-l="Estado">${badge(p.estado)}${app.puede("documentos.gestionar") && L.pendienteDocumento(p) ? `<small class="pn-doc-pend">${p.tipo_documento === "factura" ? "Factura" : "Boleta"} pendiente</small>` : ""}</td>
+            <td data-l="Estado">${badge(p.estado)}${L.esFueraPagina(p) && p.estado !== "cancelado" ? `<small class="pn-cobro ${p.cobro_estado === "por_cobrar" ? "por" : ""}">${esc(L.textoCobro(p))}</small>` : ""}${app.puede("documentos.gestionar") && L.pendienteDocumento(p) ? `<small class="pn-doc-pend">${p.tipo_documento === "factura" ? "Factura" : "Boleta"} pendiente</small>` : ""}</td>
           </tr>`).join("")}</tbody>
       </table>`;
     box.querySelectorAll("tr[data-id]").forEach((tr) => tr.addEventListener("keydown", (e) => { if (e.key === "Enter") abrir(tr.dataset.id); }));
@@ -220,7 +237,7 @@
         <p>${dir(p.direccion)}<br>${esc((p.direccion && p.direccion.comuna) || "")}${p.zona && p.zona.nombre !== (p.direccion && p.direccion.comuna) ? ` · zona ${esc(p.zona.nombre)}` : ""}</p>
         ${p.direccion && p.direccion.referencia ? `<p class="pn-ref">Referencia: ${esc(p.direccion.referencia)}</p>` : ""}
         <p>Fecha de entrega: <b>${fecha(p.fecha_entrega)}</b></p>
-        ${p.notas ? `<p class="pn-ref">Nota del cliente: ${esc(p.notas)}</p>` : ""}
+        ${p.notas ? `<p class="pn-ref">${L.esFueraPagina(p) ? "Nota" : "Nota del cliente"}: ${esc(p.notas)}</p>` : ""}
       </section>
 
       <section class="pn-det"><h3>Productos</h3>
@@ -229,13 +246,81 @@
           <div><dt>Subtotal</dt><dd>${clp(p.subtotal)}</dd></div>
           <div><dt>Despacho</dt><dd>${p.costo_despacho ? clp(p.costo_despacho) : "Gratis"}</dd></div>
           ${p.descuento_cupon ? `<div><dt>Cupón ${p.cupon ? esc(p.cupon.codigo) : ""}</dt><dd>−${clp(p.descuento_cupon)}</dd></div>` : ""}
+          ${p.descuento_manual ? `<div><dt>Descuento <small>${esc(p.descuento_motivo || "")}</small></dt><dd>−${clp(p.descuento_manual)}</dd></div>` : ""}
           <div class="t"><dt>Total</dt><dd>${clp(p.total)}</dd></div>
         </dl>
       </section>
 
+      ${htmlFueraPagina(p)}
+
       ${htmlDocumento(p)}
 
       <section class="pn-det"><h3>Historial</h3><ol class="pn-hist">${hist || "<li>Sin movimientos</li>"}</ol></section>`);
+  }
+
+  /* ---------- Pedido fuera de la página (migración 21): canal, cobro y acciones ---------- */
+  function htmlFueraPagina(p) {
+    if (!L.esFueraPagina(p)) return "";
+    const porCobrar = p.cobro_estado === "por_cobrar", activo = p.estado !== "cancelado";
+    const puedeCobrar = activo && porCobrar && (app.puede("pedidos.registrar") || app.puede("pedidos.gestionar"));
+    const puedeAjustar = activo && app.puede("pedidos.gestionar") && !L.documentoDe(p);
+    return `
+      <section class="pn-det"><h3>Venta fuera de la página</h3>
+        <p>Llegó por <b>${esc(L.etiquetaCanal(p.canal))}</b> · ${esc(L.METODOS_PAGO[p.metodo_pago] || "—")}</p>
+        <p class="pn-cobro ${porCobrar ? "por" : ""}">${porCobrar ? `Por cobrar: <b>${clp(p.total)}</b>` : `Pagado${p.cobrado_at ? " el " + fecha(p.cobrado_at, true) : ""}`}</p>
+        ${puedeCobrar || puedeAjustar ? `<div class="pn-det-bot">
+          ${puedeCobrar ? `<button type="button" class="pn-btn sm" data-cobrar="${esc(p.id)}" data-metodo="${esc(p.metodo_pago)}">Registrar cobro</button>` : ""}
+          ${puedeAjustar ? `<button type="button" class="pn-btn sm ghost" data-ajustar="${esc(p.id)}">Corregir descuento</button>` : ""}
+        </div>` : ""}
+        ${activo && app.puede("pedidos.gestionar") && L.documentoDe(p) ? `<p class="pn-nota">Ya tiene boleta: para corregir el monto, emite una nota de crédito en Haulmer.</p>` : ""}
+      </section>`;
+  }
+
+  async function cobrarDesdeDetalle(btn) {
+    const id = btn.dataset.cobrar;
+    const ops = L.METODOS_MANUALES.map((m) => `<option value="${m}"${m === btn.dataset.metodo ? " selected" : ""}>${esc(L.METODOS_PAGO[m])}</option>`).join("");
+    UI.abrirModal(`<h2>Registrar cobro</h2>
+      <form class="pn-form" id="pmCobro" novalidate>
+        <label class="full">Medio con que pagó<select class="pn-inp" name="metodo">${ops}</select></label>
+        <div class="pn-form-acc"><button type="button" class="pn-btn ghost" data-cancelar>Cancelar</button><button type="submit" class="pn-btn ok">Registrar cobro</button></div>
+      </form>`);
+    const f = document.getElementById("pmCobro");
+    f.querySelector("[data-cancelar]").addEventListener("click", UI.cerrarModal);
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const r = await UI.conCarga(f.querySelector('[type="submit"]'), () => A().cobrarPedido(id, f.metodo.value));
+      if (!r.ok) return UI.toast(r.error, "mal");
+      UI.cerrarModal(); UI.toast(`Cobro del pedido #${r.numero} registrado.`);
+      await cargar(true); abrir(id);
+    });
+  }
+
+  async function ajustarDesdeDetalle(btn) {
+    const id = btn.dataset.ajustar;
+    let p; try { p = await A().getPedido(id); } catch (e) { return UI.toast(A().msg(e), "mal"); }
+    if (!p) return;
+    const max = (Number(p.subtotal) || 0) + (Number(p.costo_despacho) || 0);
+    UI.abrirModal(`<h2>Corregir descuento · pedido #${esc(p.numero)}</h2>
+      <form class="pn-form" id="pmAjuste" novalidate>
+        <label>Descuento en pesos <small>máx. ${clp(max)}</small><input class="pn-inp" name="descuento" type="number" min="0" max="${max}" step="1" inputmode="numeric" value="${esc(p.descuento_manual || 0)}"><span class="err" data-err="descuento"></span></label>
+        <label>Motivo de la corrección<input class="pn-inp" name="motivo" maxlength="200" autocomplete="off"><span class="err" data-err="motivo"></span></label>
+        <p class="pn-nota full">Total actual ${clp(p.total)}. El cambio queda en el historial con tu nombre.</p>
+        <div class="pn-form-acc"><button type="button" class="pn-btn ghost" data-cancelar>Cancelar</button><button type="submit" class="pn-btn">Guardar</button></div>
+      </form>`);
+    const f = document.getElementById("pmAjuste");
+    f.querySelector("[data-cancelar]").addEventListener("click", UI.cerrarModal);
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const desc = Number(f.descuento.value), mot = f.motivo.value.trim(), errs = {};
+      if (!Number.isInteger(desc) || desc < 0 || desc > max) errs.descuento = `Debe ser entre $0 y ${clp(max)}.`;
+      if (mot.length < 3) errs.motivo = "Indica el motivo.";
+      f.querySelectorAll("[data-err]").forEach((s) => { s.textContent = errs[s.dataset.err] || ""; });
+      if (Object.keys(errs).length) return;
+      const r = await UI.conCarga(f.querySelector('[type="submit"]'), () => A().ajustarPedidoManual(id, desc, mot));
+      if (!r.ok) return UI.toast(r.error, "mal");
+      UI.cerrarModal(); UI.toast(`Pedido #${r.numero}: total ${clp(r.total_anterior)} → ${clp(r.total)}.`);
+      await cargar(true); abrir(id);
+    });
   }
 
   /* ---------- Boleta o factura (migración 19) ---------- */
@@ -247,22 +332,22 @@
     if (!puede) return `<section class="pn-det"><h3>Documento</h3>${cab}${doc ? `<p><b>${nombre} N° ${esc(doc.folio)}</b> emitida</p>` : ""}</section>`;
 
     const form = (oculto) => `
-      <form class="pn-dte-form" id="dteForm" data-id="${esc(p.id)}" data-tipo="${esc(p.tipo_documento || "boleta")}" data-actual="${esc((doc && doc.archivo) || "")}"${oculto ? " hidden" : ""}>
+      <form class="pn-dte-form" id="dteForm" data-id="${esc(p.id)}" data-tipo="${esc(p.tipo_documento || "boleta")}" data-actual="${esc((doc && doc.archivo) || "")}" data-correo="${p.contacto_email ? 1 : 0}"${oculto ? " hidden" : ""}>
         <label>PDF descargado de Haulmer<input class="pn-inp" type="file" id="dteArchivo" accept="application/pdf,.pdf" required></label>
         <label>Folio<input class="pn-inp" type="number" id="dteFolio" min="1" step="1" inputmode="numeric" placeholder="Ej. 11298" required></label>
         <small id="dteAviso" class="pn-nota" aria-live="polite"></small>
-        <button class="pn-btn ok" type="submit">Guardar y enviar al cliente</button>
+        <button class="pn-btn ok" type="submit">${p.contacto_email ? "Guardar y enviar al cliente" : `Guardar ${nombre.toLowerCase()}`}</button>
       </form>`;
 
     if (doc) {
-      const c = L.estadoCorreoDoc(doc);
+      const c = p.contacto_email ? L.estadoCorreoDoc(doc) : { estado: "pendiente", texto: "El cliente no dejó correo: entrégale la boleta impresa o por WhatsApp." };
       return `
       <section class="pn-det"><h3>Documento</h3>${cab}
         <p class="pn-dte-ok">${nombre} N° <b>${esc(doc.folio)}</b> · subida el ${fecha(doc.fecha_emision, true)}</p>
         <p class="pn-dte-correo ${c.estado}">${esc(c.texto)}</p>
         <div class="pn-det-bot">
           ${doc.archivo ? `<button type="button" class="pn-btn sm ghost" data-ver-doc="${esc(doc.archivo)}">Ver PDF</button>` : ""}
-          ${doc.archivo ? `<button type="button" class="pn-btn sm ghost" data-enviar-doc="${esc(p.id)}" data-reenviar="${c.estado === "enviado" ? 1 : 0}">${c.estado === "enviado" ? "Reenviar correo" : "Enviar por correo"}</button>` : ""}
+          ${doc.archivo && p.contacto_email ? `<button type="button" class="pn-btn sm ghost" data-enviar-doc="${esc(p.id)}" data-reenviar="${c.estado === "enviado" ? 1 : 0}">${c.estado === "enviado" ? "Reenviar correo" : "Enviar por correo"}</button>` : ""}
           <button type="button" class="pn-btn sm ghost" data-reemplazar>Reemplazar</button>
         </div>${form(true)}
       </section>`;
@@ -300,7 +385,7 @@
           <div><dt>IVA 19%</dt><dd>${esc(L.fmtCLP(d.montos.iva))}</dd></div>
           <div><dt>Total (debe coincidir)</dt><dd><b>${esc(L.fmtCLP(d.montos.total))}</b></dd></div>
         </dl>
-        <ol class="pn-dte-pasos" start="3"><li>Emite en Haulmer, descarga el PDF y súbelo aquí. Le llega al cliente por correo (${esc(p.contacto_email || "su correo")}) con el PDF adjunto:</li></ol>
+        <ol class="pn-dte-pasos" start="3"><li>Emite en Haulmer, descarga el PDF y súbelo aquí. ${p.contacto_email ? `Le llega al cliente por correo (${esc(p.contacto_email)}) con el PDF adjunto:` : "El cliente no dejó correo: entrégale la boleta impresa o por WhatsApp."}</li></ol>
         ${form(false)}
       </section>`;
   }
@@ -328,14 +413,17 @@
     try {
       // Se guarda y, apenas queda registrada, se envía al cliente con el PDF adjunto
       // (si ese mismo folio ya se le había enviado, no se repite)
+      // Un pedido fuera de la página puede no tener correo: entonces no se envía (se entrega impresa o por WhatsApp)
+      const conCorreo = form.dataset.correo === "1";
       const r = await UI.conCarga(btn, async () => {
         const x = await A().subirDocumento(id, archivo, tipo, folio, form.dataset.actual || null);
-        if (x.ok) x.correo = await A().enviarDocumento(id);
+        if (x.ok && conCorreo) x.correo = await A().enviarDocumento(id);
         return x;
       });
       if (!r.ok) return UI.toast(r.mensaje || "No pudimos registrar el documento.", "mal");
       const nom = tipo === "factura" ? "Factura" : "Boleta", c = r.correo;
-      if (c.enviado) UI.toast(`${nom} N° ${folio} guardada y enviada a ${c.destino || "el cliente"}.`);
+      if (!conCorreo) UI.toast(`${nom} N° ${folio} guardada. El cliente no dejó correo: entrégala impresa o por WhatsApp.`);
+      else if (c.enviado) UI.toast(`${nom} N° ${folio} guardada y enviada a ${c.destino || "el cliente"}.`);
       else if (c.ok) UI.toast(`${nom} N° ${folio} guardada${c.motivo === "ya_enviado" ? " (el cliente ya la había recibido por correo)" : ""}.`);
       else UI.toast(`${nom} N° ${folio} guardada. ${c.mensaje} Usa "Enviar por correo" para reintentar.`, "mal");
       await cargar(true);

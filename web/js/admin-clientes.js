@@ -29,6 +29,9 @@
     empresas: "Clientes marcados como empresa (compran con factura).",
     frecuentes: `Tienen ${L.CLIENTES.frecuenteMin} o más pedidos pagados.`,
     recuperar: `Compraron antes, pero no en los últimos ${L.CLIENTES.recuperarDias} días. Buen momento para escribirles por WhatsApp.`,
+    compradores: "Clientes con al menos un pedido pagado (base del ticket promedio).",
+    nuevos_mes: "Su primera compra pagada fue este mes.",
+    recurrentes: "Tienen 2 o más pedidos pagados.",
     bloqueados: "No pueden comprar en la tienda hasta que los actives.",
   };
   const CAMPOS = { nombre: "Nombre", apellido: "Apellido", telefono: "Celular", es_empresa: "Empresa",
@@ -71,7 +74,15 @@
     el.querySelector("#clRecargar").addEventListener("click", (e) => UI.conCarga(e.currentTarget, cargar));
     el.querySelector("#clChips").addEventListener("click", (e) => {
       const b = e.target.closest("[data-s]"); if (!b) return;
-      filtro.segmento = b.dataset.s; pintarChips(); pintarLista();
+      filtro.segmento = b.dataset.s; pintarKpis(); pintarChips(); pintarLista();
+    });
+    el.querySelector("#clKpis").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-kpi-s]"); if (!b) return;
+      const s = b.dataset.kpiS;
+      if (filtro.segmento === s) filtro.segmento = "todos";
+      else { filtro.segmento = s; filtro.q = ""; el.querySelector("#clBuscar").value = ""; }
+      pintarKpis(); pintarChips(); pintarLista();
+      if (filtro.segmento === s && s !== "todos") el.querySelector("#clChips").scrollIntoView({ behavior: "smooth", block: "start" });
     });
     const lst = el.querySelector("#clLista");
     lst.addEventListener("click", (e) => { const f = e.target.closest("tr[data-id]"); if (f) abrir(f.dataset.id); });
@@ -103,18 +114,22 @@
 
   function pintarKpis() {
     const r = L.resumenClientes(lista);
-    const kpi = (txt, val, sub, tono) => `<div class="pn-kpi ${tono || ""}"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+    // Cada tarjeta es un botón: al tocarla, la lista muestra esos clientes (otro toque vuelve a "Todos")
+    const kpi = (s, txt, val, sub, tono) =>
+      `<button type="button" class="pn-kpi ${tono || ""}" data-kpi-s="${s}" aria-pressed="${filtro.segmento === s && s !== "todos"}" title="Ver estos clientes"><span>${txt}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</button>`;
     el.querySelector("#clKpis").innerHTML =
-      kpi("Clientes", r.total, `${r.compradores} con compras pagadas`) +
-      kpi("Nuevos este mes", r.nuevosMes, "primera compra este mes") +
-      kpi("Vuelven a comprar", `${r.recurrencia}%`, `${r.recurrentes} con 2 o más pedidos`) +
-      kpi("Ticket promedio", clp(r.ticket), "por pedido pagado") +
-      kpi("Por recuperar", r.porRecuperar, `sin comprar hace más de ${L.CLIENTES.recuperarDias} días`, r.porRecuperar ? "alerta" : "");
+      kpi("todos", "Clientes", r.total, `${r.compradores} con compras pagadas`) +
+      kpi("nuevos_mes", "Nuevos este mes", r.nuevosMes, "primera compra este mes") +
+      kpi("recurrentes", "Vuelven a comprar", `${r.recurrencia}%`, `${r.recurrentes} con 2 o más pedidos`) +
+      kpi("compradores", "Ticket promedio", clp(r.ticket), "por pedido pagado") +
+      kpi("recuperar", "Por recuperar", r.porRecuperar, `sin comprar hace más de ${L.CLIENTES.recuperarDias} días`, r.porRecuperar ? "alerta" : "");
   }
 
   function pintarChips() {
     const n = L.contarSegmentos(lista);
-    el.querySelector("#clChips").innerHTML = Object.entries(L.SEGMENTOS_CLIENTE).map(([k, txt]) =>
+    const kpiSeg = L.SEGMENTOS_KPI_CLIENTE[filtro.segmento];   // abierto desde una tarjeta
+    if (kpiSeg) n[filtro.segmento] = L.filtrarClientes(lista, { segmento: filtro.segmento }).length;
+    el.querySelector("#clChips").innerHTML = [...(kpiSeg ? [[filtro.segmento, kpiSeg]] : []), ...Object.entries(L.SEGMENTOS_CLIENTE)].map(([k, txt]) =>
       `<button type="button" role="tab" data-s="${k}" aria-selected="${filtro.segmento === k}">${esc(txt)} <span>${n[k] || 0}</span></button>`).join("");
     el.querySelector("#clAyuda").textContent = AYUDA[filtro.segmento] || "";
   }

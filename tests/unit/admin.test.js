@@ -8,7 +8,7 @@ const { AdminLogic: L } = cargar(["admin-logic.js"]);
 const arr = (x) => Array.from(x);   // los arreglos vienen del contexto aislado
 
 test("CP-U14a el admin tiene todos los permisos y el cliente ninguno", () => {
-  assert.equal(L.permisosDe("admin", []).length, 13);   // 12 de la migración 01 + pedidos.repartir (02)
+  assert.equal(L.permisosDe("admin", []).length, 14);   // 12 de la migración 01 + pedidos.repartir (02) + pedidos.registrar (21)
   assert.deepEqual(arr(L.permisosDe("cliente", [{ rol_id: "cliente", permiso: "pedidos.ver" }])), []);
   assert.deepEqual(arr(L.permisosDe(null, [])), []);
 });

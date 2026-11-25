@@ -12,6 +12,7 @@
     "pedidos.ver", "pedidos.gestionar", "pedidos.repartir", "catalogo.gestionar", "precios.gestionar",
     "promociones.gestionar", "despacho.gestionar", "clientes.ver", "clientes.gestionar",
     "pagos.gestionar", "documentos.gestionar", "puntos.gestionar", "config.gestionar",
+    "pedidos.registrar",   // pedidos fuera de la página (migración 21)
   ];
 
   /* Permisos efectivos de un rol. El admin tiene todos (igual que tiene_permiso() en la BD);
@@ -84,14 +85,28 @@
   /* Filtro de la lista: estado ("todos" | "activos" | "sin_documento" | un estado) y búsqueda por
      número (#123 o 123), nombre, teléfono o comuna. */
   const ACTIVOS = ["pagado", "en_preparacion", "en_ruta"];
-  function filtrarPedidos(lista, { estado = "todos", q = "", entrega = null } = {}) {
+
+  /* Filtros que se abren al tocar un indicador del panel (tarjetas clicables). Usan las MISMAS
+     reglas que resumenPedidos(), así la lista muestra exactamente lo que cuenta la tarjeta. */
+  const FILTROS_KPI_PEDIDOS = { creados_hoy: "Pedidos de hoy", por_preparar: "Por preparar", vendidos_mes: "Ventas del mes" };
+  function cumpleKpiPedido(p, estado, hoy = new Date()) {
+    const dia = p && p.created_at ? diaLocal(p.created_at) : "";
+    if (estado === "creados_hoy") return dia === diaLocal(hoy) && p.estado !== "cancelado";
+    if (estado === "por_preparar") return p.estado === "pagado" || p.estado === "en_preparacion";
+    if (estado === "vendidos_mes") return VENDIDOS.includes(p.estado) && dia.slice(0, 7) === diaLocal(hoy).slice(0, 7);
+    return true;
+  }
+
+  function filtrarPedidos(lista, { estado = "todos", q = "", entrega = null, hoy = new Date() } = {}) {
     const t = norm(q).replace(/^#/, "");
     const tel = t.replace(/\D/g, "");
     return (lista || []).filter((p) => {
       if (!enRangoEntrega(p, entrega)) return false;
       if (estado === "activos" && !ACTIVOS.includes(p.estado)) return false;
       if (estado === "sin_documento" && !pendienteDocumento(p)) return false;
-      if (!["todos", "activos", "sin_documento"].includes(estado) && p.estado !== estado) return false;
+      if (estado === "fuera_pagina" && !esFueraPagina(p)) return false;
+      if (FILTROS_KPI_PEDIDOS[estado] && !cumpleKpiPedido(p, estado, hoy)) return false;
+      if (!["todos", "activos", "sin_documento", "fuera_pagina"].includes(estado) && !FILTROS_KPI_PEDIDOS[estado] && p.estado !== estado) return false;
       if (!t) return true;
       if (/^\d+$/.test(t) && String(p.numero) === t) return true;
       const dir = p.direccion || {};
@@ -101,13 +116,15 @@
   }
 
   /* Cantidad de pedidos por estado (para los filtros) */
-  function contarPorEstado(lista) {
-    const c = { todos: 0, activos: 0, sin_documento: 0 };
+  function contarPorEstado(lista, hoy = new Date()) {
+    const c = { todos: 0, activos: 0, sin_documento: 0, fuera_pagina: 0, creados_hoy: 0, por_preparar: 0, vendidos_mes: 0 };
     ORDEN_ESTADOS.forEach((e) => { c[e] = 0; });
     (lista || []).forEach((p) => {
       c.todos++; if (c[p.estado] != null) c[p.estado]++;
       if (ACTIVOS.includes(p.estado)) c.activos++;
       if (pendienteDocumento(p)) c.sin_documento++;
+      if (esFueraPagina(p)) c.fuera_pagina++;
+      Object.keys(FILTROS_KPI_PEDIDOS).forEach((k) => { if (cumpleKpiPedido(p, k, hoy)) c[k]++; });
     });
     return c;
   }
@@ -174,7 +191,7 @@
   const VENDIDOS = ["pagado", "en_preparacion", "en_ruta", "entregado"];
   function resumenPedidos(lista, hoy = new Date()) {
     const dHoy = diaLocal(hoy), mes = dHoy.slice(0, 7);
-    const r = { hoy: 0, porPreparar: 0, enRuta: 0, pendientesPago: 0, ventasMes: 0, pedidosMes: 0, entregaHoy: 0 };
+    const r = { hoy: 0, porPreparar: 0, enRuta: 0, pendientesPago: 0, ventasMes: 0, pedidosMes: 0, entregaHoy: 0, fueraPaginaMes: 0 };
     (lista || []).forEach((p) => {
       const dia = p.created_at ? diaLocal(p.created_at) : "";
       if (dia === dHoy && p.estado !== "cancelado") r.hoy++;
@@ -182,7 +199,10 @@
       if (p.estado === "en_ruta") r.enRuta++;
       if (p.estado === "pendiente_pago") r.pendientesPago++;
       if (p.fecha_entrega === dHoy && ACTIVOS.includes(p.estado)) r.entregaHoy++;
-      if (VENDIDOS.includes(p.estado) && dia.slice(0, 7) === mes) { r.ventasMes += Number(p.total) || 0; r.pedidosMes++; }
+      if (VENDIDOS.includes(p.estado) && dia.slice(0, 7) === mes) {
+        r.ventasMes += Number(p.total) || 0; r.pedidosMes++;
+        if (esFueraPagina(p)) r.fueraPaginaMes++;   // migración 21: cuentan en las ventas del mes
+      }
     });
     return r;
   }
@@ -512,10 +532,23 @@
     return n;
   }
   /* Búsqueda por nombre, correo, comuna o celular (con o sin +56 9, espacios o guiones) */
+  /* Segmentos que se abren al tocar un indicador de Clientes (mismas reglas que resumenClientes) */
+  const SEGMENTOS_KPI_CLIENTE = { compradores: "Con compras", nuevos_mes: "Nuevos este mes", recurrentes: "Vuelven a comprar" };
+  function cumpleKpiCliente(c, segmento, hoy = new Date()) {
+    const n = Number(c.pedidos) || 0;
+    if (segmento === "compradores") return n > 0;
+    if (segmento === "recurrentes") return n >= 2;
+    if (segmento === "nuevos_mes") {
+      if (!n || !c.primer_pedido) return false;
+      const d = new Date(c.primer_pedido);
+      return d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth();
+    }
+    return false;
+  }
   function filtrarClientes(lista, { segmento = "todos", q = "" } = {}, hoy = new Date()) {
     const t = norm(q), dig = String(q || "").replace(/\D/g, "");
     return (lista || []).filter((c) => {
-      if (!segmentosDe(c, hoy).includes(segmento)) return false;
+      if (SEGMENTOS_KPI_CLIENTE[segmento] ? !cumpleKpiCliente(c, segmento, hoy) : !segmentosDe(c, hoy).includes(segmento)) return false;
       if (!t) return true;
       if (norm([c.nombre, c.email, c.comuna].join(" ")).includes(t)) return true;
       return dig.length >= 4 && String(c.telefono || "").includes(dig);
@@ -655,8 +688,90 @@
     return "";
   }
 
+  /* ================= PEDIDOS FUERA DE LA PÁGINA (migración 21) =================
+     WhatsApp, llamada o presencial; se pagan en efectivo, tarjeta presencial o transferencia.
+     Los registra el chofer o el admin y entran a la misma ruta de reparto que los de la web. */
+  const CANALES = { web: "Página web", whatsapp: "WhatsApp", llamada: "Llamada", presencial: "Presencial", otro: "Otro" };
+  const CANALES_MANUALES = ["whatsapp", "llamada", "presencial", "otro"];
+  const METODOS_PAGO = { mercado_pago: "Mercado Pago", efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia" };
+  const METODOS_MANUALES = ["efectivo", "tarjeta", "transferencia"];
+  function esFueraPagina(p) { return !!p && !!p.canal && p.canal !== "web"; }
+  const etiquetaCanal = (c) => CANALES[c] || CANALES.web;
+  /* "Por cobrar · efectivo" / "Pagado · transferencia" ("" para la web) */
+  function textoCobro(p) {
+    if (!esFueraPagina(p)) return "";
+    const m = METODOS_PAGO[p.metodo_pago];
+    return (p.cobro_estado === "por_cobrar" ? "Por cobrar" : "Pagado") + (m ? " · " + m.toLowerCase() : "");
+  }
+
+  /* Totales del formulario, con las MISMAS reglas que registrar_pedido_manual() (el servidor recalcula todo):
+     precio de venta del catálogo, despacho de la comuna, gratis desde el mínimo, descuento hasta el total. */
+  function calcularPedidoManual(lineas, opciones, comuna, descuento) {
+    const prods = (opciones && opciones.productos) || [];
+    let subtotal = 0, unidades = 0;
+    for (const l of lineas || []) {
+      const p = prods.find((x) => x.variante_id === l.variante_id);
+      const c = Math.trunc(Number(l.cantidad) || 0);
+      if (p && c > 0) { subtotal += (Number(p.precio) || 0) * c; unidades += c; }
+    }
+    const com = ((opciones && opciones.comunas) || []).find((x) => norm(x.comuna) === norm(comuna));
+    let despacho = com ? Number(com.costo_despacho) || 0 : 0;
+    const gratis = opciones && opciones.envio_gratis_minimo;
+    if (despacho > 0 && gratis != null && subtotal >= gratis) despacho = 0;
+    const desc = Math.max(0, Math.trunc(Number(descuento) || 0));
+    return { subtotal, despacho, descuento: desc, total: Math.max(subtotal + despacho - desc, 0), unidades, conComuna: !!com };
+  }
+
+  /* Valida el formulario "Pedido fuera de la página" → { campo: mensaje } (vacío = todo bien) */
+  function validarPedidoManual(d, opciones, hoy = new Date()) {
+    const e = {};
+    if (!CANALES_MANUALES.includes(d.canal)) e.canal = "Elige cómo llegó el pedido.";
+    if (String(d.nombre || "").trim().length < 2) e.nombre = "Escribe el nombre del cliente.";
+    if (!normalizarTelefono(d.telefono)) e.telefono = "Celular no válido (ej.: 9 1234 5678).";
+    if (String(d.email || "").trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d.email).trim())) e.email = "Correo no válido (puedes dejarlo vacío).";
+    const t = calcularPedidoManual(d.lineas, opciones, d.comuna, d.descuento);
+    if (!t.conComuna) e.comuna = "Elige una comuna con despacho.";
+    if (!String(d.calle || "").trim()) e.calle = "Falta la calle.";
+    if (!t.unidades) e.lineas = "Agrega al menos un producto.";
+    else if ((d.lineas || []).some((l) => Number(l.cantidad) > 200)) e.lineas = "Máximo 200 unidades por producto.";
+    const dHoy = diaLocal(hoy);
+    if (!ES_DIA.test(d.fecha || "") || d.fecha < dHoy || d.fecha > sumarDias(dHoy, 45)) e.fecha = "La fecha debe ser desde hoy y hasta 45 días.";
+    if (!METODOS_MANUALES.includes(d.metodo)) e.metodo = "Elige el medio de pago.";
+    if (!["pagado", "por_cobrar"].includes(d.cobro)) e.cobro = "Indica si ya pagó o se cobra al entregar.";
+    const desc = Number(d.descuento || 0);
+    if (!Number.isInteger(desc) || desc < 0) e.descuento = "El descuento debe ser un número entero.";
+    else if (desc > t.subtotal + t.despacho) e.descuento = "El descuento no puede ser mayor que el total.";
+    else if (desc > 0 && String(d.motivo || "").trim().length < 3) e.motivo = "Indica el motivo del descuento.";
+    if (d.documento === "factura") {
+      if (!rutValido(d.rut)) e.rut = "RUT no válido.";
+      if (!String(d.razon_social || "").trim()) e.razon_social = "Falta la razón social.";
+      if (!String(d.giro || "").trim()) e.giro = "Falta el giro.";
+    }
+    return e;
+  }
+
+  /* Entregados del día para el resumen del chofer: cuánto se vendió, por medio de pago, el efectivo
+     que debe rendir y lo que quedó por cobrar. Los de la web se pagaron con Mercado Pago. */
+  function resumenEntregas(lista) {
+    const r = { entregados: 0, monto: 0, fueraPagina: 0, efectivoARendir: 0,
+                porMetodo: { mercado_pago: 0, efectivo: 0, tarjeta: 0, transferencia: 0 },
+                porCobrar: { cantidad: 0, monto: 0 } };
+    for (const p of lista || []) {
+      if (!p || p.estado !== "entregado") continue;
+      const t = Number(p.total) || 0;
+      r.entregados++; r.monto += t;
+      if (esFueraPagina(p)) r.fueraPagina++;
+      if (esFueraPagina(p) && p.cobro_estado === "por_cobrar") { r.porCobrar.cantidad++; r.porCobrar.monto += t; continue; }
+      const m = esFueraPagina(p) ? p.metodo_pago : "mercado_pago";
+      if (r.porMetodo[m] != null) r.porMetodo[m] += t;
+    }
+    r.efectivoARendir = r.porMetodo.efectivo;
+    return r;
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
+    FILTROS_KPI_PEDIDOS, cumpleKpiPedido, SEGMENTOS_KPI_CLIENTE, cumpleKpiCliente,
     ESTADOS, ORDEN_ESTADOS, etiquetaEstado, norm,
     TRANSICIONES, siguientesEstados, puedeCambiar, ACCION_ESTADO,
     filtrarPedidos, contarPorEstado, resumenPedidos, diaLocal, OPCIONES_ENTREGA, rangoEntrega, enRangoEntrega, siguienteHabil, textoRango, linkWhatsApp, telefonoVisible,
@@ -667,6 +782,8 @@
     ROLES_ASIGNABLES, validarAsignacion, matrizPermisos,
     CLIENTES, SEGMENTOS_CLIENTE, diasDesde, segmentosDe, contarSegmentos, filtrarClientes, resumenClientes,
     normalizarTelefono, rutValido, formatoRut, validarCliente,
+    CANALES, CANALES_MANUALES, METODOS_PAGO, METODOS_MANUALES, esFueraPagina, etiquetaCanal, textoCobro,
+    calcularPedidoManual, validarPedidoManual, resumenEntregas,
     montosDTE, netoUnitario, fmtCLP, valorPegar, documentoDe, pendienteDocumento, estadoCorreoDoc, datosHaulmer, leerNombreDTE, validarDocumento,
   };
 })(typeof window !== "undefined" ? window : globalThis);
