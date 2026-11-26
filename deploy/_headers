@@ -10,7 +10,7 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), midi=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=(), interest-cohort=()
   Strict-Transport-Security: max-age=31536000
   Cross-Origin-Opener-Policy: same-origin
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-VKFCEqpoX4BPvGCl0v+sjDkiipxcbsyFw1XBjW+L4fk=' 'sha256-S+VENnpKhoiyXShSAHERoorPLZVNo1fHsHX6KxASdT4=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://tbnevbvvwwzpnowxqyps.supabase.co; connect-src 'self' https://tbnevbvvwwzpnowxqyps.supabase.co wss://tbnevbvvwwzpnowxqyps.supabase.co https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-VKFCEqpoX4BPvGCl0v+sjDkiipxcbsyFw1XBjW+L4fk=' 'sha256-S+VENnpKhoiyXShSAHERoorPLZVNo1fHsHX6KxASdT4=' https://static.cloudflareinsights.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://tbnevbvvwwzpnowxqyps.supabase.co; connect-src 'self' https://tbnevbvvwwzpnowxqyps.supabase.co wss://tbnevbvvwwzpnowxqyps.supabase.co https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests
 
 # Imágenes: caché larga (cambian de nombre cuando cambian)
 /assets/*

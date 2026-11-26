@@ -90,3 +90,18 @@ test("CP-U45e la migración 22 trae reversa y prueba en seco con todos los casos
   assert.match(m, /security definer/i);
   assert.doesNotMatch(m, /usos_actuales = usos_actuales \+ 1[\s\S]{0,200}crear_pedido/);
 });
+
+test("CP-U45f CAPTCHA (Turnstile): ingreso, registro, recuperación e invitado envían el token, y la CSP lo permite", () => {
+  const js = leer("web", "js", "data.js");
+  assert.match(js, /signInWithPassword\(\{ email, password, options: await _conCaptcha\(\) \}\)/);
+  assert.match(js, /options: await _conCaptcha\(\{ data: \{ nombre, telefono \}/);
+  assert.match(js, /resetPasswordForEmail\(email,\s*await _conCaptcha\(/);
+  assert.match(js, /signInAnonymously\(\{ options: await _conCaptcha\(\) \}\)/);
+  assert.match(js, /const TURNSTILE_SITEKEY = "0x4[A-Za-z0-9_-]+"/);
+  const csp = (leer("deploy", "_headers").match(/Content-Security-Policy: (.+)/) || [])[1];
+  assert.match(csp, /script-src[^;]*https:\/\/challenges\.cloudflare\.com/);
+  assert.match(csp, /frame-src https:\/\/challenges\.cloudflare\.com/);
+  // Sin navegador (o si Turnstile no carga) no hay token y la acción sigue igual
+  const W = cargar(["data.js"]);
+  assert.match(W.Befine.auth.ingresar.toString(), /_conCaptcha/);
+});

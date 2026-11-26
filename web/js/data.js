@@ -267,6 +267,60 @@ const Befine = {
 const APP_URL = /^https?:/.test(location.protocol) ? location.href.replace(/[^/]*([?#].*)?$/, "") : null;
 
 // Mensajes de Supabase → español claro para el cliente
+/* ===================== CAPTCHA (Cloudflare Turnstile) =====================
+   Auditoría 25-nov, #3: Supabase Auth exige un token de CAPTCHA para ingresar, registrarse, recuperar la
+   contraseña y crear la sesión de invitado (así un bot no crea miles de cuentas). El script de Cloudflare se
+   carga SOLO cuando hace falta; casi siempre resuelve solo y únicamente si sospecha muestra "Soy humano".
+   La clave del sitio es pública. Si Turnstile no carga, la acción sigue sin token: si Supabase aún no exige
+   CAPTCHA, funciona igual; si lo exige, el cliente ve un mensaje claro. */
+const TURNSTILE_SITEKEY = "0x4AAAAAAGUNt0dzx2JTgZJ5";
+let _turnstileCarga = null;
+function _cargarTurnstile() {
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  if (_turnstileCarga) return _turnstileCarga;
+  _turnstileCarga = new Promise((ok, mal) => {
+    const s = document.createElement("script");
+    s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    s.async = true;
+    s.onload = () => (window.turnstile ? ok(window.turnstile) : mal(new Error("captcha")));
+    s.onerror = () => { _turnstileCarga = null; mal(new Error("captcha")); };
+    document.head.appendChild(s);
+  });
+  return _turnstileCarga;
+}
+/* Devuelve un token nuevo (cada token sirve una sola vez) o null si no se pudo obtener. */
+async function _tokenCaptcha() {
+  if (!TURNSTILE_SITEKEY || typeof document === "undefined" || !document.head || !document.body) return null;
+  let ts;
+  try { ts = await _cargarTurnstile(); } catch (e) { return null; }
+  return new Promise((ok) => {
+    const caja = document.createElement("div");
+    caja.className = "captcha-caja";
+    caja.setAttribute("role", "dialog");
+    caja.setAttribute("aria-label", "Verificación de seguridad");
+    caja.style.cssText = "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483000";
+    document.body.appendChild(caja);
+    let id = null, listo = false;
+    const fin = (token) => {
+      if (listo) return; listo = true; clearTimeout(reloj);
+      try { if (id != null) ts.remove(id); } catch (e) { /* nada */ }
+      caja.remove(); ok(token || null);
+    };
+    const reloj = setTimeout(() => fin(null), 90000);   // nadie resolvió la casilla en 90 s
+    try {
+      id = ts.render(caja, {
+        sitekey: TURNSTILE_SITEKEY, appearance: "interaction-only", language: "es",
+        callback: (t) => fin(t), "error-callback": () => fin(null), "expired-callback": () => fin(null),
+      });
+    } catch (e) { fin(null); }
+  });
+}
+/* Opciones de Supabase Auth con el token (si se obtuvo) */
+async function _conCaptcha(opciones) {
+  const t = await _tokenCaptcha();
+  return t ? { ...(opciones || {}), captchaToken: t } : (opciones || undefined);
+}
+
 function _msgAuth(e) {
   const m = ((e && (e.message || e.error_description)) || String(e || "")).toLowerCase();
   if (m.includes("invalid login")) return "Correo o contraseña incorrectos.";
@@ -275,6 +329,7 @@ function _msgAuth(e) {
   if (m.includes("password") && (m.includes("should contain") || m.includes("weak") || m.includes("at least") || m.includes("characters")))
     return "La contraseña debe tener al menos 8 caracteres, con mayúscula, minúscula, número y símbolo (. @ # ! …).";
   if (m.includes("rate limit") || m.includes("too many")) return "Demasiados intentos. Espera un minuto e inténtalo de nuevo.";
+  if (m.includes("captcha")) return "No pudimos verificar que eres una persona. Recarga la página e inténtalo de nuevo.";
   if (m.includes("provider is not enabled") || m.includes("unsupported provider")) return "El ingreso con Google aún no está activado.";
   if (m.includes("failed to fetch") || m.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
   return "No pudimos completar la acción. Inténtalo nuevamente.";
@@ -303,7 +358,7 @@ Befine.auth = {
     } catch (e) { return null; }
   },
   async ingresar(email, password) {
-    const { error } = await sb.auth.signInWithPassword({ email, password });
+    const { error } = await sb.auth.signInWithPassword({ email, password, options: await _conCaptcha() });
     if (error) return { ok: false, error: _msgAuth(error) };
     await Befine.reclamarInvitado(true);   // sus compras como invitado (mismo correo) pasan a la cuenta
     return { ok: true };
@@ -325,7 +380,7 @@ Befine.auth = {
     }
     const { data, error } = await sb.auth.signUp({
       email, password,
-      options: { data: { nombre, telefono }, emailRedirectTo: APP_URL ? APP_URL + "cuenta.html" : undefined },
+      options: await _conCaptcha({ data: { nombre, telefono }, emailRedirectTo: APP_URL ? APP_URL + "cuenta.html" : undefined }),
     });
     if (error) return { ok: false, error: _msgAuth(error) };
     // Si el proyecto exige confirmar correo, no hay sesión todavía
@@ -337,7 +392,8 @@ Befine.auth = {
     return error ? { ok: false, error: _msgAuth(error) } : { ok: true };
   },
   async recuperar(email) {
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: APP_URL ? APP_URL + "cuenta.html?modo=nueva" : undefined });
+    const { error } = await sb.auth.resetPasswordForEmail(email,
+      await _conCaptcha({ redirectTo: APP_URL ? APP_URL + "cuenta.html?modo=nueva" : undefined }));
     return error ? { ok: false, error: _msgAuth(error) } : { ok: true };
   },
   async nuevaClave(password) {
@@ -728,6 +784,7 @@ function _msgPedido(e) {
   if (low.includes("anonymous sign-ins are disabled")) return "La compra como invitado aún no está activada. Ingresa con tu cuenta para comprar.";
   if (low.includes("failed to fetch") || low.includes("network")) return "Sin conexión. Revisa tu internet e inténtalo de nuevo.";
   if (low.includes("rate limit") || low.includes("too many")) return "Demasiados intentos. Espera un minuto e inténtalo de nuevo.";
+  if (low.includes("captcha")) return "No pudimos verificar que eres una persona. Recarga la página e inténtalo de nuevo.";
   // Mensajes propios de la función (validaciones de negocio en español)
   if (m && !/permission|jwt|function|relation|column|syntax|violates|null value|pgrst/i.test(m)) return m;
   return "No pudimos crear el pedido. Inténtalo de nuevo.";
@@ -738,7 +795,7 @@ function _msgPedido(e) {
 async function _sesionCompra() {
   const { data } = await sb.auth.getSession();
   if (data && data.session) return data.session.user;
-  const { data: d2, error } = await sb.auth.signInAnonymously();
+  const { data: d2, error } = await sb.auth.signInAnonymously({ options: await _conCaptcha() });
   if (error) throw error;
   return d2.user;
 }
