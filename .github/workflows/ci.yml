@@ -58,6 +58,8 @@ jobs:
           curl -fsSI http://localhost:8080/ | tee cabeceras.txt
           grep -qi "x-content-type-options: nosniff" cabeceras.txt
           grep -qi "x-frame-options: sameorigin" cabeceras.txt
+          grep -qi "content-security-policy: default-src 'self'" cabeceras.txt
+          grep -qi "strict-transport-security: max-age=" cabeceras.txt
       - name: Detener el contenedor
         if: always()
         run: docker rm -f befine || true

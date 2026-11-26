@@ -11,20 +11,21 @@
     const v = p.variantes[0]; // variante por defecto (para el botón rápido)
     const desde = p.variantes.length > 1;
     const foto = Befine.foto(p.imagen_url, "sm");
+    const e = Befine.esc;   // todo texto de la base se escapa (auditoría 25-nov, XSS)
     return `
       <article class="card reveal">
-        <a class="vessel${foto ? " con-foto" : ""}" style="--v-grad:${grad}" href="${Befine.urlProducto(p)}" aria-label="${p.nombre}">
-          ${foto ? `<img class="foto-prod" src="${foto}" alt="${p.nombre.replace(/"/g, "&quot;")}" width="400" height="400" loading="lazy" decoding="async">` : ""}
-          <span class="tag">${p.categoria}</span>${p.desde_comparacion ? `<span class="oferta">Oferta</span>` : ""}
+        <a class="vessel${foto ? " con-foto" : ""}" style="--v-grad:${grad}" href="${Befine.urlProducto(p)}" aria-label="${e(p.nombre)}">
+          ${foto ? `<img class="foto-prod" src="${e(foto)}" alt="${e(p.nombre)}" width="400" height="400" loading="lazy" decoding="async">` : ""}
+          <span class="tag">${e(p.categoria)}</span>${p.desde_comparacion ? `<span class="oferta">Oferta</span>` : ""}
         </a>
         <div class="body">
-          <a href="${Befine.urlProducto(p)}"><h3>${p.nombre}</h3></a>
-          <span class="cat">${p.categoria}</span>${p.a_pedido ? `<span class="a-pedido">Disponible a pedido · ${Befine.plazoAPedido()}</span>` : ""}
+          <a href="${Befine.urlProducto(p)}"><h3>${e(p.nombre)}</h3></a>
+          <span class="cat">${e(p.categoria)}</span>${p.a_pedido ? `<span class="a-pedido">Disponible a pedido · ${Befine.plazoAPedido()}</span>` : ""}
           <div class="price-row">
             <span class="price">${desde ? "<small>desde </small>" : ""}${Befine.clp(p.desde_precio)}${p.desde_comparacion ? ` <s>${Befine.clp(p.desde_comparacion)}</s>` : ""}</span>
             <button class="btn btn-primary"
-              data-add="${v.id}" data-prod="${p.id}" data-url="${Befine.urlProducto(p)}" data-nombre="${p.nombre.replace(/"/g, "&quot;")}"
-              data-variante="${v.nombre}" data-precio="${v.precio}" data-grad="${grad}"${foto ? ` data-foto="${foto}"` : ""}${v.suma_puntos ? " data-puntos" : ""}${v.a_pedido ? " data-apedido" : ""}>
+              data-add="${e(v.id)}" data-prod="${e(p.id)}" data-url="${Befine.urlProducto(p)}" data-nombre="${e(p.nombre)}"
+              data-variante="${e(v.nombre)}" data-precio="${e(v.precio)}" data-grad="${grad}"${foto ? ` data-foto="${e(foto)}"` : ""}${v.suma_puntos ? " data-puntos" : ""}${v.a_pedido ? " data-apedido" : ""}>
               ${desde ? "Elegir" : "Comprar"}
             </button>
           </div>

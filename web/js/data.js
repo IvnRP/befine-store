@@ -142,6 +142,12 @@ const Befine = {
     return "$" + Number(n).toLocaleString("es-CL");
   },
 
+  /* Escapa texto antes de ponerlo en HTML (nombres de productos, categorías, variantes, carrito).
+     Auditoría 25-nov (pendiente "frontend", XSS): lo que viene de la base o del navegador nunca se pinta como HTML. */
+  esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  },
+
   /* Categorías para los filtros del catálogo */
   async listCategorias() {
     const { data, error } = await sb.from("categorias").select("*").order("id");
