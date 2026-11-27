@@ -12,8 +12,12 @@
 //    a la API de Mercado Pago con el Access Token (secreto).
 //  - confirmar_pago() verifica que el monto pagado = total del pedido y es
 //    idempotente (si Mercado Pago repite el aviso, no duplica nada).
-//  - Si existe el secreto MP_WEBHOOK_SECRET, se valida además la firma
-//    x-signature que envía Mercado Pago.
+//  - Si existe el secreto MP_WEBHOOK_SECRET, se EXIGE la firma x-signature
+//    de Mercado Pago (HMAC-SHA256, comparación en tiempo constante, con
+//    marca de tiempo razonable). Sin firma válida → 401 y no se consulta nada.
+//    (Auditoría 25-nov, #1.) Sin el secreto la función sigue funcionando,
+//    pero lo advierte en los registros en cada aviso.
+//  - Solo se aceptan pagos en pesos chilenos (CLP).
 //  - Esta función se publica con "Verify JWT" DESACTIVADO, porque Mercado
 //    Pago no envía un JWT de Supabase.
 //
@@ -47,16 +51,43 @@ async function hmacHex(clave: string, texto: string) {
   return Array.from(new Uint8Array(firma)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Compara dos textos sin filtrar por tiempo cuántos caracteres coinciden (evita adivinar la firma byte a byte)
+function igualSeguro(a: string, b: string) {
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b);
+  let dif = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) dif |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return dif === 0;
+}
+
+// Marca de tiempo de la firma (se aceptan segundos o milisegundos).
+// Se rechaza una fecha del futuro (> 10 min) o muy antigua (> 7 días): Mercado Pago reintenta por días,
+// y repetir un aviso legítimo no hace daño (el pago se consulta a la API y confirmar_pago es idempotente).
+const MAX_FUTURO_MS = 10 * 60 * 1000, MAX_ANTIGUO_MS = 7 * 24 * 3600 * 1000;
+function tsRazonable(ts: string, ahora = Date.now()) {
+  if (!/^\d{9,14}$/.test(ts)) return false;
+  const ms = ts.length >= 12 ? Number(ts) : Number(ts) * 1000;
+  return ms - ahora <= MAX_FUTURO_MS && ahora - ms <= MAX_ANTIGUO_MS;
+}
+
 // Firma de Mercado Pago: x-signature = "ts=...,v1=..."; manifiesto "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
 async function firmaValida(req: Request, dataId: string) {
-  if (!MP_SECRET) return true; // sin secreto configurado, la seguridad descansa en consultar el pago a la API
+  if (!MP_SECRET) {
+    console.warn("MP_WEBHOOK_SECRET no está configurado: el aviso no se puede autenticar (configúralo en Secrets).");
+    return true; // sin secreto, la seguridad descansa en consultar el pago a la API con el Access Token
+  }
   const sig = req.headers.get("x-signature") ?? "";
   const reqId = req.headers.get("x-request-id") ?? "";
-  const partes = Object.fromEntries(sig.split(",").map((p) => p.trim().split("=").map((s) => s.trim())));
-  if (!partes.ts || !partes.v1) return false;
+  const partes: Record<string, string> = {};
+  for (const p of sig.split(",")) {
+    const i = p.indexOf("=");
+    if (i > 0) partes[p.slice(0, i).trim()] = p.slice(i + 1).trim();
+  }
+  if (!partes.ts || !partes.v1 || !/^[0-9a-f]{64}$/i.test(partes.v1)) return false;
+  if (!tsRazonable(partes.ts)) return false;
   const id = /^[a-z0-9]+$/i.test(dataId) ? dataId.toLowerCase() : dataId;
-  const manifiesto = `id:${id};request-id:${reqId};ts:${partes.ts};`;
-  return (await hmacHex(MP_SECRET, manifiesto)) === partes.v1;
+  // Según Mercado Pago, si un dato no viene en el aviso se quita del manifiesto
+  const manifiesto = (id ? `id:${id};` : "") + (reqId ? `request-id:${reqId};` : "") + `ts:${partes.ts};`;
+  return igualSeguro(await hmacHex(MP_SECRET, manifiesto), partes.v1.toLowerCase());
 }
 
 const clp = (n: number) => "$" + Math.round(Number(n) || 0).toLocaleString("es-CL");
@@ -112,17 +143,23 @@ Deno.serve(async (req) => {
   const paymentId = String(body?.data?.id ?? url.searchParams.get("data.id") ?? url.searchParams.get("id") ?? "");
 
   // Solo interesan los avisos de pago; el resto se confirma con 200 para que MP no reintente
-  if (tipo !== "payment" || !/^\d+$/.test(paymentId)) return ok({ ok: true, ignorado: tipo || "sin_tipo" });
+  if (tipo !== "payment" || !/^\d{1,20}$/.test(paymentId)) return ok({ ok: true, ignorado: tipo || "sin_tipo" });
 
   if (!(await firmaValida(req, paymentId))) {
-    console.warn("Firma de Mercado Pago inválida", paymentId);
+    const sig = req.headers.get("x-signature") ?? "";
+    console.warn("Firma de Mercado Pago inválida", paymentId, JSON.stringify({   // diagnóstico (nunca muestra la clave)
+      con_firma: !!sig, con_request_id: !!req.headers.get("x-request-id"),
+      ts: (sig.match(/ts=([^,]+)/) || [])[1] ?? null, id_en_url: url.searchParams.get("data.id"),
+    }));
     return ok({ error: "Firma inválida" }, 401);
   }
 
   // 1. Consultar el pago real a Mercado Pago
   const r = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${MP_TOKEN}` },
-  });
+    signal: AbortSignal.timeout(10000),
+  }).catch((e) => { console.error("Consultar pago", e); return null; });
+  if (!r) return ok({ error: "No se pudo consultar el pago" }, 502); // MP reintentará
   if (!r.ok) {
     console.error("Consultar pago", r.status, await r.text());
     return ok({ error: "No se pudo consultar el pago" }, 502); // MP reintentará
@@ -136,6 +173,10 @@ Deno.serve(async (req) => {
   }
   // Pendiente o rechazado: el pedido sigue en pendiente_pago; se informa y no se reintenta
   if (pago.status !== "approved") return ok({ ok: true, pedido: pedidoId, estado_pago: pago.status });
+  if (pago.currency_id && pago.currency_id !== "CLP") {
+    console.warn("Pago en otra moneda, no se confirma", paymentId, pago.currency_id);
+    return ok({ ok: true, ignorado: "moneda" });
+  }
 
   // 2. Confirmar el pedido en la base (solo service_role puede hacerlo)
   const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });

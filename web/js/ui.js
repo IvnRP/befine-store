@@ -143,17 +143,17 @@
       <div class="cart-item">
         <div class="thumb${i.foto ? " con-foto" : ""}" style="${window.fondoItem(i)}"></div>
         <div class="info">
-          <h4>${i.nombre}</h4>
-          ${i.variante && i.variante !== "Estándar" ? `<div class="var">${i.variante}</div>` : ""}
+          <h4>${Befine.esc(i.nombre)}</h4>
+          ${i.variante && i.variante !== "Estándar" ? `<div class="var">${Befine.esc(i.variante)}</div>` : ""}
           ${i.a_pedido ? `<div class="var"><b>Disponible a pedido</b></div>` : ""}
           <div class="price">${Befine.clp(i.precio)} · x${i.cantidad}</div>
           <div class="stepper" style="margin-top:6px">
-            <button data-dec="${i.variante_id}" aria-label="Menos">−</button>
-            <input value="${i.cantidad}" readonly aria-label="Cantidad de ${i.nombre.replace(/"/g, "&quot;")}">
-            <button data-inc="${i.variante_id}" aria-label="Más">+</button>
+            <button data-dec="${Befine.esc(i.variante_id)}" aria-label="Menos">−</button>
+            <input value="${Befine.esc(i.cantidad)}" readonly aria-label="Cantidad de ${Befine.esc(i.nombre)}">
+            <button data-inc="${Befine.esc(i.variante_id)}" aria-label="Más">+</button>
           </div>
         </div>
-        <button class="remove" data-del="${i.variante_id}">Quitar</button>
+        <button class="remove" data-del="${Befine.esc(i.variante_id)}">Quitar</button>
       </div>`).join("");
     if (totalEl) totalEl.textContent = Befine.clp(Store.total());
 

@@ -1,9 +1,16 @@
 # Cabeceras del sitio publicado (Cloudflare Pages / Netlify). Mismas reglas que docker/nginx.conf.
+# Seguridad (auditoría 25-nov, pendiente "headers del hosting"): Content-Security-Policy = el navegador solo ejecuta el código de
+# este sitio (+ las 2 líneas en línea de tema e intro, por su huella sha256) y solo se conecta a Supabase.
+# Si se cambia el <script> en línea de alguna página, hay que actualizar su sha256 aquí y en
+# docker/nginx.conf (la prueba CP-U45 avisa si no calzan).
 /*
   X-Content-Type-Options: nosniff
   X-Frame-Options: SAMEORIGIN
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), midi=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000
+  Cross-Origin-Opener-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-VKFCEqpoX4BPvGCl0v+sjDkiipxcbsyFw1XBjW+L4fk=' 'sha256-S+VENnpKhoiyXShSAHERoorPLZVNo1fHsHX6KxASdT4=' https://static.cloudflareinsights.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://tbnevbvvwwzpnowxqyps.supabase.co; connect-src 'self' https://tbnevbvvwwzpnowxqyps.supabase.co wss://tbnevbvvwwzpnowxqyps.supabase.co https://cloudflareinsights.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests
 
 # Imágenes: caché larga (cambian de nombre cuando cambian)
 /assets/*

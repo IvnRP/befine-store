@@ -243,8 +243,8 @@
       <div class="r-item">
         <div class="th${i.foto ? " con-foto" : ""}" style="${window.fondoItem(i)}"></div>
         <div><div class="nm">${esc(i.nombre)}</div>${i.variante && i.variante !== "Estándar" ? `<div class="vr">${esc(i.variante)}</div>` : ""}${aPedido.get(i.variante_id) ? `<div class="ap">Disponible a pedido</div>` : ""}
-          <div class="qty" role="group" aria-label="Cantidad de ${esc(i.nombre)}"><button type="button" data-dec="${i.variante_id}" aria-label="Quitar uno">−</button><span>${i.cantidad}</span><button type="button" data-inc="${i.variante_id}" aria-label="Agregar uno">+</button></div></div>
-        <div class="pr">${clp(i.precio * i.cantidad)}<button type="button" data-del="${i.variante_id}">Quitar</button></div>
+          <div class="qty" role="group" aria-label="Cantidad de ${esc(i.nombre)}"><button type="button" data-dec="${esc(i.variante_id)}" aria-label="Quitar uno">−</button><span>${esc(i.cantidad)}</span><button type="button" data-inc="${esc(i.variante_id)}" aria-label="Agregar uno">+</button></div></div>
+        <div class="pr">${clp(i.precio * i.cantidad)}<button type="button" data-del="${esc(i.variante_id)}">Quitar</button></div>
       </div>`).join("");
     $("coItems").onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;

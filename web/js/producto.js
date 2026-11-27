@@ -64,10 +64,10 @@
     cont.innerHTML = `
       <div class="media${foto ? " con-foto" : ""}" style="--v-grad:${grad}">${foto ? `
         <img class="foto-prod" src="${foto}" srcset="${fotoSm} 400w, ${foto} 1000w" sizes="(max-width: 860px) 100vw, 560px"
-             alt="${p.nombre.replace(/"/g, "&quot;")}" width="1000" height="1000" fetchpriority="high" decoding="async">` : ""}</div>
+             alt="${esc(p.nombre)}" width="1000" height="1000" fetchpriority="high" decoding="async">` : ""}</div>
       <div class="buybox">
-        <div class="breadcrumb"><a href="index.html">Inicio</a> / <a href="catalogo.html?cat=${p.categoria_slug}">${p.categoria}</a></div>
-        <h1>${p.nombre}</h1>
+        <div class="breadcrumb"><a href="index.html">Inicio</a> / <a href="catalogo.html?cat=${encodeURIComponent(p.categoria_slug || "")}">${esc(p.categoria)}</a></div>
+        <h1>${esc(p.nombre)}</h1>
         <p class="desc">${descHTML(p.descripcion)}</p>
         <p class="price" id="fPrecio">${variante.precio_comparacion ? `<span class="oferta">Oferta</span> ` : ""}${Befine.clp(variante.precio)}${variante.precio_comparacion ? ` <s>${Befine.clp(variante.precio_comparacion)}</s>` : ""}</p>
 
@@ -75,7 +75,7 @@
         <div class="variantes">
           <div class="lbl">Elige una opción</div>
           <div class="opts" id="fOpts">
-            ${p.variantes.map((v, idx) => `<button class="opt ${idx === 0 ? "active" : ""}" data-v="${v.id}">${v.nombre} · ${Befine.clp(v.precio)}</button>`).join("")}
+            ${p.variantes.map((v, idx) => `<button class="opt ${idx === 0 ? "active" : ""}" data-v="${esc(v.id)}">${esc(v.nombre)} · ${Befine.clp(v.precio)}</button>`).join("")}
           </div>
         </div>` : ""}
 

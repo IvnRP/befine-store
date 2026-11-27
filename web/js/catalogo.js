@@ -16,7 +16,7 @@
     const cats = await Befine.listCategorias();
     filtros.innerHTML =
       `<button class="active" data-cat="">Todos</button>` +
-      cats.map((c) => `<button data-cat="${c.slug}">${c.nombre}</button>`).join("");
+      cats.map((c) => `<button data-cat="${Befine.esc(c.slug)}">${Befine.esc(c.nombre)}</button>`).join("");
     filtros.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-cat]"); if (!b) return;
       filtros.querySelectorAll("button").forEach((x) => x.classList.remove("active"));
@@ -32,7 +32,7 @@
     const url = new URLSearchParams(location.search);
     if (url.get("cat")) {
       estado.categoria = url.get("cat");
-      const b = filtros.querySelector(`button[data-cat="${estado.categoria}"]`);
+      const b = filtros.querySelector(`button[data-cat="${CSS.escape(estado.categoria)}"]`);
       if (b) { filtros.querySelectorAll("button").forEach((x) => x.classList.remove("active")); b.classList.add("active"); }
     }
     if (url.get("q")) { estado.q = url.get("q"); if (search) search.value = estado.q; }
