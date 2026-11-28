@@ -171,7 +171,7 @@
     const email = c.email || k.email;
     const r = c.resumen || {};
     const ticket = r.pedidos ? Math.round(r.gastado / r.pedidos) : 0;
-    const wa = L.linkWhatsApp(tel, `Hola ${nombre.split(" ")[0]}, te escribimos de Befine.`);
+    const wa = L.linkWhatsApp(tel, `${L.saludo(nombre)}. Le saluda Agua Purificada Befine.`);
     const llamar = L.telLink(tel);
     const gestiona = app.puede("clientes.gestionar") && !c.invitado;
     const verPed = pedidosVisibles();

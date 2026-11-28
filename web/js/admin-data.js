@@ -206,6 +206,40 @@
       return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
     },
 
+    /* ================= VENTAS DEL CHOFER Y CAJA (migración 23) =================
+       El servidor pone los precios, descuenta stock y arma el WhatsApp de agradecimiento. */
+    /* d = { lineas:[{variante_id,cantidad}], pago, direccion, telefono (8 dígitos), trato, nombre, descuento, nota } */
+    async registrarVenta(d) {
+      const tel = String(d.telefono || "").replace(/\D/g, "");
+      const { data, error } = await sb.rpc("registrar_venta_reparto", {
+        p_items: (d.lineas || []).filter((l) => Number(l.cantidad) > 0).map((l) => ({ variante_id: l.variante_id, cantidad: Number(l.cantidad) })),
+        p_pago: d.pago, p_direccion: d.direccion, p_telefono: tel ? "569" + tel : null,
+        p_trato: d.trato || null, p_nombre: d.nombre || null, p_descuento: Number(d.descuento) || 0, p_nota: d.nota || null,
+      });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+    async anularVenta(id, motivo) {
+      const { data, error } = await sb.rpc("anular_venta_reparto", { p_venta: id, p_motivo: motivo || null });
+      return error ? { ok: false, error: msgAdmin(error) } : { ok: true, ...data };
+    },
+    /* Dirección, trato y nombre de la última venta con ese celular (8 dígitos) o null */
+    async clienteReparto(tel8) {
+      const { data, error } = await sb.rpc("cliente_reparto", { p_telefono: "569" + tel8 });
+      return error ? null : data || null;
+    },
+    /* Planilla del chofer: { fecha, ventas:[…], entregas:{cantidad,total,efectivo,…} } */
+    async misVentas(fecha) {
+      const { data, error } = await sb.rpc("mis_ventas_reparto", { p_fecha: fecha || null });
+      if (error) throw error;
+      return data || { ventas: [], entregas: {} };
+    },
+    /* Caja del admin: { totales, por_dia, por_chofer, choferes, ventas } */
+    async caja(desde, hasta, chofer) {
+      const { data, error } = await sb.rpc("caja_resumen", { p_desde: desde, p_hasta: hasta, p_chofer: chofer || null });
+      if (error) throw error;
+      return data;
+    },
+
     /* ================= CLIENTES (HU-23 · RF-19 · migración 14) =================
        Funciones del servidor: exigen clientes.ver (lista y ficha) o clientes.gestionar (editar).
        El correo viene de Auth y solo lo entrega el servidor a quien tiene permiso (Ley 21.719). */

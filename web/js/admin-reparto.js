@@ -45,11 +45,15 @@
   function montar(seccion, appCtx) {
     el = seccion; app = appCtx;
     const registra = app && app.puede("pedidos.registrar");
+    // El chofer anota sus ventas con el formulario rápido (sección Ventas, migración 23); el admin conserva
+    // además el pedido completo fuera de la página (agendado, con boleta o factura, entra a la ruta).
+    const esAdmin = !!(app && app.ctx && app.ctx.perfil && app.ctx.perfil.rol === "admin");
     el.innerHTML = `
       <div class="pn-head">
         <div><h1>Reparto</h1><p id="rpSub">Pedidos para entregar</p></div>
         <div class="acciones">
-          ${registra ? `<button class="pn-btn" type="button" id="rpNuevo">${ICONOS.mas}<span>Pedido fuera de la página</span></button>` : ""}
+          ${registra ? `<button class="pn-btn" type="button" id="rpAnotar">${ICONOS.mas}<span>Anotar venta</span></button>` : ""}
+          ${registra && esAdmin ? `<button class="pn-btn ghost" type="button" id="rpNuevo">${ICONOS.mas}<span>Pedido agendado</span></button>` : ""}
           <button class="pn-btn ghost" type="button" id="rpRecargar" title="Actualizar">${ICONOS.recargar}<span>Actualizar</span></button>
         </div>
       </div>
@@ -92,6 +96,8 @@
     el.querySelector("#rpRecargar").addEventListener("click", (e) => UI.conCarga(e.currentTarget, cargar));
     const nuevo = el.querySelector("#rpNuevo");
     if (nuevo) nuevo.addEventListener("click", (e) => abrirFormulario(e.currentTarget));
+    const anotar = el.querySelector("#rpAnotar");
+    if (anotar) anotar.addEventListener("click", (e) => window.AdminApp.Ventas && window.AdminApp.Ventas.abrirAnotar(e.currentTarget));
     el.querySelector("#rpLista").addEventListener("click", (e) => {
       const b = e.target.closest("[data-rp]"); if (!b) return;
       if (b.dataset.rp === "avisar") reenviar(b);
