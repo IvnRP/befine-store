@@ -101,6 +101,7 @@ test("CP-U45f CAPTCHA (Turnstile): ingreso, registro, recuperación e invitado e
   const csp = (leer("deploy", "_headers").match(/Content-Security-Policy: (.+)/) || [])[1];
   assert.match(csp, /script-src[^;]*https:\/\/challenges\.cloudflare\.com/);
   assert.match(csp, /frame-src https:\/\/challenges\.cloudflare\.com/);
+  assert.match(csp, /img-src[^;]*https:\/\/lh3\.googleusercontent\.com/);   // fotos de perfil de las reseñas de Google
   // Sin navegador (o si Turnstile no carga) no hay token y la acción sigue igual
   const W = cargar(["data.js"]);
   assert.match(W.Befine.auth.ingresar.toString(), /_conCaptcha/);
