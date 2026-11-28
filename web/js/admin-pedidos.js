@@ -206,7 +206,7 @@
     if (!p) return UI.abrirDetalle(`<div class="pn-vacio">No encontramos el pedido.</div>`);
 
     const nom = (p.contacto_nombre || "").split(" ")[0] || "";
-    const wa = L.linkWhatsApp(p.contacto_telefono, `Hola ${nom}, te escribimos de Befine por tu pedido #${p.numero}.`);
+    const wa = L.linkWhatsApp(p.contacto_telefono, `${L.saludo(nom)}. Le escribimos de Agua Purificada Befine por su pedido #${p.numero}.`);
     const items = (p.detalle_pedido || []).map((d) => {
       const v = d.variante || {}, pr = v.producto || {};
       return `<li><span class="q">${d.cantidad}×</span><span class="n">${esc(pr.nombre || "Producto")}${v.nombre && v.nombre !== "Estándar" ? ` <small>${esc(v.nombre)}</small>` : ""}<small>${esc(v.sku || "")} · ${clp(d.precio_unitario)} c/u</small></span><b>${clp(d.subtotal)}</b></li>`;

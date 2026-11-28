@@ -229,6 +229,13 @@
             </div>
           </a>`;
         }).join("");
+        // Si la foto de perfil de Google no carga, se muestra la inicial (sin manejadores en línea: CSP)
+        revGrid.querySelectorAll("img.avatar").forEach((img) => img.addEventListener("error", () => {
+          const s = document.createElement("span");
+          s.className = "avatar"; s.setAttribute("aria-hidden", "true");
+          s.textContent = (img.closest(".rev-card").querySelector(".name").textContent.trim().charAt(0) || "?").toUpperCase();
+          img.replaceWith(s);
+        }, { once: true }));
         revSec.classList.add("in");
         initRevCarousel();
       }

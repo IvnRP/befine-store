@@ -12,7 +12,8 @@
     "pedidos.ver", "pedidos.gestionar", "pedidos.repartir", "catalogo.gestionar", "precios.gestionar",
     "promociones.gestionar", "despacho.gestionar", "clientes.ver", "clientes.gestionar",
     "pagos.gestionar", "documentos.gestionar", "puntos.gestionar", "config.gestionar",
-    "pedidos.registrar",   // pedidos fuera de la página (migración 21)
+    "pedidos.registrar",   // pedidos fuera de la página (migración 21) y ventas del chofer (migración 23)
+    "caja.ver",            // caja: ventas del día, semana y mes de todo el equipo (migración 23)
   ];
 
   /* Permisos efectivos de un rol. El admin tiene todos (igual que tiene_permiso() en la BD);
@@ -33,6 +34,7 @@
   const SECCIONES = [
     { id: "pedidos", txt: "Pedidos", requiere: ["pedidos.ver", "pedidos.gestionar"] },
     { id: "reparto", txt: "Reparto", requiere: ["pedidos.repartir"] },
+    { id: "ventas", txt: "Ventas", requiere: ["pedidos.registrar", "caja.ver"] },
     { id: "clientes", txt: "Clientes", requiere: ["clientes.ver", "clientes.gestionar"] },
     { id: "catalogo", txt: "Catálogo y precios", requiere: ["catalogo.gestionar", "precios.gestionar"] },
     { id: "inventario", txt: "Inventario", requiere: ["catalogo.gestionar"] },
@@ -769,6 +771,106 @@
     return r;
   }
 
+  /* ================= VENTAS DEL CHOFER Y CAJA (migración 23) =================
+     El chofer anota cada venta en pocos toques (productos, pago, dirección y celular). El servidor
+     pone los precios y descuenta stock. El admin ve la caja del día, la semana o el mes. */
+  const TRATOS = { don: "Don", sra: "Sra.", srta: "Srta." };
+  const METODOS_VENTA = ["efectivo", "transferencia", "tarjeta"];
+
+  /* Recargas primero (lo que más se vende), luego bidones y el resto; dentro, por nombre */
+  function ordenarProductosVenta(productos) {
+    const rango = (p) => { const n = norm(p.producto); return n.startsWith("recarga") ? 0 : n.startsWith("bidon") ? 1 : n.startsWith("pack") ? 3 : 2; };
+    return (productos || []).slice().sort((a, b) => rango(a) - rango(b) ||
+      String(a.producto).localeCompare(String(b.producto), "es") || String(a.variante || "").localeCompare(String(b.variante || ""), "es"));
+  }
+
+  /* Los 8 dígitos del celular, escriba como escriba (+56 9 1234 5678, 912345678, 1234 5678) */
+  function celular8(v) {
+    let d = String(v == null ? "" : v).replace(/\D/g, "");
+    if (d.startsWith("569") && d.length === 11) d = d.slice(3);
+    else if (d.startsWith("9") && d.length === 9) d = d.slice(1);
+    return d.slice(0, 8);
+  }
+
+  /* Total de la venta con los precios del catálogo (el servidor lo vuelve a calcular) */
+  function calcularVenta(cantidades, productos, descuento) {
+    const r = { lineas: [], unidades: 0, subtotal: 0, descuento: 0, total: 0 };
+    for (const p of productos || []) {
+      const c = Math.max(0, Math.min(200, Math.floor(Number((cantidades || {})[p.variante_id]) || 0)));
+      if (!c) continue;
+      r.lineas.push({ variante_id: p.variante_id, cantidad: c, producto: p.producto, variante: p.variante, precio: Number(p.precio) || 0 });
+      r.unidades += c; r.subtotal += c * (Number(p.precio) || 0);
+    }
+    r.descuento = Math.max(0, Math.min(r.subtotal, Math.floor(Number(descuento) || 0)));
+    r.total = r.subtotal - r.descuento;
+    return r;
+  }
+
+  /* Errores por campo (vacío = se puede guardar) */
+  function validarVenta(d) {
+    const e = {};
+    if (!d || !d.lineas || !d.lineas.length) e.lineas = "Toca + en al menos un producto.";
+    if (!METODOS_VENTA.includes(d && d.pago)) e.pago = "Elige cómo pagó.";
+    if (String((d && d.direccion) || "").trim().length < 3) e.direccion = "Anota la dirección.";
+    const tel = String((d && d.telefono) || "").replace(/\D/g, "");
+    if (tel && tel.length !== 8) e.telefono = "Son 8 números después del +56 9.";
+    if (Number(d && d.descuento) < 0) e.descuento = "El descuento no puede ser negativo.";
+    else if (d && Number(d.descuento) > Number(d.subtotal || 0)) e.descuento = "El descuento no puede ser mayor que la venta.";
+    return e;
+  }
+
+  /* Totales de la planilla (sin las anuladas) */
+  function resumenVentas(ventas) {
+    const r = { ventas: 0, total: 0, unidades: 0, anuladas: 0, efectivo: 0, transferencia: 0, tarjeta: 0 };
+    for (const v of ventas || []) {
+      if (!v) continue;
+      if (v.anulada) { r.anuladas++; continue; }
+      const t = Number(v.total) || 0;
+      r.ventas++; r.total += t;
+      if (r[v.metodo_pago] != null) r[v.metodo_pago] += t;
+      for (const i of v.items || []) r.unidades += Number(i.cantidad) || 0;
+    }
+    return r;
+  }
+
+  /* Rango de fechas de cada periodo de la caja (semana: lunes a domingo; mes: del 1 a hoy) */
+  function rangoPeriodo(periodo, hoy, desde, hasta) {
+    const h = hoy && typeof hoy.getTime === "function" ? new Date(hoy.getTime()) : new Date();
+    const iso = (d) => diaLocal(d);
+    if (periodo === "semana") {
+      const lunes = new Date(h); lunes.setDate(h.getDate() - ((h.getDay() + 6) % 7));
+      return { desde: iso(lunes), hasta: iso(h), txt: "Esta semana" };
+    }
+    if (periodo === "mes") return { desde: iso(new Date(h.getFullYear(), h.getMonth(), 1)), hasta: iso(h), txt: "Este mes" };
+    if (periodo === "rango" && /^\d{4}-\d{2}-\d{2}$/.test(desde || "") && /^\d{4}-\d{2}-\d{2}$/.test(hasta || "")) {
+      return desde <= hasta ? { desde, hasta, txt: "Rango elegido" } : { desde: hasta, hasta: desde, txt: "Rango elegido" };
+    }
+    return { desde: iso(h), hasta: iso(h), txt: "Hoy" };
+  }
+
+  /* Saludo cordial según la hora: "Buenas tardes, Don Juan" (trato solo si hay nombre) */
+  function saludo(nombre, trato, fecha) {
+    const h = (fecha && typeof fecha.getHours === "function" ? fecha : new Date()).getHours();
+    const base = h < 12 ? "Buenos días" : h < 20 ? "Buenas tardes" : "Buenas noches";
+    const n = String(nombre || "").trim().split(/\s+/)[0] || "";
+    if (!n) return base;
+    const nom = n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+    return `${base}, ${TRATOS[trato] ? TRATOS[trato] + " " : ""}${nom}`;
+  }
+
+  /* Planilla de la caja en CSV (separador ; para Excel en español) */
+  function csvCaja(ventas) {
+    const c = (v) => { const s = String(v == null ? "" : v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const filas = [["N°", "Fecha", "Hora", "Chofer", "Productos", "Unidades", "Medio de pago", "Descuento", "Total", "Dirección", "Celular", "Estado"]];
+    for (const v of ventas || []) {
+      const items = (v.items || []).map((i) => `${i.cantidad} x ${i.producto}${i.variante ? " (" + i.variante + ")" : ""}`).join(" + ");
+      const u = (v.items || []).reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
+      filas.push([v.numero, v.fecha, v.hora, v.chofer, items, u, METODOS_PAGO[v.metodo_pago] || v.metodo_pago, v.descuento || 0, v.total,
+                  v.direccion, v.telefono ? "+" + v.telefono : "", v.anulada ? "Anulada" : "Válida"]);
+    }
+    return "﻿" + filas.map((f) => f.map(c).join(";")).join("\r\n");
+  }
+
   root.AdminLogic = {
     PERMISOS, permisosDe, puede, SECCIONES, seccionesVisibles,
     FILTROS_KPI_PEDIDOS, cumpleKpiPedido, SEGMENTOS_KPI_CLIENTE, cumpleKpiCliente,
@@ -784,6 +886,7 @@
     normalizarTelefono, rutValido, formatoRut, validarCliente,
     CANALES, CANALES_MANUALES, METODOS_PAGO, METODOS_MANUALES, esFueraPagina, etiquetaCanal, textoCobro,
     calcularPedidoManual, validarPedidoManual, resumenEntregas,
+    TRATOS, METODOS_VENTA, ordenarProductosVenta, celular8, calcularVenta, validarVenta, resumenVentas, rangoPeriodo, saludo, csvCaja,
     montosDTE, netoUnitario, fmtCLP, valorPegar, documentoDe, pendienteDocumento, estadoCorreoDoc, datosHaulmer, leerNombreDTE, validarDocumento,
   };
 })(typeof window !== "undefined" ? window : globalThis);
